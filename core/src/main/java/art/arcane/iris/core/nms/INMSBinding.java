@@ -18,8 +18,10 @@
 
 package art.arcane.iris.core.nms;
 
-import art.arcane.iris.core.link.FoliaWorldsLink;
 import art.arcane.iris.core.link.Identifier;
+import art.arcane.iris.core.lifecycle.WorldLifecycleCaller;
+import art.arcane.iris.core.lifecycle.WorldLifecycleRequest;
+import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.nms.container.BiomeColor;
 import art.arcane.iris.core.nms.container.BlockProperty;
 import art.arcane.iris.core.nms.container.StructurePlacement;
@@ -40,6 +42,7 @@ import org.bukkit.block.Biome;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
 
 import java.awt.Color;
@@ -96,32 +99,31 @@ public interface INMSBinding {
     MCABiomeContainer newBiomeContainer(int min, int max);
 
     default World createWorld(WorldCreator c) {
-        if (c.generator() instanceof PlatformChunkGenerator gen
-                && missingDimensionTypes(gen.getTarget().getDimension().getDimensionTypeKey()))
-            throw new IllegalStateException("Missing dimension types to create world");
-        return c.createWorld();
+        WorldLifecycleRequest request = WorldLifecycleRequest.fromCreator(c, false, false, WorldLifecycleCaller.CREATE);
+        return createWorld(c, request);
     }
 
     default CompletableFuture<World> createWorldAsync(WorldCreator c) {
-        try {
-            if (c.generator() instanceof PlatformChunkGenerator gen
-                    && missingDimensionTypes(gen.getTarget().getDimension().getDimensionTypeKey())) {
-                return CompletableFuture.failedFuture(new IllegalStateException("Missing dimension types to create world"));
-            }
+        WorldLifecycleRequest request = WorldLifecycleRequest.fromCreator(c, false, false, WorldLifecycleCaller.CREATE);
+        return createWorldAsync(c, request);
+    }
 
-            if (J.isFolia()) {
-                FoliaWorldsLink link = FoliaWorldsLink.get();
-                if (link.isActive()) {
-                    CompletableFuture<World> future = link.createWorld(c);
-                    if (future != null) {
-                        return future;
-                    }
-                }
-            }
-            return CompletableFuture.completedFuture(createWorld(c));
+    default World createWorld(WorldCreator c, WorldLifecycleRequest request) {
+        validateDimensionTypes(c);
+        return WorldLifecycleService.get().createBlocking(request);
+    }
+
+    default CompletableFuture<World> createWorldAsync(WorldCreator c, WorldLifecycleRequest request) {
+        try {
+            validateDimensionTypes(c);
+            return WorldLifecycleService.get().create(request);
         } catch (Throwable e) {
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    default Object createRuntimeLevelStem(Object registryAccess, ChunkGenerator raw) {
+        throw new UnsupportedOperationException("Active NMS binding does not support runtime LevelStem creation.");
     }
 
     int countCustomBiomes();
@@ -169,4 +171,11 @@ public interface INMSBinding {
     void placeStructures(Chunk chunk);
 
     KMap<Identifier, StructurePlacement> collectStructures();
+
+    private void validateDimensionTypes(WorldCreator c) {
+        if (c.generator() instanceof PlatformChunkGenerator gen
+                && missingDimensionTypes(gen.getTarget().getDimension().getDimensionTypeKey())) {
+            throw new IllegalStateException("Missing dimension types to create world");
+        }
+    }
 }

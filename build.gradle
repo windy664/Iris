@@ -77,19 +77,9 @@ nmsBindings.each { key, value ->
         def nmsConfig = new Config()
         nmsConfig.jvm = 25
         nmsConfig.version = value
-        nmsConfig.type = Enum.valueOf(nmsTypeClass, 'DIRECT')
+        nmsConfig.type = Enum.valueOf(nmsTypeClass, 'USER_DEV')
         extensions.extraProperties.set('nms', nmsConfig)
         plugins.apply(NMSBinding)
-
-        TaskProvider<Download> updateSpecialSource = tasks.register('updateSpecialSource', Download) {
-            src('https://repo1.maven.org/maven2/net/md-5/SpecialSource/1.11.6/SpecialSource-1.11.6-shaded.jar')
-            dest(layout.buildDirectory.file('tools/SpecialSource-1.11.4.jar'))
-            overwrite(true)
-        }
-
-        tasks.named('remap').configure {
-            dependsOn(updateSpecialSource)
-        }
 
         dependencies {
             compileOnly(project(':core'))
@@ -107,7 +97,7 @@ def included = configurations.create('included')
 def jarJar = configurations.create('jarJar')
 dependencies {
     nmsBindings.keySet().each { key ->
-        add('included', project(path: ":nms:${key}", configuration: 'reobf'))
+        add('included', project(path: ":nms:${key}", configuration: 'runtimeElements'))
     }
     add('included', project(path: ':core', configuration: 'shadow'))
     add('jarJar', project(':core:agent'))
@@ -195,6 +185,7 @@ allprojects {
         maven { url = uri('https://mvn.lumine.io/repository/maven-public/') } // mythic
         maven { url = uri('https://nexus.phoenixdevt.fr/repository/maven-public/') } //MMOItems
         maven { url = uri('https://repo.onarandombox.com/content/groups/public/') } //Multiverse Core
+        maven { url = uri('https://repo.momirealms.net/releases/') } // CraftEngine
     }
 
     dependencies {

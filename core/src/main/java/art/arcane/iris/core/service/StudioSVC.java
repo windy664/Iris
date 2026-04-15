@@ -22,10 +22,12 @@ import com.google.gson.JsonSyntaxException;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
+import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.pack.IrisPack;
 import art.arcane.iris.core.project.IrisProject;
+import art.arcane.iris.core.runtime.TransientWorldCleanupSupport;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.IrisDimension;
@@ -46,7 +48,10 @@ import org.zeroturnaround.zip.commons.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class StudioSVC implements IrisService {
@@ -55,6 +60,7 @@ public class StudioSVC implements IrisService {
     private static final AtomicCache<Integer> counter = new AtomicCache<>();
     private final KMap<String, String> cacheListing = null;
     private IrisProject activeProject;
+    private CompletableFuture<art.arcane.iris.core.runtime.StudioOpenCoordinator.StudioCloseResult> activeClose;
 
     @Override
     public void onEnable() {
@@ -78,21 +84,41 @@ public class StudioSVC implements IrisService {
     public void onDisable() {
         Iris.debug("Studio Mode Active: Closing Projects");
         boolean stopping = IrisToolbelt.isServerStopping();
+        LinkedHashSet<String> worldNamesToDelete = new LinkedHashSet<>(TransientWorldCleanupSupport.collectTransientStudioWorldNames(Bukkit.getWorldContainer()));
 
-        for (World i : Bukkit.getWorlds()) {
-            if (IrisToolbelt.isIrisWorld(i)) {
-                if (IrisToolbelt.isStudio(i)) {
-                    PlatformChunkGenerator generator = IrisToolbelt.access(i);
-                    if (!stopping) {
-                        IrisToolbelt.evacuate(i);
-                    }
-
-                    if (generator != null) {
-                        generator.close();
-                    }
+        if (activeProject != null) {
+            PlatformChunkGenerator activeProvider = activeProject.getActiveProvider();
+            if (activeProvider != null) {
+                String activeWorldName = activeProvider.getTarget().getWorld().name();
+                if (activeWorldName != null && !activeWorldName.isBlank()) {
+                    worldNamesToDelete.add(activeWorldName);
                 }
             }
         }
+
+        for (World i : Bukkit.getWorlds()) {
+            if (!IrisToolbelt.isIrisWorld(i) || !IrisToolbelt.isStudio(i)) {
+                continue;
+            }
+
+            worldNamesToDelete.add(i.getName());
+            PlatformChunkGenerator generator = IrisToolbelt.access(i);
+            if (!stopping) {
+                destroyStudioWorld(i, generator);
+                continue;
+            }
+
+            if (generator != null) {
+                try {
+                    generator.close();
+                } catch (Throwable e) {
+                    Iris.reportError("Failed to close studio generator for \"" + i.getName() + "\" during shutdown.", e);
+                }
+            }
+        }
+
+        activeProject = null;
+        queueStudioWorldDeletionOnStartup(worldNamesToDelete);
     }
 
     public IrisDimension installIntoWorld(VolmitSender sender, String type, File folder) {
@@ -348,20 +374,46 @@ public class StudioSVC implements IrisService {
             open(sender, seed, dimm, (w) -> {
             });
         } catch (Exception e) {
-            Iris.reportError(e);
+            Iris.reportError("Failed to open studio world \"" + dimm + "\".", e);
             sender.sendMessage("Failed to open studio world: " + e.getMessage());
-            Iris.error("Studio world creation failed: " + e.getMessage());
         }
     }
 
     public void open(VolmitSender sender, long seed, String dimm, Consumer<World> onDone) throws IrisException {
-        if (isProjectOpen()) {
-            close();
-        }
+        CompletableFuture<art.arcane.iris.core.runtime.StudioOpenCoordinator.StudioCloseResult> pendingClose = close();
+        pendingClose.whenComplete((closeResult, closeThrowable) -> {
+            if (closeThrowable != null) {
+                Iris.reportError("Failed while closing an existing studio project before opening \"" + dimm + "\".", closeThrowable);
+                J.s(() -> sender.sendMessage("Failed to close the existing studio project: " + closeThrowable.getMessage()));
+                return;
+            }
 
-        IrisProject project = new IrisProject(new File(getWorkspaceFolder(), dimm));
-        activeProject = project;
-        project.open(sender, seed, onDone);
+            if (closeResult != null && closeResult.failureCause() != null) {
+                Throwable failure = closeResult.failureCause();
+                Iris.reportError("Failed while closing an existing studio project before opening \"" + dimm + "\".", failure);
+                J.s(() -> sender.sendMessage("Failed to close the existing studio project: " + failure.getMessage()));
+                return;
+            }
+
+            IrisProject project = new IrisProject(new File(getWorkspaceFolder(), dimm));
+            activeProject = project;
+            try {
+                project.open(sender, seed, onDone).whenComplete((result, throwable) -> {
+                    if (throwable == null) {
+                        return;
+                    }
+
+                    if (activeProject == project && !project.isOpen()) {
+                        activeProject = null;
+                    }
+                });
+            } catch (IrisException e) {
+                if (activeProject == project) {
+                    activeProject = null;
+                }
+                J.s(() -> sender.sendMessage("Failed to open studio world: " + e.getMessage()));
+            }
+        });
     }
 
     public void openVSCode(VolmitSender sender, String dim) {
@@ -376,11 +428,89 @@ public class StudioSVC implements IrisService {
         return Iris.instance.getDataFileList(WORKSPACE_NAME, sub);
     }
 
-    public void close() {
-        if (isProjectOpen()) {
-            Iris.debug("Closing Active Project");
-            activeProject.close();
-            activeProject = null;
+    public CompletableFuture<art.arcane.iris.core.runtime.StudioOpenCoordinator.StudioCloseResult> close() {
+        if (activeClose != null && !activeClose.isDone()) {
+            return activeClose;
+        }
+
+        if (activeProject == null) {
+            return CompletableFuture.completedFuture(new art.arcane.iris.core.runtime.StudioOpenCoordinator.StudioCloseResult(null, true, true, false, null, null));
+        }
+
+        Iris.debug("Closing Active Project");
+        IrisProject project = activeProject;
+        activeProject = null;
+        activeClose = project.close();
+        activeClose.whenComplete((result, throwable) -> activeClose = null);
+        return activeClose;
+    }
+
+    private void destroyStudioWorld(World world, PlatformChunkGenerator generator) {
+        try {
+            IrisToolbelt.evacuate(world);
+        } catch (Throwable e) {
+            Iris.reportError("Failed to evacuate studio world \"" + world.getName() + "\" during shutdown cleanup.", e);
+        }
+
+        if (generator != null) {
+            try {
+                generator.close();
+            } catch (Throwable e) {
+                Iris.reportError("Failed to close studio generator for \"" + world.getName() + "\" during shutdown cleanup.", e);
+            }
+        }
+
+        try {
+            WorldLifecycleService.get().unload(world, false);
+        } catch (Throwable e) {
+            Iris.reportError("Failed to unload studio world \"" + world.getName() + "\" during shutdown cleanup.", e);
+        }
+
+        deleteTransientStudioFolders(world.getName());
+    }
+
+    private void deleteTransientStudioFolders(String worldName) {
+        if (worldName == null || worldName.isBlank()) {
+            return;
+        }
+
+        File container = Bukkit.getWorldContainer();
+        for (String familyWorldName : TransientWorldCleanupSupport.worldFamilyNames(worldName)) {
+            File folder = new File(container, familyWorldName);
+            if (!folder.exists()) {
+                continue;
+            }
+
+            IO.delete(folder);
+        }
+    }
+
+    private void queueStudioWorldDeletionOnStartup(LinkedHashSet<String> worldNamesToDelete) {
+        if (worldNamesToDelete.isEmpty()) {
+            return;
+        }
+
+        LinkedHashSet<String> normalizedNames = new LinkedHashSet<>();
+        for (String worldName : worldNamesToDelete) {
+            String baseWorldName = TransientWorldCleanupSupport.transientStudioBaseWorldName(worldName);
+            if (baseWorldName != null) {
+                normalizedNames.add(baseWorldName);
+                continue;
+            }
+
+            if (worldName != null && !worldName.isBlank()) {
+                normalizedNames.add(worldName);
+            }
+        }
+
+        if (normalizedNames.isEmpty()) {
+            return;
+        }
+
+        try {
+            Iris.queueWorldDeletionOnStartup(List.copyOf(normalizedNames));
+        } catch (IOException e) {
+            Iris.reportError("Failed to queue studio world deletion on startup.", e);
         }
     }
 

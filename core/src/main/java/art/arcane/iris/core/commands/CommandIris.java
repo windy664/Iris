@@ -22,7 +22,7 @@ import art.arcane.iris.Iris;
 import art.arcane.iris.core.ExternalDataPackPipeline;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
-import art.arcane.iris.core.link.FoliaWorldsLink;
+import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.service.StudioSVC;
@@ -196,8 +196,7 @@ public class CommandIris implements DirectorExecutor {
             }
         } catch (Throwable e) {
             sender().sendMessage(C.RED + "Exception raised during creation. See the console for more details.");
-            Iris.error("Exception raised during world creation: " + e.getMessage());
-            Iris.reportError(e);
+            Iris.reportError("Exception raised during world creation for \"" + name + "\".", e);
             worldCreation = false;
             return;
         }
@@ -742,7 +741,7 @@ public class CommandIris implements DirectorExecutor {
             return;
         }
 
-        if (!FoliaWorldsLink.get().unloadWorld(world, false)) {
+        if (!WorldLifecycleService.get().unload(world, false)) {
             sender().sendMessage(C.RED + "Failed to unload world: " + world.getName());
             return;
         }
@@ -755,7 +754,7 @@ public class CommandIris implements DirectorExecutor {
             }
         } catch (IOException e) {
             sender().sendMessage(C.RED + "Failed to save bukkit.yml because of " + e.getMessage());
-            e.printStackTrace();
+            Iris.reportError("Failed to remove world \"" + world.getName() + "\" from bukkit.yml.", e);
         }
         IrisToolbelt.evacuate(world, "Deleting world");
         deletingWorld = true;
@@ -2144,7 +2143,7 @@ public class CommandIris implements DirectorExecutor {
         sender().sendMessage(C.GREEN + "Unloading world: " + world.getName());
         try {
             IrisToolbelt.evacuate(world);
-            boolean unloaded = FoliaWorldsLink.get().unloadWorld(world, false);
+            boolean unloaded = WorldLifecycleService.get().unload(world, false);
             if (unloaded) {
                 sender().sendMessage(C.GREEN + "World unloaded successfully.");
             } else {
@@ -2152,7 +2151,7 @@ public class CommandIris implements DirectorExecutor {
             }
         } catch (Exception e) {
             sender().sendMessage(C.RED + "Failed to unload the world: " + e.getMessage());
-            e.printStackTrace();
+            Iris.reportError("Failed to unload world \"" + world.getName() + "\".", e);
         }
     }
 

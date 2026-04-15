@@ -12,6 +12,7 @@ public class DataFixerV1217 extends DataFixerV1213 {
             Dimension.OVERWORLD, """
                     {
                       "ambient_light": 0.0,
+                      "has_ender_dragon_fight": false,
                       "attributes": {
                         "minecraft:audio/ambient_sounds": {
                           "mood": {
@@ -42,6 +43,7 @@ public class DataFixerV1217 extends DataFixerV1213 {
             Dimension.NETHER, """
                     {
                       "ambient_light": 0.1,
+                      "has_ender_dragon_fight": false,
                       "attributes": {
                         "minecraft:gameplay/sky_light_level": 4.0,
                         "minecraft:gameplay/snow_golem_melts": true,
@@ -57,6 +59,7 @@ public class DataFixerV1217 extends DataFixerV1213 {
             Dimension.END, """
                     {
                       "ambient_light": 0.25,
+                      "has_ender_dragon_fight": true,
                       "attributes": {
                         "minecraft:audio/ambient_sounds": {
                           "mood": {
@@ -96,9 +99,9 @@ public class DataFixerV1217 extends DataFixerV1213 {
 
         JSONObject particle = (JSONObject) effects.remove("particle");
         if (particle != null) {
+            particle.put("particle", particle.remove("options"));
             attributes.put("minecraft:visual/ambient_particles", new JSONArray()
-                    .put(particle.getJSONObject("options")
-                            .put("probability", particle.get("probability"))));
+                    .put(particle));
         }
         json.put("attributes", attributes);
 

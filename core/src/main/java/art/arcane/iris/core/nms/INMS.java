@@ -23,7 +23,9 @@ import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.nms.v1X.NMSBinding1X;
 import org.bukkit.Bukkit;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class INMS {
     private static final Version CURRENT = Boolean.getBoolean("iris.no-version-limit") ?
@@ -69,56 +71,92 @@ public class INMS {
 
     private static INMSBinding bind() {
         String code = getNMSTag();
-        Iris.info("Locating NMS Binding for " + code);
-
-        try {
-            Class<?> clazz = Class.forName("art.arcane.iris.core.nms." + code + ".NMSBinding");
-            try {
-                Object b = clazz.getConstructor().newInstance();
-                if (b instanceof INMSBinding binding) {
-                    Iris.info("Craftbukkit " + code + " <-> " + b.getClass().getSimpleName() + " Successfully Bound");
-                    return binding;
-                }
-            } catch (Throwable e) {
-                Iris.reportError(e);
-                e.printStackTrace();
-            }
-        } catch (ClassNotFoundException | NoClassDefFoundError classNotFoundException) {
-            Iris.warn("Failed to load NMS binding class for " + code + ": " + classNotFoundException.getMessage());
+        boolean disableNms = IrisSettings.get().getGeneral().isDisableNMS();
+        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes(code, disableNms, getFallbackBindingCodes());
+        if ("BUKKIT".equals(code) && !disableNms) {
+            Iris.info("NMS tag resolution fell back to Bukkit; probing supported revision bindings.");
         }
 
-        if (IrisSettings.get().getGeneral().isDisableNMS()) {
+        for (int i = 0; i < probeCodes.size(); i++) {
+            INMSBinding resolvedBinding = tryBind(probeCodes.get(i), i == 0);
+            if (resolvedBinding != null) {
+                return resolvedBinding;
+            }
+        }
+
+        if (disableNms) {
             Iris.info("Craftbukkit " + code + " <-> " + NMSBinding1X.class.getSimpleName() + " Successfully Bound");
             Iris.warn("Note: NMS support is disabled. Iris is running in limited Bukkit fallback mode.");
             return new NMSBinding1X();
         }
 
-        String serverVersion = Bukkit.getServer().getBukkitVersion().split("-")[0];
+        MinecraftVersion detectedVersion = getMinecraftVersion();
+        String serverVersion = detectedVersion == null ? Bukkit.getServer().getVersion() : detectedVersion.value();
         throw new IllegalStateException("Iris requires Minecraft 1.21.11 or newer. Detected server version: " + serverVersion);
     }
 
     private static String getTag(List<Version> versions, String def) {
-        String[] version = Bukkit.getServer().getBukkitVersion().split("-")[0].split("\\.", 3);
-        int major = 0;
-        int minor = 0;
-
-        if (version.length > 2) {
-            major = Integer.parseInt(version[1]);
-            minor = Integer.parseInt(version[2]);
-        } else if (version.length == 2) {
-            major = Integer.parseInt(version[1]);
+        MinecraftVersion detectedVersion = getMinecraftVersion();
+        if (detectedVersion == null) {
+            return def;
         }
-        if (CURRENT.major < major || CURRENT.minor < minor) {
+
+        if (detectedVersion.isNewerThan(CURRENT.major, CURRENT.minor)) {
             return versions.getFirst().tag;
         }
 
         for (Version p : versions) {
-            if (p.major > major || p.minor > minor) {
+            if (!detectedVersion.isAtLeast(p.major, p.minor)) {
                 continue;
             }
             return p.tag;
         }
         return def;
+    }
+
+    private static MinecraftVersion getMinecraftVersion() {
+        try {
+            return MinecraftVersion.detect(Bukkit.getServer());
+        } catch (Throwable e) {
+            Iris.reportError(e);
+            Iris.error("Failed to determine server minecraft version!");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static INMSBinding tryBind(String code, boolean announce) {
+        if (announce) {
+            Iris.info("Locating NMS Binding for " + code);
+        } else {
+            Iris.info("Probing NMS Binding for " + code);
+        }
+
+        try {
+            Class<?> clazz = Class.forName("art.arcane.iris.core.nms." + code + ".NMSBinding");
+            Object candidate = clazz.getConstructor().newInstance();
+            if (candidate instanceof INMSBinding binding) {
+                Iris.info("Craftbukkit " + code + " <-> " + candidate.getClass().getSimpleName() + " Successfully Bound");
+                return binding;
+            }
+        } catch (ClassNotFoundException | NoClassDefFoundError classNotFoundException) {
+            Iris.warn("Failed to load NMS binding class for " + code + ": " + classNotFoundException.getMessage());
+        } catch (Throwable e) {
+            Iris.reportError(e);
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    private static Set<String> getFallbackBindingCodes() {
+        Set<String> codes = new LinkedHashSet<>();
+        for (Version version : REVISION) {
+            if (version.tag != null && !version.tag.isBlank()) {
+                codes.add(version.tag);
+            }
+        }
+        return codes;
     }
 
     private record Version(int major, int minor, String tag) {}

@@ -2,7 +2,7 @@ package art.arcane.iris.core.tools;
 
 
 import art.arcane.iris.Iris;
-import art.arcane.iris.core.link.FoliaWorldsLink;
+import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.pregenerator.PregenTask;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisDimension;
@@ -100,10 +100,10 @@ public class IrisPackBenchmarking {
             }
 
             J.s(() -> {
-                var world = Bukkit.getWorld("benchmark");
+                org.bukkit.World world = Bukkit.getWorld("benchmark");
                 if (world == null) return;
                 IrisToolbelt.evacuate(world);
-                FoliaWorldsLink.get().unloadWorld(world, true);
+                WorldLifecycleService.get().unload(world, true);
             });
 
             stopwatch.end();

@@ -32,6 +32,7 @@ public class IrisContext {
     private static final ChronoLatch cl = new ChronoLatch(60000);
     private final Engine engine;
     private ChunkContext chunkContext;
+    private long generationSessionId;
 
     public IrisContext(Engine engine) {
         this.engine = engine;
@@ -100,6 +101,7 @@ public class IrisContext {
         return new KMap<String, Object>()
                 .qput("studio", engine.isStudio())
                 .qput("closed", engine.isClosed())
+                .qput("generationSessionId", generationSessionId)
                 .qput("pack", new KMap<>()
                         .qput("key", dimension == null ? "" : dimension.getLoadKey())
                         .qput("version", dimension == null ? "" : dimension.getVersion())

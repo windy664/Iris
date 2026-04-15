@@ -90,9 +90,10 @@ public class IrisEngine implements Engine {
     private final int art;
     private final AtomicCache<IrisEngineData> engineData = new AtomicCache<>();
     private final AtomicBoolean cleaning;
-    private final AtomicBoolean noisemapPrebakeRunning;
     private final ChronoLatch cleanLatch;
     private final SeedManager seedManager;
+    private final GenerationSessionManager generationSessions;
+    private final AtomicBoolean closing;
     private CompletableFuture<Long> hash32;
     private EngineMode mode;
     private EngineEffects effects;
@@ -113,6 +114,8 @@ public class IrisEngine implements Engine {
         getEngineData();
         verifySeed();
         this.seedManager = new SeedManager(target.getWorld().getRawWorldSeed());
+        this.generationSessions = new GenerationSessionManager();
+        this.closing = new AtomicBoolean(false);
         bud = new AtomicInteger(0);
         buds = new AtomicInteger(0);
         metrics = new EngineMetrics(32);
@@ -127,7 +130,6 @@ public class IrisEngine implements Engine {
         mantle = new IrisEngineMantle(this);
         context = new IrisContext(this);
         cleaning = new AtomicBoolean(false);
-        noisemapPrebakeRunning = new AtomicBoolean(false);
         modeFallbackLogged = new AtomicBoolean(false);
         if (studio) {
             getData().dump();
@@ -164,6 +166,13 @@ public class IrisEngine implements Engine {
     }
 
     private void prehotload() {
+        closing.set(true);
+        try {
+            generationSessions.sealAndAwait("hotload", 15000L);
+        } catch (GenerationSessionException e) {
+            throw new IllegalStateException(e);
+        }
+
         EngineWorldManager currentWorldManager = worldManager;
         worldManager = null;
         if (currentWorldManager != null) {
@@ -193,6 +202,8 @@ public class IrisEngine implements Engine {
 
     private void setupEngine() {
         try {
+            generationSessions.activateNextSession();
+            closing.set(false);
             Iris.debug("Setup Engine " + getCacheID());
             cacheId = RNG.r.nextInt();
             complex = ensureComplex();
@@ -215,7 +226,6 @@ public class IrisEngine implements Engine {
                         .toArray(File[]::new);
                 hash32.complete(IO.hashRecursive(roots));
             });
-            scheduleStartupNoisemapPrebake();
         } catch (Throwable e) {
             Iris.error("FAILED TO SETUP ENGINE!");
             e.printStackTrace();
@@ -295,30 +305,6 @@ public class IrisEngine implements Engine {
             complex = currentComplex;
             return currentComplex;
         }
-    }
-
-    private void scheduleStartupNoisemapPrebake() {
-        if (!IrisSettings.get().getPregen().isStartupNoisemapPrebake()) {
-            return;
-        }
-
-        if (studio) {
-            return;
-        }
-
-        if (!noisemapPrebakeRunning.compareAndSet(false, true)) {
-            return;
-        }
-
-        J.a(() -> {
-            try {
-                IrisNoisemapPrebakePipeline.prebake(this);
-            } catch (Throwable throwable) {
-                Iris.reportError(throwable);
-            } finally {
-                noisemapPrebakeRunning.set(false);
-            }
-        });
     }
 
     @Override
@@ -532,8 +518,14 @@ public class IrisEngine implements Engine {
     @Override
     public void close() {
         PregeneratorJob.shutdownInstance();
+        closing.set(true);
         closed = true;
         J.car(art);
+        try {
+            generationSessions.sealAndAwait("close", 15000L, true);
+        } catch (GenerationSessionException e) {
+            throw new IllegalStateException(e);
+        }
         EngineWorldManager currentWorldManager = getWorldManager();
         if (currentWorldManager != null) {
             currentWorldManager.close();
@@ -574,6 +566,10 @@ public class IrisEngine implements Engine {
         return closed;
     }
 
+    public boolean isClosing() {
+        return closing.get();
+    }
+
     @Override
     public void recycle() {
         if (!cleanLatch.flip()) {
@@ -602,13 +598,14 @@ public class IrisEngine implements Engine {
     @BlockCoordinates
     @Override
     public void generate(int x, int z, Hunk<BlockData> vblocks, Hunk<Biome> vbiomes, boolean multicore) throws WrongEngineBroException {
-        if (closed) {
-            throw new WrongEngineBroException();
+        if (closing.get() || closed) {
+            throw new GenerationSessionException("Generation session is closed for world \"" + getWorld().name() + "\".", true);
         }
 
-        context.touch();
-        getEngineData().getStatistics().generatedChunk();
-        try {
+        try (GenerationSessionLease lease = acquireGenerationLease("chunk_generate")) {
+            context.touch();
+            context.setGenerationSessionId(lease.sessionId());
+            getEngineData().getStatistics().generatedChunk();
             PrecisionStopwatch p = PrecisionStopwatch.start();
             Hunk<BlockData> blocks = vblocks.listen((xx, y, zz, t) -> catchBlockUpdates(x + xx, y, z + zz, t));
 
@@ -634,10 +631,17 @@ public class IrisEngine implements Engine {
             if (generated.get() == 661) {
                 J.a(() -> getData().savePrefetch(this));
             }
+        } catch (GenerationSessionException e) {
+            throw e;
         } catch (Throwable e) {
             Iris.reportError(e);
             fail("Failed to generate " + x + ", " + z, e);
         }
+    }
+
+    @Override
+    public GenerationSessionManager getGenerationSessions() {
+        return generationSessions;
     }
 
     @Override

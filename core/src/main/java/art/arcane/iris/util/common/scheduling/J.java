@@ -617,16 +617,36 @@ public class J {
     }
 
     private static boolean runAsyncImmediate(Runnable runnable) {
-        if (!isFolia()) {
+        if (!isPluginEnabled()) {
             return false;
+        }
+
+        if (!isFolia()) {
+            try {
+                Bukkit.getScheduler().runTaskAsynchronously(Iris.instance, runnable);
+                return true;
+            } catch (Throwable e) {
+                Iris.reportError(e);
+                return false;
+            }
         }
 
         return FoliaScheduler.runAsync(Iris.instance, runnable);
     }
 
     private static boolean runAsyncDelayed(Runnable runnable, int delayTicks) {
-        if (!isFolia()) {
+        if (!isPluginEnabled()) {
             return false;
+        }
+
+        if (!isFolia()) {
+            try {
+                Bukkit.getScheduler().runTaskLaterAsynchronously(Iris.instance, runnable, Math.max(0, delayTicks));
+                return true;
+            } catch (Throwable e) {
+                Iris.reportError(e);
+                return false;
+            }
         }
 
         return FoliaScheduler.runAsync(Iris.instance, runnable, Math.max(0, delayTicks));

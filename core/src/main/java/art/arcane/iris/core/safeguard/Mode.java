@@ -74,7 +74,7 @@ public enum Mode {
 
         String[] info = new String[]{
                 "",
-                padd2 + color + " Iris, " + C.AQUA + "Dimension Engine " + C.RED + "[" + releaseTrain + " RELEASE]",
+                padd2 + color + " Iris, " + C.AQUA + "Dimension Engine " + C.RED + "[" + releaseTrain + " RC.1]",
                 padd2 + C.GRAY + " Version: " + color + version,
                 padd2 + C.GRAY + " By: " + color + "Volmit Software (Arcane Arts)",
                 padd2 + C.GRAY + " Server: " + color + serverVersion,
@@ -89,10 +89,8 @@ public enum Mode {
         StringBuilder builder = new StringBuilder("\n\n");
         for (int i = 0; i < splash.length; i++) {
             builder.append(splash[i]);
-            if (i < info.length) {
-                builder.append(info[i]);
-            }
-            builder.append("\n");
+          builder.append(info[i]);
+          builder.append("\n");
         }
 
         Iris.info(builder.toString());

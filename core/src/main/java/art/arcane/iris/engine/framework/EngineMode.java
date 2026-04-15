@@ -71,6 +71,7 @@ public interface EngineMode extends Staged {
 
     @BlockCoordinates
     default void generate(int x, int z, Hunk<BlockData> blocks, Hunk<Biome> biomes, boolean multicore) {
+        IrisContext context = IrisContext.getOr(getEngine());
         boolean cacheContext = true;
         if (J.isFolia()) {
             org.bukkit.World world = getEngine().getWorld().realWorld();
@@ -79,8 +80,8 @@ public interface EngineMode extends Staged {
             }
         }
         ChunkContext.PrefillPlan prefillPlan = cacheContext ? ChunkContext.PrefillPlan.NO_CAVE : ChunkContext.PrefillPlan.NONE;
-        ChunkContext ctx = new ChunkContext(x, z, getComplex(), cacheContext, prefillPlan, getEngine().getMetrics());
-        IrisContext.getOr(getEngine()).setChunkContext(ctx);
+        ChunkContext ctx = new ChunkContext(x, z, getComplex(), context.getGenerationSessionId(), cacheContext, prefillPlan, getEngine().getMetrics());
+        context.setChunkContext(ctx);
 
         EngineStage[] stages = getStages().toArray(new EngineStage[0]);
         for (EngineStage i : stages) {

@@ -19,4 +19,11 @@
 package art.arcane.iris.engine.framework;
 
 public class WrongEngineBroException extends Exception {
+    public WrongEngineBroException() {
+        super();
+    }
+
+    public WrongEngineBroException(String message) {
+        super(message);
+    }
 }

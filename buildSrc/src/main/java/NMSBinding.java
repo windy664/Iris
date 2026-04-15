@@ -10,6 +10,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Bundling;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.LibraryElements;
@@ -89,18 +90,25 @@ public class NMSBinding implements Plugin<Project> {
                 extension.getVersion().set(config.version);
             });
 
-            ObjectFactory objects = target.getObjects();
-            target.getConfigurations().register(REOBF_CONFIG, configuration -> {
-                configuration.setCanBeConsumed(true);
-                configuration.setCanBeResolved(false);
-                configuration.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, named(objects, Usage.class, Usage.JAVA_RUNTIME));
-                configuration.getAttributes().attribute(Category.CATEGORY_ATTRIBUTE, named(objects, Category.class, Category.LIBRARY));
-                configuration.getAttributes().attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, named(objects, LibraryElements.class, LibraryElements.JAR));
-                configuration.getAttributes().attribute(Bundling.BUNDLING_ATTRIBUTE, named(objects, Bundling.class, Bundling.EXTERNAL));
-                configuration.getAttributes().attribute(Obfuscation.Companion.getOBFUSCATION_ATTRIBUTE(), named(objects, Obfuscation.class, Obfuscation.OBFUSCATED));
-                configuration.getOutgoing().artifact(target.getTasks().named("remap"));
-            });
         }
+
+        String outgoingArtifactTask = type == Type.USER_DEV ? "jar" : "remap";
+        ObjectFactory objects = target.getObjects();
+        Configuration reobfConfiguration = target.getConfigurations().findByName(REOBF_CONFIG);
+        if (reobfConfiguration == null) {
+            reobfConfiguration = target.getConfigurations().create(REOBF_CONFIG);
+        }
+
+        target.getConfigurations().named(REOBF_CONFIG).configure(configuration -> {
+            configuration.setCanBeConsumed(true);
+            configuration.setCanBeResolved(false);
+            configuration.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, named(objects, Usage.class, Usage.JAVA_RUNTIME));
+            configuration.getAttributes().attribute(Category.CATEGORY_ATTRIBUTE, named(objects, Category.class, Category.LIBRARY));
+            configuration.getAttributes().attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, named(objects, LibraryElements.class, LibraryElements.JAR));
+            configuration.getAttributes().attribute(Bundling.BUNDLING_ATTRIBUTE, named(objects, Bundling.class, Bundling.EXTERNAL));
+            configuration.getAttributes().attribute(Obfuscation.Companion.getOBFUSCATION_ATTRIBUTE(), named(objects, Obfuscation.class, Obfuscation.OBFUSCATED));
+            configuration.getOutgoing().artifact(target.getTasks().named(outgoingArtifactTask));
+        });
 
         int[] version = parseVersion(config.version);
         int major = version[0];

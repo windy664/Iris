@@ -42,7 +42,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.commands.data.BlockDataAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.RandomSequences;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.component.CustomData;
@@ -65,19 +64,19 @@ import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
 import net.minecraft.world.level.levelgen.structure.placement.ConcentricRingsStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
 import net.minecraft.world.level.storage.LevelStorageSource;
-import net.minecraft.world.level.storage.PrimaryLevelData;
+import net.minecraft.world.level.storage.ServerLevelData;
 import org.bukkit.*;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.craftbukkit.v1_21_R7.CraftChunk;
-import org.bukkit.craftbukkit.v1_21_R7.CraftServer;
-import org.bukkit.craftbukkit.v1_21_R7.CraftWorld;
-import org.bukkit.craftbukkit.v1_21_R7.block.CraftBlockState;
-import org.bukkit.craftbukkit.v1_21_R7.block.CraftBlockStates;
-import org.bukkit.craftbukkit.v1_21_R7.block.data.CraftBlockData;
-import org.bukkit.craftbukkit.v1_21_R7.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_21_R7.util.CraftMagicNumbers;
-import org.bukkit.craftbukkit.v1_21_R7.util.CraftNamespacedKey;
+import org.bukkit.craftbukkit.CraftChunk;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.block.CraftBlockStates;
+import org.bukkit.craftbukkit.block.data.CraftBlockData;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.generator.BiomeProvider;
@@ -562,8 +561,17 @@ public class NMSBinding implements INMSBinding {
         worldGenContextField.setAccessible(true);
         var worldGenContext = (WorldGenContext) worldGenContextField.get(chunkMap);
         var dimensionType = chunkMap.level.dimensionTypeRegistration().unwrapKey().orElse(null);
-        if (dimensionType != null && !dimensionType.identifier().getNamespace().equals("iris"))
-            Iris.error("Loaded world %s with invalid dimension type! (%s)", world.getName(), dimensionType.identifier().toString());
+        String expectedDimensionType = "iris:" + engine.getDimension().getDimensionTypeKey();
+        if (dimensionType != null) {
+            String actualDimensionType = dimensionType.identifier().toString();
+            if (!dimensionType.identifier().getNamespace().equals("iris")) {
+                Iris.error("Loaded world %s with invalid dimension type! expected=%s actual=%s", world.getName(), expectedDimensionType, actualDimensionType);
+            } else {
+                Iris.info("Loaded world %s with Iris dimension type %s", world.getName(), actualDimensionType);
+            }
+        } else {
+            Iris.error("Loaded world %s with unknown dimension type! expected=%s", world.getName(), expectedDimensionType);
+        }
 
         var newContext = new WorldGenContext(
                 worldGenContext.level(), new IrisChunkGenerator(worldGenContext.generator(), seed, engine, world),
@@ -786,9 +794,8 @@ public class NMSBinding implements INMSBinding {
             var buddy = new ByteBuddy();
             buddy.redefine(ServerLevel.class)
                     .visit(Advice.to(ServerLevelAdvice.class).on(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(
-                            MinecraftServer.class, Executor.class, LevelStorageSource.LevelStorageAccess.class, PrimaryLevelData.class,
-                            ResourceKey.class, LevelStem.class, boolean.class, long.class, List.class,
-                            boolean.class, RandomSequences.class, World.Environment.class, ChunkGenerator.class, BiomeProvider.class))))
+                            MinecraftServer.class, Executor.class, LevelStorageSource.LevelStorageAccess.class, ServerLevelData.class,
+                            ResourceKey.class, LevelStem.class, boolean.class, long.class, List.class, boolean.class))))
                     .make()
                     .load(ServerLevel.class.getClassLoader(), Agent.installed());
             for (Class<?> clazz : List.of(ChunkAccess.class, ProtoChunk.class)) {
@@ -896,12 +903,18 @@ public class NMSBinding implements INMSBinding {
                 .collect(Collectors.toMap(Pair::getA, Pair::getB, (a, b) -> a, KMap::new));
     }
 
-    public LevelStem levelStem(RegistryAccess access, ChunkGenerator raw) {
-        if (!(raw instanceof PlatformChunkGenerator gen))
+    @Override
+    public Object createRuntimeLevelStem(Object registryAccess, ChunkGenerator raw) {
+        if (!(registryAccess instanceof RegistryAccess access)) {
+            throw new IllegalStateException("Runtime LevelStem creation requires a RegistryAccess instance.");
+        }
+        if (!(raw instanceof PlatformChunkGenerator generator)) {
             throw new IllegalStateException("Generator is not platform chunk generator!");
+        }
 
-        var dimensionKey = Identifier.fromNamespaceAndPath("iris", gen.getTarget().getDimension().getDimensionTypeKey());
-        var dimensionType = access.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, dimensionKey));
+        Identifier dimensionKey = Identifier.fromNamespaceAndPath("iris", generator.getTarget().getDimension().getDimensionTypeKey());
+        Holder.Reference<net.minecraft.world.level.dimension.DimensionType> dimensionType = access.lookupOrThrow(Registries.DIMENSION_TYPE)
+                .getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, dimensionKey));
         return new LevelStem(dimensionType, chunkGenerator(access));
     }
 
@@ -923,25 +936,42 @@ public class NMSBinding implements INMSBinding {
         @Advice.OnMethodEnter
         static void enter(
                 @Advice.Argument(0) MinecraftServer server,
-                @Advice.Argument(3) PrimaryLevelData levelData,
+                @Advice.Argument(2) LevelStorageSource.LevelStorageAccess levelStorageAccess,
                 @Advice.Argument(value = 5, readOnly = false) LevelStem levelStem,
-                @Advice.Argument(11) World.Environment env,
-                @Advice.Argument(12) ChunkGenerator gen
+                @Advice.Argument(3) ServerLevelData levelData
         ) {
-            if (gen == null || !gen.getClass().getPackageName().startsWith("art.arcane.iris"))
+            if (levelStorageAccess == null)
                 return;
 
             try {
+                String levelId = levelStorageAccess.getLevelId();
+                if (levelId == null || levelId.isBlank()) {
+                    return;
+                }
+
+                Object generator = Class.forName("art.arcane.iris.core.lifecycle.WorldLifecycleStaging", true, Bukkit.getPluginManager().getPlugin("Iris")
+                                .getClass()
+                                .getClassLoader())
+                        .getDeclaredMethod("consumeStemGenerator", String.class)
+                        .invoke(null, levelId);
+                if (!(generator instanceof ChunkGenerator gen) || !gen.getClass().getPackageName().startsWith("art.arcane.iris")) {
+                    return;
+                }
+
                 Object bindings = Class.forName("art.arcane.iris.core.nms.INMS", true, Bukkit.getPluginManager().getPlugin("Iris")
                                 .getClass()
                                 .getClassLoader())
                         .getDeclaredMethod("get")
                         .invoke(null);
-                levelStem = (LevelStem) bindings.getClass()
-                        .getDeclaredMethod("levelStem", RegistryAccess.class, ChunkGenerator.class)
-                        .invoke(bindings, server.registryAccess(), gen);
+                if (!(bindings instanceof INMSBinding binding)) {
+                    throw new IllegalStateException("Iris failed to resolve an INMSBinding instance.");
+                }
 
-                levelData.customDimensions = null;
+                Object resolvedStem = binding.createRuntimeLevelStem(server.registryAccess(), gen);
+                if (!(resolvedStem instanceof LevelStem runtimeStem)) {
+                    throw new IllegalStateException("Iris runtime LevelStem binding returned " + (resolvedStem == null ? "null" : resolvedStem.getClass().getName()) + ".");
+                }
+                levelStem = runtimeStem;
             } catch (Throwable e) {
                 throw new RuntimeException("Iris failed to replace the levelStem", e instanceof InvocationTargetException ex ? ex.getCause() : e);
             }

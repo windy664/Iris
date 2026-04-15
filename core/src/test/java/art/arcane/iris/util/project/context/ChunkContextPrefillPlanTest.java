@@ -1,5 +1,6 @@
 package art.arcane.iris.util.project.context;
 
+import art.arcane.iris.Iris;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
@@ -7,9 +8,16 @@ import art.arcane.iris.util.project.stream.ProceduralStream;
 import org.bukkit.block.data.BlockData;
 import org.junit.Test;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -74,6 +82,16 @@ public class ChunkContextPrefillPlanTest {
 
         context.getCave().get(1, 1);
         assertEquals(256, caveCalls.get());
+    }
+
+    @Test
+    public void paperCommonWorkerThreadsDisableAsyncPrefillWhenPluginLoaded() throws Exception {
+        assertPrefillAsyncDecision("Paper Common Worker #0", false);
+    }
+
+    @Test
+    public void irisWorkerThreadsKeepAsyncPrefillWhenPluginLoaded() throws Exception {
+        assertPrefillAsyncDecision("Iris 42", true);
     }
 
     private ChunkContext createContext(
@@ -144,5 +162,27 @@ public class ChunkContextPrefillPlanTest {
         doReturn(regionStream).when(complex).getRegionStream();
 
         return new ChunkContext(32, 48, complex, true, prefillPlan, null);
+    }
+
+    private void assertPrefillAsyncDecision(String threadName, boolean expected) throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+        Iris previous = Iris.instance;
+        ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName(threadName);
+            return thread;
+        });
+        try {
+            Iris.instance = mock(Iris.class);
+            Future<Boolean> future = executor.submit(() -> ChunkContext.shouldPrefillAsync(2));
+            boolean actual = future.get(10, TimeUnit.SECONDS);
+            if (expected) {
+                assertTrue(actual);
+            } else {
+                assertFalse(actual);
+            }
+        } finally {
+            Iris.instance = previous;
+            executor.shutdownNow();
+        }
     }
 }

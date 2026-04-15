@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 public class ChunkContext {
     private final int x;
     private final int z;
+    private final IrisComplex complex;
+    private final long generationSessionId;
     private final ChunkedDataCache<Double> height;
     private final ChunkedDataCache<IrisBiome> biome;
     private final ChunkedDataCache<IrisBiome> cave;
@@ -23,20 +25,26 @@ public class ChunkContext {
     private final ChunkedDataCache<IrisRegion> region;
 
     public ChunkContext(int x, int z, IrisComplex complex) {
-        this(x, z, complex, true, PrefillPlan.NO_CAVE, null);
+        this(x, z, complex, 0L, true, PrefillPlan.NO_CAVE, null);
     }
 
     public ChunkContext(int x, int z, IrisComplex complex, boolean cache) {
-        this(x, z, complex, cache, PrefillPlan.NO_CAVE, null);
+        this(x, z, complex, 0L, cache, PrefillPlan.NO_CAVE, null);
     }
 
     public ChunkContext(int x, int z, IrisComplex complex, boolean cache, EngineMetrics metrics) {
-        this(x, z, complex, cache, PrefillPlan.NO_CAVE, metrics);
+        this(x, z, complex, 0L, cache, PrefillPlan.NO_CAVE, metrics);
     }
 
     public ChunkContext(int x, int z, IrisComplex complex, boolean cache, PrefillPlan prefillPlan, EngineMetrics metrics) {
+        this(x, z, complex, 0L, cache, prefillPlan, metrics);
+    }
+
+    public ChunkContext(int x, int z, IrisComplex complex, long generationSessionId, boolean cache, PrefillPlan prefillPlan, EngineMetrics metrics) {
         this.x = x;
         this.z = z;
+        this.complex = complex;
+        this.generationSessionId = generationSessionId;
         this.height = new ChunkedDataCache<>(complex.getHeightStream(), x, z, cache);
         this.biome = new ChunkedDataCache<>(complex.getTrueBiomeStream(), x, z, cache);
         this.cave = new ChunkedDataCache<>(complex.getCaveBiomeStream(), x, z, cache);
@@ -68,7 +76,7 @@ public class ChunkContext {
                 fillTasks.add(new PrefillFillTask(cave));
             }
 
-            if (fillTasks.size() <= 1 || Iris.instance == null) {
+            if (!shouldPrefillAsync(fillTasks.size())) {
                 for (PrefillFillTask fillTask : fillTasks) {
                     fillTask.run();
                 }
@@ -88,12 +96,25 @@ public class ChunkContext {
         }
     }
 
+    static boolean shouldPrefillAsync(int fillTaskCount) {
+        if (fillTaskCount <= 1 || Iris.instance == null) {
+            return false;
+        }
+
+        String threadName = Thread.currentThread().getName();
+        return threadName != null && threadName.startsWith("Iris ");
+    }
+
     public int getX() {
         return x;
     }
 
     public int getZ() {
         return z;
+    }
+
+    public IrisComplex getComplex() {
+        return complex;
     }
 
     public ChunkedDataCache<Double> getHeight() {

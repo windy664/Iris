@@ -24,7 +24,6 @@ import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.nms.datapack.DataVersion;
 import art.arcane.iris.core.nms.datapack.IDataFixer;
-import art.arcane.iris.engine.IrisNoisemapPrebakePipeline;
 import art.arcane.iris.engine.object.*;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -77,10 +76,7 @@ public class ServerConfigurator {
         }
 
         deferredInstallPending = false;
-        boolean datapacksMissing = installDataPacks(true);
-        if (!datapacksMissing) {
-            IrisNoisemapPrebakePipeline.scheduleInstalledPacksPrebakeAsync();
-        }
+        installDataPacks(true);
     }
 
     public static void configureIfDeferred() {
@@ -129,8 +125,15 @@ public class ServerConfigurator {
             return new KList<File>().qadd(new File(Bukkit.getWorldContainer(), IrisSettings.get().getGeneral().forceMainWorld + "/datapacks"));
         }
         KList<File> worlds = new KList<>();
-        Bukkit.getServer().getWorlds().forEach(w -> worlds.add(new File(w.getWorldFolder(), "datapacks")));
-        if (worlds.isEmpty()) worlds.add(new File(Bukkit.getWorldContainer(), ServerProperties.LEVEL_NAME + "/datapacks"));
+        Bukkit.getServer().getWorlds().forEach(w -> {
+            File folder = resolveDatapacksFolder(w.getWorldFolder());
+            if (!worlds.contains(folder)) {
+                worlds.add(folder);
+            }
+        });
+        if (worlds.isEmpty()) {
+            worlds.add(new File(Bukkit.getWorldContainer(), ServerProperties.LEVEL_NAME + "/datapacks"));
+        }
         return worlds;
     }
 
@@ -180,9 +183,10 @@ public class ServerConfigurator {
             Iris.verbose("Checking Data Packs...");
         }
         DimensionHeight height = new DimensionHeight(fixer);
-        KList<File> folders = getDatapacksFolder();
+        KList<File> baseFolders = getDatapacksFolder();
+        KList<File> folders = collectInstallDatapackFolders(baseFolders, extraWorldDatapackFoldersByPack);
         if (includeExternal) {
-            installExternalDataPacks(folders, extraWorldDatapackFoldersByPack);
+            installExternalDataPacks(baseFolders, extraWorldDatapackFoldersByPack);
         }
         KMap<String, KSet<String>> biomes = new KMap<>();
 
@@ -203,6 +207,34 @@ public class ServerConfigurator {
         }
 
         return fullInstall && verifyDataPacksPost(IrisSettings.get().getAutoConfiguration().isAutoRestartOnCustomBiomeInstall());
+    }
+
+    static KList<File> collectInstallDatapackFolders(
+            KList<File> baseFolders,
+            KMap<String, KList<File>> extraWorldDatapackFoldersByPack
+    ) {
+        KList<File> folders = new KList<>();
+        if (baseFolders != null) {
+            for (File folder : baseFolders) {
+                if (folder != null && !folders.contains(folder)) {
+                    folders.add(folder);
+                }
+            }
+        }
+        if (extraWorldDatapackFoldersByPack == null || extraWorldDatapackFoldersByPack.isEmpty()) {
+            return folders;
+        }
+        for (KList<File> extraFolders : extraWorldDatapackFoldersByPack.values()) {
+            if (extraFolders == null || extraFolders.isEmpty()) {
+                continue;
+            }
+            for (File folder : extraFolders) {
+                if (folder != null && !folders.contains(folder)) {
+                    folders.add(folder);
+                }
+            }
+        }
+        return folders;
     }
 
     private static void installExternalDataPacks(
@@ -915,7 +947,10 @@ public class ServerConfigurator {
             if (packName.isBlank()) {
                 continue;
             }
-            File datapacksFolder = new File(Bukkit.getWorldContainer(), worldName + File.separator + "datapacks");
+            org.bukkit.World world = Bukkit.getWorld(worldName);
+            File datapacksFolder = world == null
+                    ? new File(Bukkit.getWorldContainer(), worldName + File.separator + "datapacks")
+                    : resolveDatapacksFolder(world.getWorldFolder());
             addWorldDatapackFolder(foldersByPack, packName, datapacksFolder);
         }
 
@@ -929,7 +964,7 @@ public class ServerConfigurator {
             if (packName.isBlank()) {
                 continue;
             }
-            File datapacksFolder = new File(world.getWorldFolder(), "datapacks");
+            File datapacksFolder = resolveDatapacksFolder(world.getWorldFolder());
             addWorldDatapackFolder(foldersByPack, packName, datapacksFolder);
         }
 
@@ -967,6 +1002,31 @@ public class ServerConfigurator {
         if (!folders.contains(folder)) {
             folders.add(folder);
         }
+    }
+
+    public static File resolveDatapacksFolder(File worldFolder) {
+        File rootFolder = resolveWorldRootFolder(worldFolder);
+        return new File(rootFolder, "datapacks");
+    }
+
+    static File resolveWorldRootFolder(File worldFolder) {
+        if (worldFolder == null) {
+            return new File(Bukkit.getWorldContainer(), ServerProperties.LEVEL_NAME);
+        }
+
+        File current = worldFolder.getAbsoluteFile();
+        while (current != null) {
+            if ("dimensions".equals(current.getName())) {
+                File parent = current.getParentFile();
+                if (parent != null) {
+                    return parent;
+                }
+                break;
+            }
+            current = current.getParentFile();
+        }
+
+        return worldFolder.getAbsoluteFile();
     }
 
     private static String sanitizePackName(String value) {

@@ -30,6 +30,7 @@ import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineTarget;
+import art.arcane.iris.engine.framework.GenerationSessionException;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.iris.engine.object.StudioMode;
@@ -93,10 +94,12 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
     private final AtomicInteger a = new AtomicInteger(0);
     private final CompletableFuture<Integer> spawnChunks = new CompletableFuture<>();
     private final AtomicCache<EngineTarget> targetCache = new AtomicCache<>();
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
     private volatile Engine engine;
     private volatile Looper hotloader;
     private volatile StudioMode lastMode;
     private volatile DummyBiomeProvider dummyBiomeProvider;
+    private volatile boolean closing;
     @Setter
     private volatile StudioGenerator studioGenerator;
 
@@ -118,6 +121,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 new KList<>(".iris"),
                 new KList<>()
         );
+        this.closing = false;
         Bukkit.getServer().getPluginManager().registerEvents(this, Iris.instance);
     }
 
@@ -142,6 +146,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         try {
             INMS.get().inject(world.getSeed(), engine, world);
             Iris.info("Injected Iris Biome Source into " + world.getName());
+            J.s(() -> updateSpawnLocation(world), 1);
         } catch (Throwable e) {
             Iris.reportError(e);
             Iris.error("Failed to inject biome source into " + world.getName());
@@ -156,15 +161,65 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
     @Nullable
     @Override
     public Location getFixedSpawnLocation(@NotNull World world, @NotNull Random random) {
-        Location location = new Location(world, 0, 64, 0);
-        PaperLib.getChunkAtAsync(location)
-                .thenAccept(c -> {
-                    World w = c.getWorld();
-                    if (!w.getSpawnLocation().equals(location))
-                        return;
-                    w.setSpawnLocation(location.add(0, w.getHighestBlockYAt(location) - 64, 0));
-                });
-        return location;
+        return getInitialSpawnLocation(world);
+    }
+
+    @Override
+    public Location getInitialSpawnLocation(World world) {
+        int minY = world.getMinHeight() + 1;
+        int maxY = world.getMaxHeight() - 2;
+        int y = Math.max(minY, Math.min(maxY, 96));
+        return new Location(world, 0.5D, y, 0.5D);
+    }
+
+    private void updateSpawnLocation(World world) {
+        Location initialSpawn = getInitialSpawnLocation(world);
+        int chunkX = initialSpawn.getBlockX() >> 4;
+        int chunkZ = initialSpawn.getBlockZ() >> 4;
+        CompletableFuture<Chunk> chunkFuture = requestChunkAsync(world, chunkX, chunkZ, true);
+        if (chunkFuture == null) {
+            return;
+        }
+
+        chunkFuture.thenAccept(chunk ->
+                J.runRegion(chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> applySpawnLocation(chunk.getWorld(), initialSpawn)));
+    }
+
+    private void applySpawnLocation(World world, Location initialSpawn) {
+        Location currentSpawn = world.getSpawnLocation();
+        if (currentSpawn == null) {
+            return;
+        }
+
+        if (!studio && (currentSpawn.getBlockX() != initialSpawn.getBlockX() || currentSpawn.getBlockZ() != initialSpawn.getBlockZ())) {
+            return;
+        }
+
+        int minY = world.getMinHeight() + 1;
+        int maxY = world.getMaxHeight() - 2;
+        int y = Math.max(minY, Math.min(maxY, world.getHighestBlockYAt(initialSpawn)));
+        world.setSpawnLocation(new Location(world, initialSpawn.getX(), y, initialSpawn.getZ(), initialSpawn.getYaw(), initialSpawn.getPitch()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private CompletableFuture<Chunk> requestChunkAsync(World world, int chunkX, int chunkZ, boolean generate) {
+        try {
+            Object result = World.class
+                    .getMethod("getChunkAtAsync", int.class, int.class, boolean.class)
+                    .invoke(world, chunkX, chunkZ, generate);
+            if (result instanceof CompletableFuture<?>) {
+                return (CompletableFuture<Chunk>) result;
+            }
+            if (PaperLib.isPaper()) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Paper World#getChunkAtAsync returned a non-future result."));
+            }
+        } catch (Throwable e) {
+            if (PaperLib.isPaper()) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Paper World#getChunkAtAsync is unavailable.", e));
+            }
+        }
+
+        return PaperLib.getChunkAtAsync(world, chunkX, chunkZ, generate);
     }
 
     private void setupEngine() {
@@ -530,18 +585,48 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
     @Override
     public void close() {
-        withExclusiveControl(() -> {
-            if (isStudio()) {
-                hotloader.interrupt();
+        closeAsync();
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> existing = closeFuture.get();
+        if (existing != null && !existing.isDone()) {
+            return existing;
+        }
+
+        closing = true;
+        CompletableFuture<Void> future = withExclusiveControlFuture(() -> {
+            Looper activeHotloader = hotloader;
+            hotloader = null;
+            if (isStudio() && activeHotloader != null) {
+                activeHotloader.interrupt();
+                try {
+                    activeHotloader.join(1000L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    Iris.reportError(e);
+                }
             }
 
-            final Engine engine = getEngine();
-            if (engine != null && !engine.isClosed())
-                engine.close();
+            Engine currentEngine = engine;
+            if (currentEngine != null && !currentEngine.isClosed()) {
+                currentEngine.close();
+            }
             folder.clear();
             populators.clear();
-
         });
+        if (!closeFuture.compareAndSet(existing, future)) {
+            CompletableFuture<Void> winningFuture = closeFuture.get();
+            return winningFuture == null ? future : winningFuture;
+        }
+
+        future.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                closeFuture.compareAndSet(future, null);
+            }
+        });
+        return future;
     }
 
     @Override
@@ -551,7 +636,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
     @Override
     public void hotload() {
-        if (!isStudio()) {
+        if (!isStudio() || closing) {
             return;
         }
 
@@ -570,6 +655,22 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         });
     }
 
+    public CompletableFuture<Void> withExclusiveControlFuture(Runnable r) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        J.a(() -> {
+            try {
+                loadLock.acquire(LOAD_LOCKS);
+                r.run();
+                future.complete(null);
+            } catch (Throwable e) {
+                future.completeExceptionally(e);
+            } finally {
+                loadLock.release(LOAD_LOCKS);
+            }
+        });
+        return future;
+    }
+
     @Override
     public void touch(World world) {
         getEngine(world);
@@ -577,6 +678,10 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
     @Override
     public void generateNoise(@NotNull WorldInfo world, @NotNull Random random, int x, int z, @NotNull ChunkGenerator.ChunkData d) {
+        if (closing) {
+            return;
+        }
+
         try {
             Engine engine = getEngine(world);
             computeStudioGenerator();
@@ -592,6 +697,21 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             }
 
             Iris.debug("Generated " + x + " " + z);
+        } catch (GenerationSessionException e) {
+            if (closing || isExpectedTeardown(engine, e)) {
+                return;
+            }
+
+            Iris.error("======================================");
+            e.printStackTrace();
+            Iris.reportErrorChunk(x, z, e, "CHUNK");
+            Iris.error("======================================");
+
+            for (int i = 0; i < 16; i++) {
+                for (int j = 0; j < 16; j++) {
+                    d.setBlock(i, 0, j, Material.RED_GLAZED_TERRACOTTA.createBlockData());
+                }
+            }
         } catch (Throwable e) {
             Iris.error("======================================");
             e.printStackTrace();
@@ -604,6 +724,19 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 }
             }
         }
+    }
+
+    private boolean isExpectedTeardown(Engine currentEngine, Throwable throwable) {
+        if (throwable instanceof GenerationSessionException generationSessionException && generationSessionException.isExpectedTeardown()) {
+            return true;
+        }
+
+        if (currentEngine != null && currentEngine.isClosing()) {
+            return true;
+        }
+
+        World realWorld = this.world.realWorld();
+        return realWorld != null && IrisToolbelt.isWorldMaintenanceActive(realWorld);
     }
 
     @Override

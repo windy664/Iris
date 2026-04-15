@@ -26,9 +26,7 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.project.IrisProject;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
-import art.arcane.iris.engine.IrisNoisemapPrebakePipeline;
 import art.arcane.iris.engine.framework.Engine;
-import art.arcane.iris.engine.framework.SeedManager;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.engine.platform.ChunkReplacementListener;
 import art.arcane.iris.engine.platform.ChunkReplacementOptions;
@@ -141,8 +139,25 @@ public class CommandStudio implements DirectorExecutor {
             return;
         }
 
-        Iris.service(StudioSVC.class).close();
-        sender().sendMessage(C.GREEN + "Project Closed.");
+        sender().sendMessage(C.YELLOW + "Closing studio...");
+        Iris.service(StudioSVC.class).close().whenComplete((result, throwable) -> J.s(() -> {
+            if (throwable != null) {
+                sender().sendMessage(C.RED + "Studio close failed: " + throwable.getMessage());
+                return;
+            }
+
+            if (result != null && result.failureCause() != null) {
+                sender().sendMessage(C.RED + "Studio close failed: " + result.failureCause().getMessage());
+                return;
+            }
+
+            if (result != null && result.startupCleanupQueued()) {
+                sender().sendMessage(C.YELLOW + "Studio closed. Remaining world-family cleanup was queued for startup fallback.");
+                return;
+            }
+
+            sender().sendMessage(C.GREEN + "Studio closed.");
+        }));
     }
 
     @Director(description = "Create a new studio project", aliases = "+", sync = true)
@@ -455,16 +470,12 @@ public class CommandStudio implements DirectorExecutor {
         IrisData data = IrisData.get(pack);
         PlatformChunkGenerator activeGenerator = resolveProfileGenerator(dimension);
         Engine activeEngine = activeGenerator == null ? null : activeGenerator.getEngine();
-        long profileSeed = IrisNoisemapPrebakePipeline.dynamicStartupSeed();
 
         if (activeEngine != null) {
-            profileSeed = activeEngine.getSeedManager().getSeed();
             IrisToolbelt.applyPregenPerformanceProfile(activeEngine);
         } else {
             IrisToolbelt.applyPregenPerformanceProfile();
         }
-
-        IrisNoisemapPrebakePipeline.prebake(data, new SeedManager(profileSeed), "studio-profile", dimension.getLoadKey());
 
         KList<String> fileText = new KList<>();
 
@@ -642,30 +653,6 @@ public class CommandStudio implements DirectorExecutor {
         }
 
         sender().sendMessage(C.GREEN + "Done! " + report.getPath());
-    }
-
-    @Director(description = "Profiles a dimension with a cache warm-up pass", origin = DirectorOrigin.PLAYER)
-    public void profilecache(
-            @Param(description = "The dimension to profile", contextual = true, defaultValue = "default", customHandler = DimensionHandler.class)
-            IrisDimension dimension
-    ) {
-        File pack = dimension.getLoadFile().getParentFile().getParentFile();
-        IrisData data = IrisData.get(pack);
-        PlatformChunkGenerator activeGenerator = resolveProfileGenerator(dimension);
-        Engine activeEngine = activeGenerator == null ? null : activeGenerator.getEngine();
-        long profileSeed = IrisNoisemapPrebakePipeline.dynamicStartupSeed();
-
-        if (activeEngine != null) {
-            profileSeed = activeEngine.getSeedManager().getSeed();
-            IrisToolbelt.applyPregenPerformanceProfile(activeEngine);
-        } else {
-            IrisToolbelt.applyPregenPerformanceProfile();
-        }
-
-        sender().sendMessage(C.YELLOW + "Warming noisemap cache for profile...");
-        IrisNoisemapPrebakePipeline.prebakeForced(data, new SeedManager(profileSeed), "studio-profilecache", dimension.getLoadKey());
-        sender().sendMessage(C.YELLOW + "Running measured profile pass...");
-        profile(dimension);
     }
 
     @Director(description = "List pack noise generators as pack/generator", aliases = {"pack-noise", "packnoises"})

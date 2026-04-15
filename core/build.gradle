@@ -79,6 +79,8 @@ dependencies {
         transitive = false
     }
     compileOnly(libs.multiverseCore)
+    compileOnly(libs.craftengine.core)
+    compileOnly(libs.craftengine.bukkit)
 
     // Shaded
     implementation('de.crazydev22.slimjar.helper:spigot:2.1.9')

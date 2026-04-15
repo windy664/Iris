@@ -20,8 +20,8 @@ package art.arcane.iris.engine.mantle.components;
 
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
-import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.Cache;
+import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.mantle.ComponentFlag;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.mantle.IrisMantleComponent;
@@ -40,8 +40,6 @@ import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.MatterStructurePOI;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.project.noise.NoiseType;
-import art.arcane.iris.util.common.parallel.BurstExecutor;
-import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.util.BlockVector;
 
 import java.io.IOException;
@@ -64,12 +62,13 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
     @Override
     public void generateLayer(MantleWriter writer, int x, int z, ChunkContext context) {
+        IrisComplex complex = context.getComplex();
         boolean traceRegen = isRegenTraceThread();
         RNG rng = applyNoise(x, z, Cache.key(x, z) + seed());
         int xxx = 8 + (x << 4);
         int zzz = 8 + (z << 4);
-        IrisRegion region = getComplex().getRegionStream().get(xxx, zzz);
-        IrisBiome surfaceBiome = getComplex().getTrueBiomeStream().get(xxx, zzz);
+        IrisRegion region = complex.getRegionStream().get(xxx, zzz);
+        IrisBiome surfaceBiome = complex.getTrueBiomeStream().get(xxx, zzz);
         int surfaceY = getEngineMantle().getEngine().getHeight(xxx, zzz, true);
         IrisBiome caveBiome = resolveCaveObjectBiome(xxx, zzz, surfaceY, surfaceBiome);
         if (traceRegen) {
@@ -82,7 +81,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     + " regionSurfacePlacers=" + region.getSurfaceObjects().size()
                     + " regionCavePlacers=" + region.getCarvingObjects().size());
         }
-        ObjectPlacementSummary summary = placeObjects(writer, rng, x, z, surfaceBiome, caveBiome, region, traceRegen);
+        ObjectPlacementSummary summary = placeObjects(writer, rng, x, z, surfaceBiome, caveBiome, region, complex, traceRegen);
         if (traceRegen) {
             Iris.info("Regen object layer done: chunk=" + x + "," + z
                     + " biomeSurfacePlacersChecked=" + summary.biomeSurfacePlacersChecked()
@@ -142,7 +141,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
     }
 
     @ChunkCoordinates
-    private ObjectPlacementSummary placeObjects(MantleWriter writer, RNG rng, int x, int z, IrisBiome surfaceBiome, IrisBiome caveBiome, IrisRegion region, boolean traceRegen) {
+    private ObjectPlacementSummary placeObjects(MantleWriter writer, RNG rng, int x, int z, IrisBiome surfaceBiome, IrisBiome caveBiome, IrisRegion region, IrisComplex complex, boolean traceRegen) {
         int biomeSurfaceChecked = 0;
         int biomeSurfaceTriggered = 0;
         int biomeCaveChecked = 0;
@@ -175,7 +174,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 biomeSurfaceTriggered++;
                 try {
-                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, biomeSurfaceExclusionDepth, traceRegen, x, z, "biome-surface");
+                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, biomeSurfaceExclusionDepth, complex, traceRegen, x, z, "biome-surface");
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -209,7 +208,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 biomeCaveTriggered++;
                 try {
-                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, biomeCaveProfile, traceRegen, x, z, "biome-cave");
+                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, biomeCaveProfile, complex, traceRegen, x, z, "biome-cave");
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -240,7 +239,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 regionSurfaceTriggered++;
                 try {
-                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, regionSurfaceExclusionDepth, traceRegen, x, z, "region-surface");
+                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, regionSurfaceExclusionDepth, complex, traceRegen, x, z, "region-surface");
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -274,7 +273,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 regionCaveTriggered++;
                 try {
-                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, regionCaveProfile, traceRegen, x, z, "region-cave");
+                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, regionCaveProfile, complex, traceRegen, x, z, "region-cave");
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -316,6 +315,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int z,
             IrisObjectPlacement objectPlacement,
             int surfaceObjectExclusionDepth,
+            IrisComplex complex,
             boolean traceRegen,
             int chunkX,
             int chunkZ,
@@ -330,7 +330,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
         for (int i = 0; i < density; i++) {
             attempts++;
-            IrisObject v = objectPlacement.getScale().get(rng, objectPlacement.getObject(getComplex(), rng));
+            IrisObject v = objectPlacement.getScale().get(rng, objectPlacement.getObject(complex, rng));
             if (v == null) {
                 nullObjects++;
                 if (traceRegen) {
@@ -398,6 +398,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int chunkZ,
             IrisObjectPlacement objectPlacement,
             IrisCaveProfile caveProfile,
+            IrisComplex complex,
             boolean traceRegen,
             int metricChunkX,
             int metricChunkZ,
@@ -419,7 +420,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
         for (int i = 0; i < density; i++) {
             attempts++;
-            IrisObject object = objectPlacement.getScale().get(rng, objectPlacement.getObject(getComplex(), rng));
+            IrisObject object = objectPlacement.getScale().get(rng, objectPlacement.getObject(complex, rng));
             if (object == null) {
                 nullObjects++;
                 if (traceRegen) {
@@ -903,15 +904,15 @@ public class MantleObjectComponent extends IrisMantleComponent {
     }
 
     protected int computeRadius() {
-        var dimension = getDimension();
+        IrisDimension dimension = getDimension();
 
         AtomicInteger xg = new AtomicInteger();
         AtomicInteger zg = new AtomicInteger();
 
         KSet<String> objects = new KSet<>();
         KMap<IrisObjectScale, KList<String>> scalars = new KMap<>();
-        for (var region : dimension.getAllRegions(this::getData)) {
-            for (var j : region.getObjects()) {
+        for (IrisRegion region : dimension.getAllRegions(this::getData)) {
+            for (IrisObjectPlacement j : region.getObjects()) {
                 if (j.getScale().canScaleBeyond()) {
                     scalars.put(j.getScale(), j.getPlace());
                 } else {
@@ -919,8 +920,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
             }
         }
-        for (var biome : dimension.getAllBiomes(this::getData)) {
-            for (var j : biome.getObjects()) {
+        for (IrisBiome biome : dimension.getAllBiomes(this::getData)) {
+            for (IrisObjectPlacement j : biome.getObjects()) {
                 if (j.getScale().canScaleBeyond()) {
                     scalars.put(j.getScale(), j.getPlace());
                 } else {
@@ -929,93 +930,59 @@ public class MantleObjectComponent extends IrisMantleComponent {
             }
         }
 
-        BurstExecutor e = getEngineMantle().getTarget().getBurster().burst(objects.size());
-        boolean maintenanceFolia = false;
-        if (J.isFolia()) {
-            var world = getEngineMantle().getEngine().getWorld().realWorld();
-            maintenanceFolia = world != null && IrisToolbelt.isWorldMaintenanceActive(world);
-        }
-        if (maintenanceFolia) {
-            Iris.info("MantleObjectComponent radius scan using single-threaded mode during maintenance regen.");
-            e.setMulticore(false);
-        }
         KMap<String, BlockVector> sizeCache = new KMap<>();
         for (String i : objects) {
-            e.queue(() -> {
-                try {
-                    BlockVector bv = sizeCache.computeIfAbsent(i, (k) -> {
-                        try {
-                            return IrisObject.sampleSize(getData().getObjectLoader().findFile(i));
-                        } catch (IOException ex) {
-                            Iris.reportError(ex);
-                            ex.printStackTrace();
-                        }
-
-                        return null;
-                    });
-
-                    if (bv == null) {
-                        throw new RuntimeException();
-                    }
-
-                    if (Math.max(bv.getBlockX(), bv.getBlockZ()) > 128) {
-                        Iris.warn("Object " + i + " has a large size (" + bv + ") and may increase memory usage!");
-                    }
-
-                    synchronized (xg) {
-                        xg.getAndSet(Math.max(bv.getBlockX(), xg.get()));
-                    }
-
-                    synchronized (zg) {
-                        zg.getAndSet(Math.max(bv.getBlockZ(), zg.get()));
-                    }
-                } catch (Throwable ed) {
-                    Iris.reportError(ed);
-
-                }
-            });
+            updateRadiusBounds(sizeCache, xg, zg, i, 1D);
         }
 
         for (Map.Entry<IrisObjectScale, KList<String>> entry : scalars.entrySet()) {
             double ms = entry.getKey().getMaximumScale();
             for (String j : entry.getValue()) {
-                e.queue(() -> {
-                    try {
-                        BlockVector bv = sizeCache.computeIfAbsent(j, (k) -> {
-                            try {
-                                return IrisObject.sampleSize(getData().getObjectLoader().findFile(j));
-                            } catch (IOException ioException) {
-                                Iris.reportError(ioException);
-                                ioException.printStackTrace();
-                            }
-
-                            return null;
-                        });
-
-                        if (bv == null) {
-                            throw new RuntimeException();
-                        }
-
-                        if (Math.max(bv.getBlockX(), bv.getBlockZ()) > 128) {
-                            Iris.warn("Object " + j + " has a large size (" + bv + ") and may increase memory usage! (Object scaled up to " + Form.pc(ms, 2) + ")");
-                        }
-
-                        synchronized (xg) {
-                            xg.getAndSet((int) Math.max(Math.ceil(bv.getBlockX() * ms), xg.get()));
-                        }
-
-                        synchronized (zg) {
-                            zg.getAndSet((int) Math.max(Math.ceil(bv.getBlockZ() * ms), zg.get()));
-                        }
-                    } catch (Throwable ee) {
-                        Iris.reportError(ee);
-
-                    }
-                });
+                updateRadiusBounds(sizeCache, xg, zg, j, ms);
             }
         }
 
-        e.complete();
         return Math.max(xg.get(), zg.get());
+    }
+
+    private void updateRadiusBounds(
+            KMap<String, BlockVector> sizeCache,
+            AtomicInteger xg,
+            AtomicInteger zg,
+            String objectKey,
+            double scale
+    ) {
+        try {
+            BlockVector bv = loadObjectSize(sizeCache, objectKey);
+            if (bv == null) {
+                throw new RuntimeException();
+            }
+
+            if (Math.max(bv.getBlockX(), bv.getBlockZ()) > 128) {
+                if (scale > 1D) {
+                    Iris.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage! (Object scaled up to " + Form.pc(scale, 2) + ")");
+                } else {
+                    Iris.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage!");
+                }
+            }
+
+            xg.getAndSet(Math.max((int) Math.ceil(bv.getBlockX() * scale), xg.get()));
+            zg.getAndSet(Math.max((int) Math.ceil(bv.getBlockZ() * scale), zg.get()));
+        } catch (Throwable e) {
+            Iris.reportError(e);
+        }
+    }
+
+    private BlockVector loadObjectSize(KMap<String, BlockVector> sizeCache, String objectKey) {
+        return sizeCache.computeIfAbsent(objectKey, k -> {
+            try {
+                return IrisObject.sampleSize(getData().getObjectLoader().findFile(objectKey));
+            } catch (IOException e) {
+                Iris.reportError(e);
+                e.printStackTrace();
+            }
+
+            return null;
+        });
     }
 }

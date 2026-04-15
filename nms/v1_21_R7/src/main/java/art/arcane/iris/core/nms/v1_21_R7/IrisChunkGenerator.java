@@ -36,8 +36,8 @@ import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_21_R7.CraftWorld;
-import org.bukkit.craftbukkit.v1_21_R7.generator.CustomChunkGenerator;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
 import org.spigotmc.SpigotWorldConfig;
 
 import javax.annotation.Nullable;

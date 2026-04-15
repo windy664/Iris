@@ -105,8 +105,36 @@ public class IrisLootEvent extends Event {
         if (!Bukkit.isPrimaryThread()) {
             Iris.warn("LootGenerateEvent was not called on the main thread, please report this issue.");
             Thread.dumpStack();
-            J.sfut(() -> Bukkit.getPluginManager().callEvent(event)).join();
-        } else Bukkit.getPluginManager().callEvent(event);
+            J.sfut(() -> {
+                try {
+                    Bukkit.getPluginManager().callEvent(event);
+                } catch (Throwable e) {
+                    Iris.reportError("LootGenerateEvent dispatch failed at "
+                            + world.getName() + " [" + x + "," + y + "," + z + "].", e);
+                    if (e instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+                    if (e instanceof Error error) {
+                        throw error;
+                    }
+                    throw new IllegalStateException(e);
+                }
+            }).join();
+        } else {
+            try {
+                Bukkit.getPluginManager().callEvent(event);
+            } catch (Throwable e) {
+                Iris.reportError("LootGenerateEvent dispatch failed at "
+                        + world.getName() + " [" + x + "," + y + "," + z + "].", e);
+                if (e instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (e instanceof Error error) {
+                    throw error;
+                }
+                throw new IllegalStateException(e);
+            }
+        }
 
         return event.isCancelled();
     }

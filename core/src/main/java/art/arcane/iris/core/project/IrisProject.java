@@ -21,10 +21,11 @@ package art.arcane.iris.core.project;
 import com.google.gson.Gson;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
-import art.arcane.iris.core.link.FoliaWorldsLink;
+import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.core.loader.ResourceLoader;
+import art.arcane.iris.core.runtime.StudioOpenCoordinator;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.engine.object.annotations.Snippet;
@@ -63,6 +64,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -228,209 +231,117 @@ public class IrisProject {
         return foundWork;
     }
 
-    public void open(VolmitSender sender, long seed, Consumer<World> onDone) throws IrisException {
+    public CompletableFuture<StudioOpenCoordinator.StudioOpenResult> open(VolmitSender sender, long seed, Consumer<World> onDone) throws IrisException {
         if (isOpen()) {
-            close();
+            return close().thenCompose(ignored -> openInternal(sender, seed, onDone));
         }
 
+        return openInternal(sender, seed, onDone);
+    }
+
+    private CompletableFuture<StudioOpenCoordinator.StudioOpenResult> openInternal(VolmitSender sender, long seed, Consumer<World> onDone) {
         AtomicReference<String> stage = new AtomicReference<>("Queued");
         AtomicReference<Double> progress = new AtomicReference<>(0.01D);
         AtomicBoolean complete = new AtomicBoolean(false);
         AtomicBoolean failed = new AtomicBoolean(false);
+        CompletableFuture<StudioOpenCoordinator.StudioOpenResult> future = StudioOpenCoordinator.get().open(
+                StudioOpenCoordinator.StudioOpenRequest.studioProject(
+                        this,
+                        sender,
+                        seed,
+                        update -> {
+                            if (update.stage() != null && !update.stage().isBlank()) {
+                                stage.set(update.stage());
+                            }
+                            progress.set(Math.max(0D, Math.min(0.99D, update.progress())));
+                        },
+                        onDone
+                )
+        );
         startStudioOpenReporter(sender, stage, progress, complete, failed);
-
-        J.a(() -> {
+        future.whenComplete((result, throwable) -> {
             World maintenanceWorld = null;
             boolean maintenanceActive = false;
             try {
-                stage.set("Loading dimension");
-                progress.set(0.05D);
-                IrisDimension d = IrisData.loadAnyDimension(getName(), null);
-                if (d == null) {
+                if (throwable != null) {
                     failed.set(true);
-                    sender.sendMessage(C.RED + "Can't find dimension: " + getName());
+                    Throwable error = throwable instanceof java.util.concurrent.CompletionException completionException && completionException.getCause() != null
+                            ? completionException.getCause()
+                            : throwable;
+                    Iris.reportError("Studio open failed for project \"" + getName() + "\".", error);
+                    sender.sendMessage(C.RED + "Studio open failed: " + error.getMessage());
                     return;
-                } else if (sender.isPlayer()) {
+                }
+
+                if (sender.isPlayer() && sender.player() != null) {
                     J.runEntity(sender.player(), () -> sender.player().setGameMode(GameMode.SPECTATOR));
                 }
-
-                stage.set("Creating world");
-                progress.set(0.12D);
-                activeProvider = (PlatformChunkGenerator) IrisToolbelt.createWorld()
-                        .seed(seed)
-                        .sender(sender)
-                        .studio(true)
-                        .name("iris-" + UUID.randomUUID())
-                        .dimension(d.getLoadKey())
-                        .studioProgressConsumer((value, currentStage) -> {
-                            if (currentStage != null && !currentStage.isBlank()) {
-                                stage.set(currentStage);
-                            }
-                            progress.set(Math.max(0D, Math.min(0.99D, value)));
-                        })
-                        .create().getGenerator();
-
-                if (activeProvider != null) {
-                    maintenanceWorld = activeProvider.getTarget().getWorld().realWorld();
-                    if (maintenanceWorld != null) {
-                        IrisToolbelt.beginWorldMaintenance(maintenanceWorld, "studio-open");
-                        maintenanceActive = true;
-                    }
-                    onDone.accept(maintenanceWorld);
+                activeProvider = IrisToolbelt.access(result.world());
+                maintenanceWorld = result.world();
+                if (maintenanceWorld != null) {
+                    IrisToolbelt.beginWorldMaintenance(maintenanceWorld, "studio-open");
+                    maintenanceActive = true;
                 }
-            } catch (IrisException e) {
-                failed.set(true);
-                Iris.reportError(e);
-                sender.sendMessage(C.RED + "Failed to open studio world: " + e.getMessage());
-            } catch (Throwable e) {
-                failed.set(true);
-                Iris.reportError(e);
-                sender.sendMessage(C.RED + "Studio open failed: " + e.getMessage());
             } finally {
-                if (activeProvider != null) {
-                    stage.set("Opening workspace");
-                    progress.set(Math.max(progress.get(), 0.95D));
-                    openVSCode(sender);
-                }
-
                 if (maintenanceActive && maintenanceWorld != null) {
                     World worldToRelease = maintenanceWorld;
-                    J.a(() -> {
-                        J.sleep(15000);
-                        IrisToolbelt.endWorldMaintenance(worldToRelease, "studio-open");
-                    });
-                    maintenanceActive = false;
-                }
-
-                if (maintenanceActive && maintenanceWorld != null) {
-                    IrisToolbelt.endWorldMaintenance(maintenanceWorld, "studio-open");
+                    J.a(() -> IrisToolbelt.endWorldMaintenance(worldToRelease, "studio-open"), 300);
                 }
                 complete.set(true);
             }
         });
+        return future;
     }
 
     private void startStudioOpenReporter(VolmitSender sender, AtomicReference<String> stage, AtomicReference<Double> progress, AtomicBoolean complete, AtomicBoolean failed) {
-        J.a(() -> {
-            String[] spinner = {"|", "/", "-", "\\"};
-            int spinIndex = 0;
-            long nextConsoleUpdate = 0L;
+        String[] spinner = {"|", "/", "-", "\\"};
+        AtomicInteger spinIndex = new AtomicInteger(0);
+        AtomicLong nextConsoleUpdate = new AtomicLong(0L);
+        AtomicInteger taskId = new AtomicInteger(-1);
 
-            while (!complete.get()) {
-                double currentProgress = Math.max(0D, Math.min(0.97D, progress.get()));
-                String currentStage = stage.get();
-                String currentSpinner = spinner[spinIndex % spinner.length];
-
-                if (sender.isPlayer()) {
-                    sender.sendProgress(currentProgress, "Studio " + currentSpinner + " " + currentStage);
-                } else {
-                    long now = System.currentTimeMillis();
-                    if (now >= nextConsoleUpdate) {
-                        sender.sendMessage(C.WHITE + "Studio " + Form.pc(currentProgress, 0) + C.GRAY + " - " + currentStage);
-                        nextConsoleUpdate = now + 1500L;
+        int scheduledTaskId = J.ar(() -> {
+            if (complete.get()) {
+                J.car(taskId.get());
+                if (failed.get()) {
+                    if (sender.isPlayer()) {
+                        sender.sendProgress(1D, "Studio open failed");
+                    } else {
+                        sender.sendMessage(C.RED + "Studio open failed.");
                     }
-                }
-
-                spinIndex++;
-                J.sleep(120);
-            }
-
-            if (failed.get()) {
-                if (sender.isPlayer()) {
-                    sender.sendProgress(1D, "Studio open failed");
+                } else if (sender.isPlayer()) {
+                    sender.sendProgress(1D, "Studio ready");
                 } else {
-                    sender.sendMessage(C.RED + "Studio open failed.");
+                    sender.sendMessage(C.GREEN + "Studio ready.");
                 }
                 return;
             }
+
+            double currentProgress = Math.max(0D, Math.min(0.97D, progress.get()));
+            String currentStage = stage.get();
+            String currentSpinner = spinner[Math.floorMod(spinIndex.getAndIncrement(), spinner.length)];
 
             if (sender.isPlayer()) {
-                sender.sendProgress(1D, "Studio ready");
-            } else {
-                sender.sendMessage(C.GREEN + "Studio ready.");
-            }
-        });
-    }
-
-    public void close() {
-        if (activeProvider == null) {
-            return;
-        }
-
-        Iris.debug("Closing Active Provider");
-        final PlatformChunkGenerator provider = activeProvider;
-        final World studioWorld = provider.getTarget().getWorld().realWorld();
-        final File folder = provider.getTarget().getWorld().worldFolder();
-        final String worldName = provider.getTarget().getWorld().name();
-
-        final Runnable closeTask = () -> {
-            IrisToolbelt.beginWorldMaintenance(studioWorld, "studio-close", true);
-            try {
-                IrisToolbelt.evacuate(studioWorld);
-                provider.close();
-                Iris.linkMultiverseCore.removeFromConfig(worldName);
-                boolean unloaded = FoliaWorldsLink.get().unloadWorld(studioWorld, false);
-                if (!unloaded) {
-                    Iris.warn("Failed to unload studio world \"" + worldName + "\".");
-                }
-            } finally {
-                IrisToolbelt.endWorldMaintenance(studioWorld, "studio-close");
-            }
-        };
-
-        if (J.isPrimaryThread()) {
-            closeTask.run();
-        } else {
-            final CompletableFuture<Void> closeFuture = J.sfut(closeTask);
-            if (closeFuture != null) {
-                try {
-                    closeFuture.join();
-                } catch (Throwable e) {
-                    Iris.reportError(e);
-                    e.printStackTrace();
-                }
-            } else {
-                closeTask.run();
-            }
-        }
-
-        J.attemptAsync(() -> deleteStudioFolderWithRetry(folder, worldName));
-        Iris.debug("Closed Active Provider " + worldName);
-        activeProvider = null;
-    }
-
-    private static void deleteStudioFolderWithRetry(File folder, String worldName) {
-        if (folder == null) {
-            return;
-        }
-
-        long unloadWaitDeadlineMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(20);
-        while (Bukkit.getWorld(worldName) != null && System.currentTimeMillis() < unloadWaitDeadlineMs) {
-            J.sleep(100);
-        }
-
-        int attempts = 0;
-        while (folder.exists() && attempts < 40) {
-            IO.delete(folder);
-            if (!folder.exists()) {
+                sender.sendProgress(currentProgress, "Studio " + currentSpinner + " " + currentStage);
                 return;
             }
 
-            attempts++;
-            J.sleep(250);
+            long now = System.currentTimeMillis();
+            long nextUpdate = nextConsoleUpdate.get();
+            if (now >= nextUpdate) {
+                sender.sendMessage(C.WHITE + "Studio " + Form.pc(currentProgress, 0) + C.GRAY + " - " + currentStage);
+                nextConsoleUpdate.set(now + 1500L);
+            }
+        }, 3);
+
+        taskId.set(scheduledTaskId);
+    }
+
+    public CompletableFuture<StudioOpenCoordinator.StudioCloseResult> close() {
+        if (activeProvider == null) {
+            return CompletableFuture.completedFuture(new StudioOpenCoordinator.StudioCloseResult(null, true, true, false, null, null));
         }
 
-        if (!folder.exists()) {
-            return;
-        }
-
-        try {
-            Iris.queueWorldDeletionOnStartup(java.util.Collections.singleton(worldName));
-            Iris.warn("Queued deferred deletion for studio world folder \"" + worldName + "\".");
-        } catch (IOException e) {
-            Iris.warn("Failed to queue deferred deletion for studio world folder \"" + worldName + "\".");
-            Iris.reportError(e);
-        }
+        return StudioOpenCoordinator.get().closeProject(this);
     }
 
     public File getCodeWorkspaceFile() {

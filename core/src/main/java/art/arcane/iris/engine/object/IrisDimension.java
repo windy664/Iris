@@ -573,7 +573,25 @@ public class IrisDimension extends IrisRegistrant {
     }
 
     public String getDimensionTypeKey() {
-        return getDimensionType().key();
+        return sanitizeDimensionTypeKeyValue(getLoadKey());
+    }
+
+    public static String sanitizeDimensionTypeKeyValue(String value) {
+        if (value == null || value.isBlank()) {
+            return "dimension";
+        }
+
+        String sanitized = value.trim().toLowerCase(Locale.ROOT).replace("\\", "/");
+        sanitized = sanitized.replaceAll("[^a-z0-9_\\-./]", "_");
+        sanitized = sanitized.replaceAll("/+", "/");
+        sanitized = sanitized.replaceAll("^/+", "");
+        sanitized = sanitized.replaceAll("/+$", "");
+        if (sanitized.contains("..")) {
+            sanitized = sanitized.replace("..", "_");
+        }
+
+        sanitized = sanitized.replace("/", "_");
+        return sanitized.isBlank() ? "dimension" : sanitized;
     }
 
     public IrisDimensionType getDimensionType() {
@@ -583,10 +601,11 @@ public class IrisDimension extends IrisRegistrant {
     public void installDimensionType(IDataFixer fixer, KList<File> folders) {
         IrisDimensionType type = getDimensionType();
         String json = type.toJson(fixer);
+        String dimensionTypeKey = getDimensionTypeKey();
 
-        Iris.verbose("    Installing Data Pack Dimension Type: \"iris:" + type.key() + '"');
+        Iris.verbose("    Installing Data Pack Dimension Type: \"iris:" + dimensionTypeKey + '"');
         for (File datapacks : folders) {
-            File output = new File(datapacks, "iris/data/iris/dimension_type/" + type.key() + ".json");
+            File output = new File(datapacks, "iris/data/iris/dimension_type/" + dimensionTypeKey + ".json");
             output.getParentFile().mkdirs();
             try {
                 IO.writeAll(output, json);

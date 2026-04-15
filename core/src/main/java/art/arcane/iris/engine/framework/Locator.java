@@ -26,6 +26,7 @@ import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.IrisRegion;
+import art.arcane.iris.util.project.context.IrisContext;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
@@ -90,7 +91,12 @@ public interface Locator<T> {
     static Locator<IrisBiome> caveOrMantleBiome(String loadKey) {
         return (e, c) -> {
             AtomicBoolean found = new AtomicBoolean(false);
-            e.generateMatter(c.getX(), c.getZ(), true, new ChunkContext(c.getX() << 4, c.getZ() << 4, e.getComplex(), false));
+            try (GenerationSessionLease lease = e.acquireGenerationLease("locator_generate_matter")) {
+                IrisContext.getOr(e).setGenerationSessionId(lease.sessionId());
+                e.generateMatter(c.getX(), c.getZ(), true, new ChunkContext(c.getX() << 4, c.getZ() << 4, e.getComplex(), lease.sessionId(), false, ChunkContext.PrefillPlan.NONE, null));
+            } catch (GenerationSessionException sessionException) {
+                throw new IllegalStateException(sessionException);
+            }
             e.getMantle().getMantle().iterateChunk(c.getX(), c.getZ(), MatterCavern.class, (x, y, z, t) -> {
                 if (found.get()) {
                     return;

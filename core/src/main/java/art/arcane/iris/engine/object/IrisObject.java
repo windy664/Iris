@@ -969,7 +969,7 @@ public class IrisObject extends IrisRegistrant {
                                 BlockData newData = j.getReplace(rng, i.getX() + x, i.getY() + y, i.getZ() + z, rdata).clone();
 
                                 if (newData.getMaterial() == data.getMaterial() && !(newData instanceof IrisCustomData || data instanceof IrisCustomData))
-                                    data = data.merge(newData);
+                                    data = BlockDataMergeSupport.merge(data, newData);
                                 else
                                     data = newData;
 
@@ -1093,7 +1093,7 @@ public class IrisObject extends IrisRegistrant {
                                 BlockData newData = j.getReplace(rng, i.getX() + x, i.getY() + y, i.getZ() + z, rdata).clone();
 
                                 if (newData.getMaterial() == d.getMaterial()) {
-                                    d = d.merge(newData);
+                                    d = BlockDataMergeSupport.merge(d, newData);
                                 } else {
                                     d = newData;
                                 }

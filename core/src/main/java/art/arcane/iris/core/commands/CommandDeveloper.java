@@ -87,6 +87,7 @@ public class CommandDeveloper implements DirectorExecutor {
     private static final Set<String> ACTIVE_DELETE_CHUNK_WORLDS = ConcurrentHashMap.newKeySet();
     private CommandTurboPregen turboPregen;
     private CommandLazyPregen lazyPregen;
+    private CommandSmoke smoke;
 
     @Director(description = "Get Loaded TectonicPlates Count", origin = DirectorOrigin.BOTH, sync = true)
     public void EngineStatus() {

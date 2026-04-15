@@ -431,6 +431,10 @@ public class VolmitSender implements CommandSender {
         return m.removeDuplicates().convert((iff) -> iff.replaceAll("\\Q  \\E", " ")).toString("\n");
     }
 
+    static String escapeMiniMessageQuotedText(String text) {
+        return text.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
     public void sendHeader(String name, int overrideLength) {
         int len = overrideLength;
         int h = name.length() + 2;
@@ -469,7 +473,8 @@ public class VolmitSender implements CommandSender {
         if (v.getNodes().isNotEmpty()) {
             sendHeader(v.getPath() + (page > 0 ? (" {" + (page + 1) + "}") : ""));
             if (isPlayer() && v.getParent() != null) {
-                sendMessageRaw("<hover:show_text:'" + "<#2b7a3f>Click to go back to <#32bfad>" + Form.capitalize(v.getParent().getName()) + " Help" + "'><click:run_command:" + v.getParent().getPath() + "><font:minecraft:uniform><#6fe98f>〈 Back</click></hover>");
+                String backHover = escapeMiniMessageQuotedText("<#2b7a3f>Click to go back to <#32bfad>" + Form.capitalize(v.getParent().getName()) + " Help");
+                sendMessageRaw("<hover:show_text:'" + backHover + "'><click:run_command:" + v.getParent().getPath() + "><font:minecraft:uniform><#6fe98f>〈 Back</click></hover>");
             }
 
             AtomicBoolean next = new AtomicBoolean(false);
@@ -481,13 +486,15 @@ public class VolmitSender implements CommandSender {
             int l = 75 - (page > 0 ? 10 : 0) - (next.get() ? 10 : 0);
 
             if (page > 0) {
-                s += "<hover:show_text:'<green>Click to go back to page " + page + "'><click:run_command:" + v.getPath() + " help=" + page + "><gradient:#34eb6b:#1f8f4d>〈 Page " + page + "</click></hover><reset> ";
+                String previousPageHover = escapeMiniMessageQuotedText("<green>Click to go back to page " + page);
+                s += "<hover:show_text:'" + previousPageHover + "'><click:run_command:" + v.getPath() + " help=" + page + "><gradient:#34eb6b:#1f8f4d>〈 Page " + page + "</click></hover><reset> ";
             }
 
             s += "<reset><font:minecraft:uniform><strikethrough><gradient:#32bfad:#34eb6b>" + Form.repeat(" ", l) + "<reset>";
 
             if (next.get()) {
-                s += " <hover:show_text:'<green>Click to go to back to page " + (page + 2) + "'><click:run_command:" + v.getPath() + " help=" + (page + 2) + "><gradient:#1f8f4d:#34eb6b>Page " + (page + 2) + " ❭</click></hover>";
+                String nextPageHover = escapeMiniMessageQuotedText("<green>Click to go to back to page " + (page + 2));
+                s += " <hover:show_text:'" + nextPageHover + "'><click:run_command:" + v.getPath() + " help=" + (page + 2) + "><gradient:#1f8f4d:#34eb6b>Page " + (page + 2) + " ❭</click></hover>";
             }
 
             sendMessageRaw(s);
@@ -550,13 +557,11 @@ public class VolmitSender implements CommandSender {
                             nUsage = "<#3fbe6f>✔ <#9de5b6><font:minecraft:uniform>This parameter is optional.";
                         }
                         String type = "<#4fbf7f>✢ <#8ad9af><font:minecraft:uniform>This parameter is of type " + p.getType().getSimpleName() + ".";
+                        String parameterHover = escapeMiniMessageQuotedText(nHoverTitle + newline + nDescription + newline + nUsage + newline + type);
 
                         nodes
                                 .append("<hover:show_text:'")
-                                .append(nHoverTitle).append(newline)
-                                .append(nDescription).append(newline)
-                                .append(nUsage).append(newline)
-                                .append(type)
+                                .append(parameterHover)
                                 .append("'>")
                                 .append(fullTitle)
                                 .append("</hover>");
@@ -565,12 +570,16 @@ public class VolmitSender implements CommandSender {
                     nodes = new StringBuilder("<gradient:#b7eecb:#9de5b6> - Category of Commands");
                 }
 
-                return "<hover:show_text:'" +
+                String entryHover = escapeMiniMessageQuotedText(
                         hoverTitle + newline +
-                        description + newline +
-                        usage +
-                        suggestion +
-                        suggestions +
+                                description + newline +
+                                usage +
+                                suggestion +
+                                suggestions
+                );
+
+                return "<hover:show_text:'" +
+                        entryHover +
                         "'>" +
                         "<click:" +
                         onClick +

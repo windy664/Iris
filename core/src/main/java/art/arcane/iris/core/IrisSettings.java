@@ -159,7 +159,6 @@ public class IrisSettings {
         public int chunkLoadTimeoutSeconds = 15;
         public int timeoutWarnIntervalMs = 500;
         public int saveIntervalMs = 120_000;
-        public boolean startupNoisemapPrebake = true;
         public boolean enablePregenPerformanceProfile = true;
         public int pregenProfileNoiseCacheSize = 4_096;
         public boolean pregenProfileEnableFastCache = true;

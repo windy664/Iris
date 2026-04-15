@@ -38,6 +38,16 @@ public class IrisRuntimeSchedulerModeRoutingTest {
     }
 
     @Test
+    public void autoResolvesToPaperLikeOnCanvasBranding() {
+        installServer("Canvas", "git-Canvas-101 (MC: 1.21.11)");
+        IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();
+        pregen.runtimeSchedulerMode = IrisRuntimeSchedulerMode.AUTO;
+
+        IrisRuntimeSchedulerMode resolved = IrisRuntimeSchedulerMode.resolve(pregen);
+        assertEquals(IrisRuntimeSchedulerMode.PAPER_LIKE, resolved);
+    }
+
+    @Test
     public void explicitModeBypassesAutoDetection() {
         installServer("Purpur", "git-Purpur-2562 (MC: 1.21.11)");
         IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();

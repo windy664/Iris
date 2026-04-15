@@ -111,6 +111,10 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
     void close();
 
+    default boolean isClosing() {
+        return isClosed();
+    }
+
     IrisContext getContext();
 
     double getMaxBiomeObjectDensity();
@@ -120,6 +124,24 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
     double getMaxBiomeLayerDensity();
 
     boolean isClosed();
+
+    default GenerationSessionManager getGenerationSessions() {
+        return null;
+    }
+
+    default GenerationSessionLease acquireGenerationLease(String operation) throws GenerationSessionException {
+        GenerationSessionManager generationSessions = getGenerationSessions();
+        if (generationSessions == null) {
+            return GenerationSessionLease.noop();
+        }
+
+        return generationSessions.acquire(operation);
+    }
+
+    default long getGenerationSessionId() {
+        GenerationSessionManager generationSessions = getGenerationSessions();
+        return generationSessions == null ? 0L : generationSessions.currentSessionId();
+    }
 
     EngineWorldManager getWorldManager();
 
