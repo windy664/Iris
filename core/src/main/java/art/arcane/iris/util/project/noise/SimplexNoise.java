@@ -52,6 +52,33 @@ public class SimplexNoise implements NoiseGenerator, OctaveNoise {
     }
 
     @Override
+    public double noiseSigned(double x) {
+        if (octaves <= 1) {
+            return n.GetSimplex(x, 0D);
+        }
+
+        double frequency = 1D;
+        double magnitude = 0D;
+        double value = 0D;
+
+        for (int i = 0; i < octaves; i++) {
+            double sampleFrequency;
+            if (frequency == 1D) {
+                sampleFrequency = frequency;
+                frequency = 2D;
+            } else {
+                frequency *= 2D;
+                sampleFrequency = frequency;
+            }
+
+            value += n.GetSimplex(x * sampleFrequency, 0D) * frequency;
+            magnitude += frequency;
+        }
+
+        return value / magnitude;
+    }
+
+    @Override
     public double noise(double x, double z) {
         if (octaves <= 1) {
             return f(n.GetSimplex(x, z));
@@ -70,6 +97,26 @@ public class SimplexNoise implements NoiseGenerator, OctaveNoise {
     }
 
     @Override
+    public double noiseSigned(double x, double z) {
+        if (octaves <= 1) {
+            return n.GetSimplex(x, z);
+        }
+
+        double frequency = 1D;
+        double magnitude = 0D;
+        double value = 0D;
+
+        for (int i = 0; i < octaves; i++) {
+            double octaveFrequency = frequency == 1D ? frequency + 1D : frequency * 2D;
+            value += n.GetSimplex(x * octaveFrequency, z * octaveFrequency) * octaveFrequency;
+            magnitude += octaveFrequency;
+            frequency = octaveFrequency;
+        }
+
+        return value / magnitude;
+    }
+
+    @Override
     public double noise(double x, double y, double z) {
         if (octaves <= 1) {
             return f(n.GetSimplex(x, y, z));
@@ -85,6 +132,26 @@ public class SimplexNoise implements NoiseGenerator, OctaveNoise {
         }
 
         return f(v / m);
+    }
+
+    @Override
+    public double noiseSigned(double x, double y, double z) {
+        if (octaves <= 1) {
+            return n.GetSimplex(x, y, z);
+        }
+
+        double frequency = 1D;
+        double magnitude = 0D;
+        double value = 0D;
+
+        for (int i = 0; i < octaves; i++) {
+            double octaveFrequency = frequency == 1D ? frequency + 1D : frequency * 2D;
+            value += n.GetSimplex(x * octaveFrequency, y * octaveFrequency, z * octaveFrequency) * octaveFrequency;
+            magnitude += octaveFrequency;
+            frequency = octaveFrequency;
+        }
+
+        return value / magnitude;
     }
 
     @Override

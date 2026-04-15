@@ -29,4 +29,16 @@ public class AsyncPregenMethodConcurrencyCapTest {
         assertEquals(16, AsyncPregenMethod.applyRuntimeConcurrencyCap(256, false, 8));
         assertEquals(20, AsyncPregenMethod.applyRuntimeConcurrencyCap(20, false, 40));
     }
+
+    @Test
+    public void paperLikeConcurrencyUsesChunkWorkerPoolWhenAvailable() {
+        assertEquals(4, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(4, 16, 32));
+        assertEquals(24, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(-1, 16, 24));
+    }
+
+    @Test
+    public void foliaConcurrencyStillUsesBroaderRuntimeCapacity() {
+        assertEquals(32, AsyncPregenMethod.resolveFoliaConcurrencyWorkerThreads(4, 16, 32));
+        assertEquals(16, AsyncPregenMethod.resolveFoliaConcurrencyWorkerThreads(-1, 16, 12));
+    }
 }

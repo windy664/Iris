@@ -24,6 +24,7 @@ public class HexJamesNoise implements NoiseGenerator, OctaveNoise {
             {-1L, 1L},
             {0L, 1L}
     };
+    private static final ThreadLocal<HexScratch> SCRATCH = ThreadLocal.withInitial(HexScratch::new);
     private final long seed;
     private final SimplexNoise heatSimplex;
     private int octaves;
@@ -221,6 +222,9 @@ public class HexJamesNoise implements NoiseGenerator, OctaveNoise {
     }
 
     private double sample(double x, double z) {
+        HexScratch scratch = SCRATCH.get();
+        double[] centersQ = scratch.centersQ;
+        double[] centersR = scratch.centersR;
         double qWorld = (SQRT_3_OVER_3 * x) - (z / 3.0);
         double rWorld = TWO_OVER_THREE * z;
         long[] rounded = roundAxial(qWorld, rWorld);
@@ -233,8 +237,6 @@ public class HexJamesNoise implements NoiseGenerator, OctaveNoise {
         double heat = cellHeat(centerQ, centerR, nodeHash, 0);
 
         for (int level = 0; level < MAX_DEPTH; level++) {
-            double[] centersQ = new double[7];
-            double[] centersR = new double[7];
             int childIndex = pickChildIndex(localQ, localR, centersQ, centersR);
 
             if (childIndex < 0) {
@@ -284,5 +286,10 @@ public class HexJamesNoise implements NoiseGenerator, OctaveNoise {
     @Override
     public void setOctaves(int o) {
         this.octaves = Math.max(1, o);
+    }
+
+    private static final class HexScratch {
+        private final double[] centersQ = new double[7];
+        private final double[] centersR = new double[7];
     }
 }

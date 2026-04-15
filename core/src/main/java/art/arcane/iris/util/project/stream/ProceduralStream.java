@@ -281,6 +281,11 @@ public interface ProceduralStream<T> extends ProceduralLayer, Interpolated<T> {
         return new CachedStream2D<T>(name, engine, this, size);
     }
 
+    @SuppressWarnings("unchecked")
+    default ProceduralStream<Double> cache2DDouble(String name, Engine engine, int size) {
+        return new CachedDoubleStream2D(name, engine, (ProceduralStream<Double>) this, size);
+    }
+
     default ProceduralStream<T> cache3D(String name, Engine engine, int maxSize) {
         return new CachedStream3D<T>(name, engine, this, maxSize);
     }

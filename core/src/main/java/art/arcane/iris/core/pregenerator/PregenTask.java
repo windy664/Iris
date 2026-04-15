@@ -20,6 +20,7 @@ package art.arcane.iris.core.pregenerator;
 
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.Spiraled;
 import art.arcane.volmlib.util.math.Spiraler;
@@ -31,8 +32,7 @@ import java.util.Comparator;
 @Builder
 @Data
 public class PregenTask {
-    private static final Position2 ZERO = new Position2(0, 0);
-    private static final KMap<Position2, KList<Position2>> ORDERS = new KMap<>();
+    private static final KMap<Long, int[]> ORDERS = new KMap<>();
 
     @Builder.Default
     private final boolean gui = false;
@@ -54,16 +54,28 @@ public class PregenTask {
     }
 
     public static void iterateRegion(int xr, int zr, Spiraled s, Position2 pull) {
-        for (Position2 i : ORDERS.computeIfAbsent(pull, PregenTask::computeOrder)) {
-            s.on(i.getX() + (xr << 5), i.getZ() + (zr << 5));
+        iterateRegion(xr, zr, s, pull.getX(), pull.getZ());
+    }
+
+    public static void iterateRegion(int xr, int zr, Spiraled s, int pullX, int pullZ) {
+        for (int packed : orderForPull(pullX, pullZ)) {
+            s.on(PowerOfTwoCoordinates.unpackLocal32X(packed) + PowerOfTwoCoordinates.regionToChunk(xr), PowerOfTwoCoordinates.unpackLocal32Z(packed) + PowerOfTwoCoordinates.regionToChunk(zr));
         }
     }
 
     public static void iterateRegion(int xr, int zr, Spiraled s) {
-        iterateRegion(xr, zr, s, new Position2(-(xr << 5), -(zr << 5)));
+        iterateRegion(xr, zr, s, -PowerOfTwoCoordinates.regionToChunk(xr), -PowerOfTwoCoordinates.regionToChunk(zr));
     }
 
-    private static KList<Position2> computeOrder(Position2 pull) {
+    private static int[] orderForPull(int pullX, int pullZ) {
+        long key = orderKey(pullX, pullZ);
+        return ORDERS.computeIfAbsent(key, PregenTask::computeOrder);
+    }
+
+    private static int[] computeOrder(long key) {
+        int pullX = (int) (key >> 32);
+        int pullZ = (int) key;
+        Position2 pull = new Position2(pullX, pullZ);
         KList<Position2> p = new KList<>();
         new Spiraler(33, 33, (x, z) -> {
             int xx = (x + 15);
@@ -76,18 +88,30 @@ public class PregenTask {
         }).drain();
         p.sort(Comparator.comparing((i) -> i.distance(pull)));
 
-        return p;
+        int[] packed = new int[p.size()];
+        for (int index = 0; index < p.size(); index++) {
+            Position2 position = p.get(index);
+            packed[index] = PowerOfTwoCoordinates.packLocal32(position.getX(), position.getZ());
+        }
+
+        return packed;
+    }
+
+    private static long orderKey(int pullX, int pullZ) {
+        long high = (long) pullX << 32;
+        long low = pullZ & 0xFFFFFFFFL;
+        return high | low;
     }
 
     public void iterateRegions(Spiraled s) {
-        var bound = bounds.region();
+        Bound bound = bounds.region();
         new Spiraler(bound.sizeX, bound.sizeZ, ((x, z) -> {
             if (bound.check(x, z)) s.on(x, z);
-        })).setOffset(center.getX() >> 9, center.getZ() >> 9).drain();
+        })).setOffset(PowerOfTwoCoordinates.blockToRegionFloor(center.getX()), PowerOfTwoCoordinates.blockToRegionFloor(center.getZ())).drain();
     }
 
     public void iterateChunks(int rX, int rZ, Spiraled s) {
-        var bound = bounds.chunk();
+        Bound bound = bounds.chunk();
         iterateRegion(rX, rZ, ((x, z) -> {
             if (bound.check(x, z)) s.on(x, z);
         }));
@@ -103,11 +127,11 @@ public class PregenTask {
         }
 
         KList<RegionChunkCursor> cursors = new KList<>();
+        Bound bound = bounds.chunk();
         iterateRegions((regionX, regionZ) -> {
-            KList<Position2> chunks = new KList<>();
-            iterateChunks(regionX, regionZ, (chunkX, chunkZ) -> chunks.add(new Position2(chunkX, chunkZ)));
-            if (!chunks.isEmpty()) {
-                cursors.add(new RegionChunkCursor(regionX, regionZ, chunks));
+            RegionChunkCursor cursor = new RegionChunkCursor(regionX, regionZ, bound);
+            if (cursor.hasNext()) {
+                cursors.add(cursor);
             }
         });
 
@@ -120,16 +144,18 @@ public class PregenTask {
                 }
 
                 hasProgress = true;
-                Position2 chunk = cursor.next();
-                if (chunk == null) {
+                long chunk = cursor.next();
+                if (chunk == Long.MIN_VALUE) {
                     continue;
                 }
+                int chunkX = (int) (chunk >> 32);
+                int chunkZ = (int) chunk;
 
                 boolean shouldContinue = spiraled.on(
                         cursor.getRegionX(),
                         cursor.getRegionZ(),
-                        chunk.getX(),
-                        chunk.getZ(),
+                        chunkX,
+                        chunkZ,
                         cursor.getIndex() == 1,
                         !cursor.hasNext()
                 );
@@ -155,8 +181,18 @@ public class PregenTask {
             int minX = center.getX() - radiusX;
             int minZ = center.getZ() - radiusZ;
 
-            chunk = new Bound(minX >> 4, minZ >> 4, Math.ceilDiv(maxX, 16), Math.ceilDiv(maxZ, 16));
-            region = new Bound(minX >> 9, minZ >> 9, Math.ceilDiv(maxX, 512), Math.ceilDiv(maxZ, 512));
+            chunk = new Bound(
+                    PowerOfTwoCoordinates.blockToChunkFloor(minX),
+                    PowerOfTwoCoordinates.blockToChunkFloor(minZ),
+                    PowerOfTwoCoordinates.ceilDivPow2(maxX, PowerOfTwoCoordinates.CHUNK_BITS),
+                    PowerOfTwoCoordinates.ceilDivPow2(maxZ, PowerOfTwoCoordinates.CHUNK_BITS)
+            );
+            region = new Bound(
+                    PowerOfTwoCoordinates.blockToRegionFloor(minX),
+                    PowerOfTwoCoordinates.blockToRegionFloor(minZ),
+                    PowerOfTwoCoordinates.ceilDivPow2(maxX, PowerOfTwoCoordinates.REGION_BITS),
+                    PowerOfTwoCoordinates.ceilDivPow2(maxZ, PowerOfTwoCoordinates.REGION_BITS)
+            );
         }
 
         public Bound chunk() {
@@ -199,28 +235,60 @@ public class PregenTask {
     private static final class RegionChunkCursor {
         private final int regionX;
         private final int regionZ;
-        private final KList<Position2> chunks;
-        private int index;
+        private final Bound bound;
+        private final int[] order;
+        private final int chunkOffsetX;
+        private final int chunkOffsetZ;
+        private int scanIndex;
+        private int emittedIndex;
+        private int currentChunkX;
+        private int currentChunkZ;
+        private boolean hasCurrent;
 
-        private RegionChunkCursor(int regionX, int regionZ, KList<Position2> chunks) {
+        private RegionChunkCursor(int regionX, int regionZ, Bound bound) {
             this.regionX = regionX;
             this.regionZ = regionZ;
-            this.chunks = chunks;
-            this.index = 0;
+            this.bound = bound;
+            this.chunkOffsetX = PowerOfTwoCoordinates.regionToChunk(regionX);
+            this.chunkOffsetZ = PowerOfTwoCoordinates.regionToChunk(regionZ);
+            this.order = orderForPull(-chunkOffsetX, -chunkOffsetZ);
+            this.scanIndex = 0;
+            this.emittedIndex = 0;
+            advance();
         }
 
         private boolean hasNext() {
-            return index < chunks.size();
+            return hasCurrent;
         }
 
-        private Position2 next() {
+        private long next() {
             if (!hasNext()) {
-                return null;
+                return Long.MIN_VALUE;
             }
 
-            Position2 value = chunks.get(index);
-            index++;
-            return value;
+            long high = (long) currentChunkX << 32;
+            long low = currentChunkZ & 0xFFFFFFFFL;
+            emittedIndex++;
+            advance();
+            return high | low;
+        }
+
+        private void advance() {
+            hasCurrent = false;
+            while (scanIndex < order.length) {
+                int local = order[scanIndex];
+                scanIndex++;
+                int chunkX = chunkOffsetX + PowerOfTwoCoordinates.unpackLocal32X(local);
+                int chunkZ = chunkOffsetZ + PowerOfTwoCoordinates.unpackLocal32Z(local);
+                if (!bound.check(chunkX, chunkZ)) {
+                    continue;
+                }
+
+                currentChunkX = chunkX;
+                currentChunkZ = chunkZ;
+                hasCurrent = true;
+                return;
+            }
         }
 
         private int getRegionX() {
@@ -232,7 +300,7 @@ public class PregenTask {
         }
 
         private int getIndex() {
-            return index;
+            return emittedIndex;
         }
     }
 }

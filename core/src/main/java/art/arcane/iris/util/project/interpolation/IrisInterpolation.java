@@ -32,7 +32,6 @@ import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.HashMap;
 
 public class IrisInterpolation {
     public static CNG cng = NoiseStyle.SIMPLEX.create(new RNG());
@@ -952,18 +951,10 @@ public class IrisInterpolation {
      */
     public static Hunk<Double> getNoise3D(InterpolationMethod3D method, int xo, int yo, int zo, int w, int h, int d, double radX, double radY, double radZ, NoiseProvider3 n) {
         Hunk<Double> hunk = Hunk.newAtomicDoubleHunk(w, h, d);
-        HashMap<Integer, Double> cache = new HashMap<>();
-        int i, j, k;
-
-        for (i = 0; i < w; i++) {
-            int fi = i;
-            for (j = 0; j < h; j++) {
-                int fj = j;
-                for (k = 0; k < d; k++) {
-                    int fk = k;
-                    hunk.set(i, j, k, cache.computeIfAbsent((k * w * h) + (j * w) + i, (p)
-                            -> getNoise3D(method, fi + xo, fj + yo, fk + zo,
-                            radX, radY, radZ, n)));
+        for (int i = 0; i < w; i++) {
+            for (int j = 0; j < h; j++) {
+                for (int k = 0; k < d; k++) {
+                    hunk.set(i, j, k, getNoise3D(method, i + xo, j + yo, k + zo, radX, radY, radZ, n));
                 }
             }
         }

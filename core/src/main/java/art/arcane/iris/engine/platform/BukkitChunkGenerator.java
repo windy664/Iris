@@ -21,6 +21,7 @@ package art.arcane.iris.engine.platform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
+import art.arcane.iris.core.gui.PregeneratorJob;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.service.StudioSVC;
@@ -81,6 +82,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @Data
 public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChunkGenerator, Listener {
     private static final int LOAD_LOCKS = Runtime.getRuntime().availableProcessors() * 4;
+    private static final long HOTLOAD_LOOP_DELAY_MS = 250L;
+    private static final long HOTLOAD_MAINTENANCE_DELAY_MS = 4000L;
     private final Semaphore loadLock;
     private final IrisWorld world;
     private final File dataLocation;
@@ -563,11 +566,15 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             this.hotloader = studio ? new Looper() {
                 @Override
                 protected long loop() {
+                    if (shouldThrottleHotload()) {
+                        return HOTLOAD_MAINTENANCE_DELAY_MS;
+                    }
+
                     if (hotloadChecker.flip()) {
                         folder.check();
                     }
 
-                    return 250;
+                    return HOTLOAD_LOOP_DELAY_MS;
                 }
             } : null;
 
@@ -735,8 +742,22 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             return true;
         }
 
+        return isMaintenanceActive();
+    }
+
+    private boolean isMaintenanceActive() {
         World realWorld = this.world.realWorld();
         return realWorld != null && IrisToolbelt.isWorldMaintenanceActive(realWorld);
+    }
+
+    private boolean shouldThrottleHotload() {
+        if (isMaintenanceActive()) {
+            return true;
+        }
+
+        World realWorld = this.world.realWorld();
+        PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
+        return realWorld != null && pregeneratorJob != null && pregeneratorJob.targetsWorld(realWorld);
     }
 
     @Override

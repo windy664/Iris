@@ -195,7 +195,6 @@ public class IrisPregenerator {
 
     private void init() {
         generator.init();
-        generator.save();
     }
 
     private void shutdown() {

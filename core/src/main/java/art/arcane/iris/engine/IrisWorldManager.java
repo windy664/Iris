@@ -37,6 +37,7 @@ import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.mantle.flag.MantleFlag;
 import art.arcane.volmlib.util.math.M;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.Matter;
@@ -219,8 +220,8 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             }
 
             J.runEntity(player, () -> {
-                int centerX = player.getLocation().getBlockX() >> 4;
-                int centerZ = player.getLocation().getBlockZ() >> 4;
+                int centerX = PowerOfTwoCoordinates.blockToChunkFloor(player.getLocation().getBlockX());
+                int centerZ = PowerOfTwoCoordinates.blockToChunkFloor(player.getLocation().getBlockZ());
                 int radius = 1;
                 for (int x = -radius; x <= radius; x++) {
                     for (int z = -radius; z <= radius; z++) {
@@ -278,8 +279,8 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             }
 
             J.runEntity(player, () -> {
-                int centerX = player.getLocation().getBlockX() >> 4;
-                int centerZ = player.getLocation().getBlockZ() >> 4;
+                int centerX = PowerOfTwoCoordinates.blockToChunkFloor(player.getLocation().getBlockX());
+                int centerZ = PowerOfTwoCoordinates.blockToChunkFloor(player.getLocation().getBlockZ());
                 int radius = 1;
 
                 for (int x = -radius; x <= radius; x++) {
@@ -632,12 +633,12 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                                 .filter((i) -> i.isValid(biome)),
                         Stream.concat(getData()
                                         .getSpawnerLoader()
-                                        .loadAll(getEngine().getRegion(c.getX() << 4, c.getZ() << 4).getEntitySpawners())
+                                        .loadAll(getEngine().getRegion(PowerOfTwoCoordinates.chunkToBlock(c.getX()), PowerOfTwoCoordinates.chunkToBlock(c.getZ())).getEntitySpawners())
                                         .shuffleCopy(RNG.r)
                                         .stream()
                                         .filter(filter),
                                 getData().getSpawnerLoader()
-                                        .loadAll(getEngine().getSurfaceBiome(c.getX() << 4, c.getZ() << 4).getEntitySpawners())
+                                        .loadAll(getEngine().getSurfaceBiome(PowerOfTwoCoordinates.chunkToBlock(c.getX()), PowerOfTwoCoordinates.chunkToBlock(c.getZ())).getEntitySpawners())
                                         .shuffleCopy(RNG.r)
                                         .stream()
                                         .filter(filter)))
@@ -668,13 +669,13 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
 
     private void spawn(IrisPosition pos, IrisEntitySpawn i) {
         IrisSpawner ref = i.getReferenceSpawner();
-        if (!ref.canSpawn(getEngine(), pos.getX() >> 4, pos.getZ() >> 4))
+        if (!ref.canSpawn(getEngine(), PowerOfTwoCoordinates.blockToChunkFloor(pos.getX()), PowerOfTwoCoordinates.blockToChunkFloor(pos.getZ())))
             return;
 
         int s = i.spawn(getEngine(), pos, RNG.r);
         actuallySpawned += s;
         if (s > 0) {
-            ref.spawn(getEngine(), pos.getX() >> 4, pos.getZ() >> 4);
+            ref.spawn(getEngine(), PowerOfTwoCoordinates.blockToChunkFloor(pos.getX()), PowerOfTwoCoordinates.blockToChunkFloor(pos.getZ()));
             energy -= s * ((i.getEnergyMultiplier() * ref.getEnergyMultiplier() * 1));
         }
     }

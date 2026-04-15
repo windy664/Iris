@@ -35,6 +35,7 @@ import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.math.BlockPosition;
 import art.arcane.volmlib.util.math.M;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.matter.MatterCavern;
@@ -89,7 +90,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
 
                 int rx = xx & 15;
                 int rz = zz & 15;
-                int columnIndex = (rx << 4) | rz;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(rx, rz);
                 BlockData current = output.get(rx, yy, rz);
 
                 if (B.isFluid(current)) {
@@ -135,8 +136,8 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
             PrecisionStopwatch applyStopwatch = PrecisionStopwatch.start();
             try {
                 walls.forEach((rx, yy, rz, cavern) -> {
-                    int worldX = rx + (x << 4);
-                    int worldZ = rz + (z << 4);
+                    int worldX = rx + PowerOfTwoCoordinates.chunkToBlock(x);
+                    int worldZ = rz + PowerOfTwoCoordinates.chunkToBlock(z);
                     String customBiome = cavern.getCustomBiome();
                     IrisBiome biome = customBiome.isEmpty()
                             ? resolveCaveBiome(caveBiomeCache, worldX, yy, worldZ, resolverState)
@@ -184,10 +185,10 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
             return;
         }
 
-        int rx = columnIndex >> 4;
+        int rx = PowerOfTwoCoordinates.unpackLocal16X(columnIndex);
         int rz = columnIndex & 15;
-        int worldX = rx + (chunkX << 4);
-        int worldZ = rz + (chunkZ << 4);
+        int worldX = rx + PowerOfTwoCoordinates.chunkToBlock(chunkX);
+        int worldZ = rz + PowerOfTwoCoordinates.chunkToBlock(chunkZ);
         CaveZone zone = new CaveZone();
         zone.setFloor(firstHeight);
         int buf = firstHeight - 1;
@@ -239,7 +240,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         }
 
         for (int i = zone.floor; i <= zone.ceiling; i++) {
-            MatterCavern cavernData = (MatterCavern) mc.getOrCreate(i >> 4).slice(MatterCavern.class)
+            MatterCavern cavernData = (MatterCavern) mc.getOrCreate(PowerOfTwoCoordinates.floorDivPow2(i, 4)).slice(MatterCavern.class)
                     .get(rx, i & 15, rz);
 
             if (cavernData != null && !cavernData.getCustomBiome().isEmpty()) {
@@ -447,11 +448,11 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         }
 
         private int pack(int x, int y, int z) {
-            return (y << 8) | ((x & 15) << 4) | (z & 15);
+            return (y << 8) | PowerOfTwoCoordinates.packLocal16(x & 15, z & 15);
         }
 
         private int unpackX(int key) {
-            return (key >> 4) & 15;
+            return PowerOfTwoCoordinates.unpackLocal16X(key & 255);
         }
 
         private int unpackY(int key) {
@@ -459,7 +460,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         }
 
         private int unpackZ(int key) {
-            return key & 15;
+            return PowerOfTwoCoordinates.unpackLocal16Z(key);
         }
 
         private int mix(int value) {

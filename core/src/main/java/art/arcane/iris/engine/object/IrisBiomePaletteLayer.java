@@ -77,7 +77,10 @@ public class IrisBiomePaletteLayer {
             return getBlockData(data).get(0);
         }
 
-        return getLayerGenerator(rng, data).fit(getBlockData(data), x / zoom, y / zoom, z / zoom);
+        double scaledX = x / zoom;
+        double scaledY = y / zoom;
+        double scaledZ = z / zoom;
+        return getLayerGenerator(rng, data).fit(getBlockData(data), scaledX, scaledY, scaledZ);
     }
 
     public CNG getLayerGenerator(RNG rng, IrisData data) {

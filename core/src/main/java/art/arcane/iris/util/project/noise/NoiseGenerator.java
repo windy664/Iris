@@ -27,6 +27,18 @@ public interface NoiseGenerator {
 
     double noise(double x, double y, double z);
 
+    default double noiseSigned(double x) {
+        return (noise(x) * 2D) - 1D;
+    }
+
+    default double noiseSigned(double x, double z) {
+        return (noise(x, z) * 2D) - 1D;
+    }
+
+    default double noiseSigned(double x, double y, double z) {
+        return (noise(x, y, z) * 2D) - 1D;
+    }
+
     default boolean isStatic() {
         return false;
     }

@@ -14,8 +14,10 @@ import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.common.plugin.IrisService;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.volmlib.util.scheduling.Looper;
+import art.arcane.iris.util.project.stream.utility.CachedDoubleStream2D;
 import art.arcane.iris.util.project.stream.utility.CachedStream2D;
 import art.arcane.iris.util.project.stream.utility.CachedStream3D;
+import art.arcane.iris.core.gui.PregeneratorJob;
 import lombok.Synchronized;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -98,7 +100,7 @@ public class IrisEngineSVC implements IrisService {
         double total = 0D;
         int count = 0;
         for (var cache : preservation.getCaches()) {
-            if (!(cache instanceof CachedStream2D<?>)) {
+            if (!(cache instanceof CachedStream2D<?>) && !(cache instanceof CachedDoubleStream2D)) {
                 continue;
             }
 
@@ -126,6 +128,7 @@ public class IrisEngineSVC implements IrisService {
             var type = switch (cache) {
                 case ResourceLoader<?> ignored -> 0;
                 case CachedStream2D<?> ignored -> 1;
+                case CachedDoubleStream2D ignored -> 1;
                 case CachedStream3D<?> ignored -> 2;
                 default -> 3;
             };
@@ -250,6 +253,10 @@ public class IrisEngineSVC implements IrisService {
         return false;
     }
 
+    static boolean shouldSkipMantleReductionForMaintenance(boolean maintenanceActive, boolean pregeneratorTargetsWorld) {
+        return maintenanceActive && !pregeneratorTargetsWorld;
+    }
+
     private final class Registered {
         private final String name;
         private final PlatformChunkGenerator access;
@@ -286,7 +293,7 @@ public class IrisEngineSVC implements IrisService {
                             || !shouldReduce(engine))
                         return;
                     World engineWorld = engine.getWorld().realWorld();
-                    if (engineWorld != null && IrisToolbelt.isWorldMaintenanceActive(engineWorld)) {
+                    if (shouldSkipForMaintenance(engineWorld)) {
                         return;
                     }
 
@@ -313,7 +320,7 @@ public class IrisEngineSVC implements IrisService {
                             || !shouldReduce(engine))
                         return;
                     World engineWorld = engine.getWorld().realWorld();
-                    if (engineWorld != null && IrisToolbelt.isWorldMaintenanceActive(engineWorld)) {
+                    if (shouldSkipForMaintenance(engineWorld)) {
                         return;
                     }
 
@@ -363,7 +370,32 @@ public class IrisEngineSVC implements IrisService {
         }
 
         private boolean shouldReduce(Engine engine) {
-            return !engine.isStudio() || IrisSettings.get().getPerformance().isTrimMantleInStudio();
+            if (!engine.isStudio() || IrisSettings.get().getPerformance().isTrimMantleInStudio()) {
+                return true;
+            }
+
+            World world = engine.getWorld().realWorld();
+            if (world == null) {
+                return false;
+            }
+
+            PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
+            return pregeneratorJob != null && pregeneratorJob.targetsWorld(world);
+        }
+
+        private boolean shouldSkipForMaintenance(@Nullable World world) {
+            if (world == null) {
+                return false;
+            }
+
+            boolean maintenanceActive = IrisToolbelt.isWorldMaintenanceActive(world);
+            if (!maintenanceActive) {
+                return false;
+            }
+
+            PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
+            boolean pregeneratorTargetsWorld = pregeneratorJob != null && pregeneratorJob.targetsWorld(world);
+            return shouldSkipMantleReductionForMaintenance(maintenanceActive, pregeneratorTargetsWorld);
         }
     }
 }

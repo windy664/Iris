@@ -33,6 +33,7 @@ import lombok.experimental.Accessors;
 
 import java.io.File;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Snippet("style")
 @Accessors(chain = true)
@@ -41,6 +42,7 @@ import java.util.Objects;
 @Desc("A gen style")
 @Data
 public class IrisGeneratorStyle {
+    private static final ConcurrentHashMap<String, String> ACTIVE_CACHE_KEYS = new ConcurrentHashMap<>();
     private final transient AtomicCache<CNG> cng = new AtomicCache<>();
     @Desc("The chance is 1 in CHANCE per interval")
     private NoiseStyle style = NoiseStyle.FLAT;
@@ -127,6 +129,11 @@ public class IrisGeneratorStyle {
 
     private void clearStaleCacheEntries(IrisData data, String prefix, String key) {
         File cacheFolder = new File(data.getDataFolder(), ".cache");
+        String cacheFolderKey = cacheFolder.getAbsolutePath() + File.separator + prefix;
+        String previousKey = ACTIVE_CACHE_KEYS.put(cacheFolderKey, key);
+        if (key.equals(previousKey)) {
+            return;
+        }
         File[] files = cacheFolder.listFiles((dir, name) -> name.endsWith(".cnm") && name.startsWith(prefix));
         if (files == null) {
             return;

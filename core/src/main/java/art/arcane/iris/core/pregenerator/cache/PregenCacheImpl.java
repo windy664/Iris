@@ -5,6 +5,7 @@ import art.arcane.volmlib.util.data.Varint;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.documentation.RegionCoordinates;
 import art.arcane.volmlib.util.io.IO;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
@@ -39,19 +40,22 @@ public class PregenCacheImpl implements PregenCache {
     @Override
     @ChunkCoordinates
     public boolean isChunkCached(int x, int z) {
-        return getPlate(x >> 10, z >> 10).isCached(
-                (x >> 5) & 31,
-                (z >> 5) & 31,
-                region -> region.isCached(x & 31, z & 31)
+        return getPlate(PowerOfTwoCoordinates.floorDivPow2(x, 10), PowerOfTwoCoordinates.floorDivPow2(z, 10)).isCached(
+                PowerOfTwoCoordinates.localMaskPow2(PowerOfTwoCoordinates.floorDivPow2(x, 5), PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                PowerOfTwoCoordinates.localMaskPow2(PowerOfTwoCoordinates.floorDivPow2(z, 5), PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                region -> region.isCached(
+                        PowerOfTwoCoordinates.localMaskPow2(x, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                        PowerOfTwoCoordinates.localMaskPow2(z, PowerOfTwoCoordinates.REGION_CHUNK_BITS)
+                )
         );
     }
 
     @Override
     @RegionCoordinates
     public boolean isRegionCached(int x, int z) {
-        return getPlate(x >> 5, z >> 5).isCached(
-                x & 31,
-                z & 31,
+        return getPlate(PowerOfTwoCoordinates.floorDivPow2(x, 5), PowerOfTwoCoordinates.floorDivPow2(z, 5)).isCached(
+                PowerOfTwoCoordinates.localMaskPow2(x, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                PowerOfTwoCoordinates.localMaskPow2(z, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
                 Region::isCached
         );
     }
@@ -59,19 +63,22 @@ public class PregenCacheImpl implements PregenCache {
     @Override
     @ChunkCoordinates
     public void cacheChunk(int x, int z) {
-        getPlate(x >> 10, z >> 10).cache(
-                (x >> 5) & 31,
-                (z >> 5) & 31,
-                region -> region.cache(x & 31, z & 31)
+        getPlate(PowerOfTwoCoordinates.floorDivPow2(x, 10), PowerOfTwoCoordinates.floorDivPow2(z, 10)).cache(
+                PowerOfTwoCoordinates.localMaskPow2(PowerOfTwoCoordinates.floorDivPow2(x, 5), PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                PowerOfTwoCoordinates.localMaskPow2(PowerOfTwoCoordinates.floorDivPow2(z, 5), PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                region -> region.cache(
+                        PowerOfTwoCoordinates.localMaskPow2(x, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                        PowerOfTwoCoordinates.localMaskPow2(z, PowerOfTwoCoordinates.REGION_CHUNK_BITS)
+                )
         );
     }
 
     @Override
     @RegionCoordinates
     public void cacheRegion(int x, int z) {
-        getPlate(x >> 5, z >> 5).cache(
-                x & 31,
-                z & 31,
+        getPlate(PowerOfTwoCoordinates.floorDivPow2(x, 5), PowerOfTwoCoordinates.floorDivPow2(z, 5)).cache(
+                PowerOfTwoCoordinates.localMaskPow2(x, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
+                PowerOfTwoCoordinates.localMaskPow2(z, PowerOfTwoCoordinates.REGION_CHUNK_BITS),
                 Region::cache
         );
     }
@@ -215,7 +222,7 @@ public class PregenCacheImpl implements PregenCache {
                 return false;
             }
 
-            int index = x * 32 + z;
+            int index = PowerOfTwoCoordinates.packLocal32(x, z);
             Region region = regions[index];
             if (region == null) {
                 region = new Region();
@@ -240,7 +247,7 @@ public class PregenCacheImpl implements PregenCache {
                 return true;
             }
 
-            Region region = regions[x * 32 + z];
+            Region region = regions[PowerOfTwoCoordinates.packLocal32(x, z)];
             if (region == null) {
                 return false;
             }
@@ -294,7 +301,7 @@ public class PregenCacheImpl implements PregenCache {
                 return false;
             }
 
-            int index = x * 32 + z;
+            int index = PowerOfTwoCoordinates.packLocal32(x, z);
             int wordIndex = index >> 6;
             long bit = 1L << (index & 63);
             boolean current = (value[wordIndex] & bit) != 0L;
@@ -317,7 +324,7 @@ public class PregenCacheImpl implements PregenCache {
         }
 
         private boolean isCached(int x, int z) {
-            int index = x * 32 + z;
+            int index = PowerOfTwoCoordinates.packLocal32(x, z);
             if (count == SIZE) {
                 return true;
             }

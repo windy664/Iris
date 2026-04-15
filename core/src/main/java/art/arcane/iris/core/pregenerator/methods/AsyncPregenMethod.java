@@ -35,14 +35,17 @@ import io.papermc.lib.PaperLib;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -59,6 +62,9 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private final int effectiveWorkerThreads;
     private final int recommendedRuntimeConcurrencyCap;
     private final int configuredMaxConcurrency;
+    private final Method directChunkAtAsyncUrgentMethod;
+    private final Method directChunkAtAsyncMethod;
+    private final String chunkAccessMode;
     private final Executor executor;
     private final Semaphore semaphore;
     private final int threads;
@@ -90,10 +96,16 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         IrisSettings.IrisSettingsPregen pregen = IrisSettings.get().getPregen();
         this.runtimeSchedulerMode = IrisRuntimeSchedulerMode.resolve(pregen);
         this.foliaRuntime = runtimeSchedulerMode == IrisRuntimeSchedulerMode.FOLIA;
+        ChunkAsyncMethodSelection chunkAsyncMethodSelection = resolveChunkAsyncMethodSelection(world);
+        this.directChunkAtAsyncUrgentMethod = chunkAsyncMethodSelection.urgentMethod();
+        this.directChunkAtAsyncMethod = chunkAsyncMethodSelection.standardMethod();
+        this.chunkAccessMode = chunkAsyncMethodSelection.mode();
         int detectedWorkerPoolThreads = resolveWorkerPoolThreads();
         int detectedCpuThreads = Math.max(1, Runtime.getRuntime().availableProcessors());
         int configuredWorldGenThreads = Math.max(1, IrisSettings.get().getConcurrency().getWorldGenThreads());
-        int workerThreadsForCap = Math.max(detectedCpuThreads, Math.max(configuredWorldGenThreads, Math.max(1, detectedWorkerPoolThreads)));
+        int workerThreadsForCap = foliaRuntime
+                ? resolveFoliaConcurrencyWorkerThreads(detectedWorkerPoolThreads, detectedCpuThreads, configuredWorldGenThreads)
+                : resolvePaperLikeConcurrencyWorkerThreads(detectedWorkerPoolThreads, detectedCpuThreads, configuredWorldGenThreads);
         if (foliaRuntime) {
             this.paperLikeBackendMode = IrisPaperLikeBackendMode.AUTO;
             this.backendMode = "folia-region";
@@ -156,8 +168,11 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
     private void unloadAndSaveAllChunks() {
         if (foliaRuntime) {
-            // Folia requires world/chunk mutations to be region-owned; periodic global unload/save is unsafe.
             lastUse.clear();
+            return;
+        }
+
+        if (lastUse.isEmpty()) {
             return;
         }
 
@@ -169,6 +184,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 }
 
                 long minTime = M.ms() - 10_000;
+                AtomicBoolean unloaded = new AtomicBoolean(false);
                 lastUse.entrySet().removeIf(i -> {
                     final Chunk chunk = i.getKey();
                     final Long lastUseTime = i.getValue();
@@ -176,11 +192,14 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                         return true;
                     if (lastUseTime < minTime) {
                         chunk.unload();
+                        unloaded.set(true);
                         return true;
                     }
                     return false;
                 });
-                world.save();
+                if (unloaded.get()) {
+                    world.save();
+                }
             }).get();
         } catch (Throwable e) {
             e.printStackTrace();
@@ -294,6 +313,14 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         return recommendedCap;
     }
 
+    static int resolvePaperLikeConcurrencyWorkerThreads(int detectedWorkerPoolThreads, int detectedCpuThreads, int configuredWorldGenThreads) {
+        if (detectedWorkerPoolThreads > 0) {
+            return detectedWorkerPoolThreads;
+        }
+
+        return Math.max(1, Math.max(detectedCpuThreads, configuredWorldGenThreads));
+    }
+
     static int computeFoliaRecommendedCap(int workerThreads) {
         int normalizedWorkers = Math.max(1, workerThreads);
         int recommendedCap = normalizedWorkers * 4;
@@ -306,6 +333,10 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         }
 
         return recommendedCap;
+    }
+
+    static int resolveFoliaConcurrencyWorkerThreads(int detectedWorkerPoolThreads, int detectedCpuThreads, int configuredWorldGenThreads) {
+        return Math.max(detectedCpuThreads, Math.max(configuredWorldGenThreads, Math.max(1, detectedWorkerPoolThreads)));
     }
 
     static int applyRuntimeConcurrencyCap(int maxConcurrency, boolean foliaRuntime, int workerThreads) {
@@ -407,6 +438,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         Iris.info("Async pregen init: world=" + world.getName()
                 + ", mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
                 + ", backend=" + backendMode
+                + ", chunkAccess=" + chunkAccessMode
                 + ", threads=" + threads
                 + ", adaptiveLimit=" + adaptiveInFlightLimit.get()
                 + ", workerPoolThreads=" + workerPoolThreads
@@ -487,6 +519,96 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         executor.generate(x, z, listener);
     }
 
+    private CompletableFuture<Chunk> requestChunkAsync(int x, int z) {
+        Throwable failure = null;
+
+        if (directChunkAtAsyncUrgentMethod != null) {
+            try {
+                return invokeChunkFuture(directChunkAtAsyncUrgentMethod, x, z, true, urgent);
+            } catch (Throwable e) {
+                failure = e;
+            }
+        }
+
+        if (directChunkAtAsyncMethod != null) {
+            try {
+                return invokeChunkFuture(directChunkAtAsyncMethod, x, z, true, urgent);
+            } catch (Throwable e) {
+                if (failure == null) {
+                    failure = e;
+                }
+            }
+        }
+
+        try {
+            CompletableFuture<Chunk> future = PaperLib.getChunkAtAsync(world, x, z, true, urgent);
+            if (future != null) {
+                return future;
+            }
+        } catch (Throwable e) {
+            if (failure == null) {
+                failure = e;
+            }
+        }
+
+        if (failure == null) {
+            failure = new IllegalStateException("Chunk async access returned no future.");
+        }
+
+        return CompletableFuture.failedFuture(new IllegalStateException("Failed to request async chunk " + x + "," + z + " in world " + world.getName(), failure));
+    }
+
+    @SuppressWarnings("unchecked")
+    private CompletableFuture<Chunk> invokeChunkFuture(Method method, int x, int z, boolean generate, boolean urgentRequest) throws Throwable {
+        Object result;
+        try {
+            if (method.getParameterCount() == 4) {
+                result = method.invoke(world, x, z, generate, urgentRequest);
+            } else {
+                result = method.invoke(world, x, z, generate);
+            }
+        } catch (InvocationTargetException e) {
+            throw e.getCause() == null ? e : e.getCause();
+        }
+
+        if (result instanceof CompletableFuture<?>) {
+            return (CompletableFuture<Chunk>) result;
+        }
+
+        throw new IllegalStateException("Chunk async method returned a non-future result.");
+    }
+
+    private static ChunkAsyncMethodSelection resolveChunkAsyncMethodSelection(World world) {
+        if (world == null) {
+            return new ChunkAsyncMethodSelection(null, null, "paperlib");
+        }
+
+        Class<?> worldClass = world.getClass();
+        Method urgentMethod = resolveChunkAsyncMethod(worldClass, int.class, int.class, boolean.class, boolean.class);
+        Method standardMethod = resolveChunkAsyncMethod(worldClass, int.class, int.class, boolean.class);
+        if (urgentMethod != null) {
+            return new ChunkAsyncMethodSelection(urgentMethod, standardMethod, "world#getChunkAtAsync(int,int,boolean,boolean)");
+        }
+        if (standardMethod != null) {
+            return new ChunkAsyncMethodSelection(null, standardMethod, "world#getChunkAtAsync(int,int,boolean)");
+        }
+        return new ChunkAsyncMethodSelection(null, null, "paperlib");
+    }
+
+    private static Method resolveChunkAsyncMethod(Class<?> worldClass, Class<?>... parameterTypes) {
+        try {
+            return worldClass.getMethod("getChunkAtAsync", parameterTypes);
+        } catch (NoSuchMethodException ignored) {
+        }
+
+        try {
+            return World.class.getMethod("getChunkAtAsync", parameterTypes);
+        } catch (NoSuchMethodException ignored) {
+        }
+
+        return null;
+    }
+
     @Override
     public Mantle getMantle() {
         if (IrisToolbelt.isIrisWorld(world)) {
@@ -547,14 +669,14 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         @Override
         public void generate(int x, int z, PregenListener listener) {
             try {
-                PaperLib.getChunkAtAsync(world, x, z, true, urgent)
+                requestChunkAsync(x, z)
                         .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                         .whenComplete((chunk, throwable) -> completeFoliaChunk(x, z, listener, chunk, throwable));
                 return;
             } catch (Throwable ignored) {
             }
 
-            if (!J.runRegion(world, x, z, () -> PaperLib.getChunkAtAsync(world, x, z, true, urgent)
+            if (!J.runRegion(world, x, z, () -> requestChunkAsync(x, z)
                     .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                     .whenComplete((chunk, throwable) -> completeFoliaChunk(x, z, listener, chunk, throwable)))) {
                 markFinished(false);
@@ -598,7 +720,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             service.submit(() -> {
                 boolean success = false;
                 try {
-                    Chunk i = PaperLib.getChunkAtAsync(world, x, z, true, urgent)
+                    Chunk i = requestChunkAsync(x, z)
                             .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                             .exceptionally(e -> onChunkFutureFailure(x, z, e))
                             .get();
@@ -632,7 +754,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private class TicketExecutor implements Executor {
         @Override
         public void generate(int x, int z, PregenListener listener) {
-            PaperLib.getChunkAtAsync(world, x, z, true, urgent)
+            requestChunkAsync(x, z)
                     .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                     .exceptionally(e -> onChunkFutureFailure(x, z, e))
                     .thenAccept(i -> {
@@ -652,5 +774,8 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                         }
                     });
         }
+    }
+
+    private record ChunkAsyncMethodSelection(Method urgentMethod, Method standardMethod, String mode) {
     }
 }

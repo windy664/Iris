@@ -1,7 +1,7 @@
 package art.arcane.iris.util.project.context;
 
 import art.arcane.iris.util.project.stream.ProceduralStream;
-import art.arcane.iris.util.project.stream.utility.CachedStream2D;
+import art.arcane.iris.util.project.stream.utility.ChunkFillableStream2D;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import java.util.concurrent.Executor;
 
@@ -35,8 +35,8 @@ public class ChunkedDataCache<T> {
             return;
         }
 
-        if (stream instanceof CachedStream2D<?> cachedStream) {
-            cachedStream.fillChunk(x, z, data);
+        if (stream instanceof ChunkFillableStream2D cachedStream) {
+            cachedStream.fillChunkRaw(x, z, data);
             return;
         }
 

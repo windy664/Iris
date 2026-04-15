@@ -179,14 +179,17 @@ public class IrisBiome extends IrisRegistrant implements IRare {
         if (ores.isEmpty()) {
             return null;
         }
-        BlockData b = null;
-        for (IrisOreGenerator i : ores) {
-            if (i.isGenerateSurface() != surface)
+        KList<IrisOreGenerator> localOres = ores;
+        int oreCount = localOres.size();
+        for (int oreIndex = 0; oreIndex < oreCount; oreIndex++) {
+            IrisOreGenerator oreGenerator = localOres.get(oreIndex);
+            if (oreGenerator.isGenerateSurface() != surface) {
                 continue;
+            }
 
-            b = i.generate(x, y, z, rng, data);
-            if (b != null) {
-                return b;
+            BlockData ore = oreGenerator.generate(x, y, z, rng, data);
+            if (ore != null) {
+                return ore;
             }
         }
         return null;

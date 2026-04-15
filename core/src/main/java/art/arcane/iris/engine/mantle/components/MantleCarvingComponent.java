@@ -33,6 +33,7 @@ import art.arcane.iris.engine.object.IrisRange;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.mantle.flag.ReservedFlag;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -159,7 +160,7 @@ public class MantleCarvingComponent extends IrisMantleComponent {
                     continue;
                 }
 
-                int columnIndex = (localX << 4) | localZ;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
                 double dominantWeight = clampWeight(dominantKernelWeight / totalKernelWeight);
                 double[] weights = columnProfileWeights.get(dominantProfile);
                 if (weights == null) {
@@ -255,21 +256,21 @@ public class MantleCarvingComponent extends IrisMantleComponent {
     }
 
     private void buildDimensionColumnPlan(IrisDimensionCarvingEntry[] columnPlan, int chunkX, int chunkZ, IrisDimensionCarvingEntry entry, IrisDimensionCarvingResolver.State resolverState) {
-        int baseX = chunkX << 4;
-        int baseZ = chunkZ << 4;
+        int baseX = PowerOfTwoCoordinates.chunkToBlock(chunkX);
+        int baseZ = PowerOfTwoCoordinates.chunkToBlock(chunkZ);
         for (int localX = 0; localX < CHUNK_SIZE; localX++) {
             int worldX = baseX + localX;
             for (int localZ = 0; localZ < CHUNK_SIZE; localZ++) {
                 int worldZ = baseZ + localZ;
-                int columnIndex = (localX << 4) | localZ;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
                 columnPlan[columnIndex] = IrisDimensionCarvingResolver.resolveFromRoot(getEngineMantle().getEngine(), entry, worldX, worldZ, resolverState);
             }
         }
     }
 
     private void fillProfileField(IrisCaveProfile[] profileField, int chunkX, int chunkZ, IrisComplex complex, IrisDimensionCarvingResolver.State resolverState, Long2ObjectOpenHashMap<IrisBiome> caveBiomeCache) {
-        int startX = (chunkX << 4) - BLEND_RADIUS;
-        int startZ = (chunkZ << 4) - BLEND_RADIUS;
+        int startX = PowerOfTwoCoordinates.chunkToBlock(chunkX) - BLEND_RADIUS;
+        int startZ = PowerOfTwoCoordinates.chunkToBlock(chunkZ) - BLEND_RADIUS;
 
         for (int fieldX = 0; fieldX < FIELD_SIZE; fieldX++) {
             int worldX = startX + fieldX;
@@ -356,8 +357,8 @@ public class MantleCarvingComponent extends IrisMantleComponent {
 
     private int[] prepareChunkSurfaceHeights(int chunkX, int chunkZ, ChunkContext context, int[] scratch) {
         int[] surfaceHeights = scratch;
-        int baseX = chunkX << 4;
-        int baseZ = chunkZ << 4;
+        int baseX = PowerOfTwoCoordinates.chunkToBlock(chunkX);
+        int baseZ = PowerOfTwoCoordinates.chunkToBlock(chunkZ);
         boolean useContextHeight = context != null
                 && context.getHeight() != null
                 && context.getX() == baseX
@@ -366,7 +367,7 @@ public class MantleCarvingComponent extends IrisMantleComponent {
             int worldX = baseX + localX;
             for (int localZ = 0; localZ < CHUNK_SIZE; localZ++) {
                 int worldZ = baseZ + localZ;
-                int columnIndex = (localX << 4) | localZ;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
                 if (useContextHeight) {
                     Double cachedHeight = context.getHeight().get(localX, localZ);
                     if (cachedHeight != null) {

@@ -27,7 +27,7 @@ import art.arcane.volmlib.util.cache.WorldCache2D;
 import art.arcane.volmlib.util.data.KCache;
 import art.arcane.iris.util.project.stream.BasicStream;
 import art.arcane.iris.util.project.stream.ProceduralStream;
-public class CachedStream2D<T> extends BasicStream<T> implements ProceduralStream<T>, MeteredCache {
+public class CachedStream2D<T> extends BasicStream<T> implements ProceduralStream<T>, MeteredCache, ChunkFillableStream2D {
     private final ProceduralStream<T> stream;
     private final WorldCache2D<T> cache;
     private final Engine engine;
@@ -81,7 +81,7 @@ public class CachedStream2D<T> extends BasicStream<T> implements ProceduralStrea
         return engine.isClosed();
     }
 
-    public void fillChunk(int worldX, int worldZ, Object[] target) {
+    public void fillChunkRaw(int worldX, int worldZ, Object[] target) {
         int chunkX = worldX >> 4;
         int chunkZ = worldZ >> 4;
         cache.fillChunk(chunkX, chunkZ, target);

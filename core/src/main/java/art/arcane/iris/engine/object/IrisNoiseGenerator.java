@@ -22,8 +22,8 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.iris.util.project.interpolation.IrisInterpolation;
 import art.arcane.volmlib.util.math.RNG;
+import art.arcane.iris.util.project.interpolation.IrisInterpolation;
 import art.arcane.iris.util.project.noise.CNG;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -100,14 +100,17 @@ public class IrisNoiseGenerator {
 
         for (IrisNoiseGenerator i : fracture) {
             if (i.isEnabled()) {
-                x += i.getNoise(superSeed + seed + g, xv, zv, data) - (i.getOpacity() / 2D);
-                z += i.getNoise(superSeed + seed + g, zv, xv, data) - (i.getOpacity() / 2D);
+                double fractureOffset = i.getOpacity() / 2D;
+                x += i.getNoise(superSeed + seed + g, xv, zv, data) - fractureOffset;
+                z += i.getNoise(superSeed + seed + g, zv, xv, data) - fractureOffset;
             }
             g += 819;
         }
 
         CNG cng = getGenerator(superSeed, data);
-        double n = cng.noiseFast2D((x / zoom) + offsetX, (z / zoom) + offsetZ) * opacity;
+        double sampleX = (x / zoom) + offsetX;
+        double sampleZ = (z / zoom) + offsetZ;
+        double n = cng.noiseFast2D(sampleX, sampleZ) * opacity;
         n = negative ? (-n + opacity) : n;
         n = (exponent != 1 ? n < 0 ? -Math.pow(-n, exponent) : Math.pow(n, exponent) : n) + offsetY;
         n = parametric ? IrisInterpolation.parametric(n, 1) : n;

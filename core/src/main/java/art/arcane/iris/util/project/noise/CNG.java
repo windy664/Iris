@@ -74,6 +74,10 @@ public class CNG {
     private NoiseStyle leakStyle;
     private ProceduralStream<Double> customGenerator;
     private transient boolean identityPostFastPath;
+    private transient boolean identitySignedFastPath;
+    private transient boolean unityOpacity;
+    private transient double effectiveScale;
+    private transient double signedFractureScale;
     private transient boolean fastPathStateDirty = true;
 
     public CNG(RNG random) {
@@ -635,7 +639,8 @@ public class CNG {
     }
 
     private double getNoise(double... dim) {
-        double scale = noscale ? 1 : this.bakedScale * this.scale;
+        ensureFastPathState();
+        double scale = effectiveScale;
 
         if (fracture == null || noscale) {
             return generator.noise(
@@ -671,7 +676,8 @@ public class CNG {
     }
 
     private double getNoise(double x) {
-        double scl = noscale ? 1 : this.bakedScale * this.scale;
+        ensureFastPathState();
+        double scl = effectiveScale;
 
         if (fracture == null || noscale) {
             return generator.noise(x * scl, 0D, 0D) * opacity;
@@ -682,7 +688,8 @@ public class CNG {
     }
 
     private double getNoise(double x, double z) {
-        double scl = noscale ? 1 : this.bakedScale * this.scale;
+        ensureFastPathState();
+        double scl = effectiveScale;
 
         if (fracture == null || noscale) {
             return generator.noise(x * scl, z * scl, 0D) * opacity;
@@ -694,7 +701,8 @@ public class CNG {
     }
 
     private double getNoise(double x, double y, double z) {
-        double scl = noscale ? 1 : this.bakedScale * this.scale;
+        ensureFastPathState();
+        double scl = effectiveScale;
 
         if (fracture == null || noscale) {
             return generator.noise(x * scl, y * scl, z * scl) * opacity;
@@ -932,6 +940,18 @@ public class CNG {
         return applyPost(getNoise(x, z), x, z);
     }
 
+    public double noiseFastSigned2D(double x, double z) {
+        if (cache != null && isWholeCoordinate(x) && isWholeCoordinate(z)) {
+            return (cache.get((int) x, (int) z) * 2D) - 1D;
+        }
+
+        if (hasIdentitySignedFastPath()) {
+            return getSignedNoise(x, z);
+        }
+
+        return (noiseFast2D(x, z) * 2D) - 1D;
+    }
+
     public double noise(double x, double y, double z) {
         return applyPost(getNoise(x, y, z), x, y, z);
     }
@@ -942,6 +962,14 @@ public class CNG {
         }
 
         return applyPost(getNoise(x, y, z), x, y, z);
+    }
+
+    public double noiseFastSigned3D(double x, double y, double z) {
+        if (hasIdentitySignedFastPath()) {
+            return getSignedNoise(x, y, z);
+        }
+
+        return (noiseFast3D(x, y, z) * 2D) - 1D;
     }
 
     public CNG pow(double power) {
@@ -964,11 +992,19 @@ public class CNG {
     }
 
     private boolean isIdentityPostFastPath() {
+        ensureFastPathState();
+        return identityPostFastPath;
+    }
+
+    private boolean hasIdentitySignedFastPath() {
+        ensureFastPathState();
+        return identitySignedFastPath;
+    }
+
+    private void ensureFastPathState() {
         if (fastPathStateDirty) {
             refreshFastPathState();
         }
-
-        return identityPostFastPath;
     }
 
     private void markFastPathStateDirty() {
@@ -976,13 +1012,60 @@ public class CNG {
     }
 
     private void refreshFastPathState() {
+        effectiveScale = noscale ? 1D : bakedScale * scale;
         identityPostFastPath = power == 1D
                 && children == null
                 && fracture == null
                 && down == 0D
                 && up == 0D
                 && patch == 1D;
+        identitySignedFastPath = power == 1D
+                && children == null
+                && down == 0D
+                && up == 0D
+                && patch == 1D;
+        unityOpacity = opacity == 1D;
+        signedFractureScale = 0.5D * fscale;
         fastPathStateDirty = false;
+    }
+
+    private double signedWithOpacity(double signedNoise) {
+        if (unityOpacity) {
+            return signedNoise;
+        }
+
+        return ((signedNoise + 1D) * opacity) - 1D;
+    }
+
+    private double getSignedNoise(double x, double z) {
+        ensureFastPathState();
+        double scl = effectiveScale;
+        NoiseGenerator localGenerator = generator;
+        CNG localFracture = fracture;
+
+        if (localFracture == null || noscale) {
+            return signedWithOpacity(localGenerator.noiseSigned(x * scl, z * scl, 0D));
+        }
+
+        double fx = x + (localFracture.noiseFastSigned2D(x, z) * signedFractureScale);
+        double fz = z + (localFracture.noiseFastSigned2D(z, x) * signedFractureScale);
+        return signedWithOpacity(localGenerator.noiseSigned(fx * scl, fz * scl, 0D));
+    }
+
+    private double getSignedNoise(double x, double y, double z) {
+        ensureFastPathState();
+        double scl = effectiveScale;
+        NoiseGenerator localGenerator = generator;
+        CNG localFracture = fracture;
+
+        if (localFracture == null || noscale) {
+            return signedWithOpacity(localGenerator.noiseSigned(x * scl, y * scl, z * scl));
+        }
+
+        double fx = x + (localFracture.noiseFastSigned3D(x, y, z) * signedFractureScale);
+        double fy = y + (localFracture.noiseFastSigned2D(y, x) * signedFractureScale);
+        double fz = z + (localFracture.noiseFastSigned3D(z, x, y) * signedFractureScale);
+        return signedWithOpacity(localGenerator.noiseSigned(fx * scl, fy * scl, fz * scl));
     }
 
     private enum InjectorMode {

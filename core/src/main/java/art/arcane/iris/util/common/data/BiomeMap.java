@@ -19,6 +19,7 @@
 package art.arcane.iris.util.common.data;
 
 import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
 
 public class BiomeMap {
     private final IrisBiome[] height;
@@ -28,10 +29,10 @@ public class BiomeMap {
     }
 
     public void setBiome(int x, int z, IrisBiome h) {
-        height[x * 16 + z] = h;
+        height[PowerOfTwoCoordinates.packLocal16(x, z)] = h;
     }
 
     public IrisBiome getBiome(int x, int z) {
-        return height[x * 16 + z];
+        return height[PowerOfTwoCoordinates.packLocal16(x, z)];
     }
 }

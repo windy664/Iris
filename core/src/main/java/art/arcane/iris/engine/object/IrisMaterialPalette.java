@@ -61,7 +61,10 @@ public class IrisMaterialPalette {
             return getBlockData(rdata).get(0);
         }
 
-        return getLayerGenerator(rng, rdata).fit(getBlockData(rdata), x / zoom, y / zoom, z / zoom);
+        double scaledX = x / zoom;
+        double scaledY = y / zoom;
+        double scaledZ = z / zoom;
+        return getLayerGenerator(rng, rdata).fit(getBlockData(rdata), scaledX, scaledY, scaledZ);
     }
 
     public Optional<TileData> getTile(RNG rng, double x, double y, double z, IrisData rdata) {
