@@ -25,6 +25,7 @@ import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.context.ChunkedDataCache;
 import art.arcane.iris.util.project.context.ChunkContext;
+import art.arcane.iris.util.project.context.ChunkedDoubleDataCache;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.math.RNG;
@@ -89,7 +90,7 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
             realZ = zf + z;
             biome = context.getBiome().get(xf, zf);
             region = context.getRegion().get(xf, zf);
-            he = (int) Math.round(Math.min(h.getHeight(), context.getHeight().get(xf, zf)));
+            he = Math.min(h.getHeight(), context.getRoundedHeight(xf, zf));
             hf = Math.round(Math.max(Math.min(h.getHeight(), getDimension().getFluidHeight()), he));
 
             if (hf < 0) {
@@ -174,7 +175,7 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
         boolean bedrockEnabled = getDimension().isBedrock();
         ChunkedDataCache<IrisBiome> biomeCache = context.getBiome();
         ChunkedDataCache<IrisRegion> regionCache = context.getRegion();
-        ChunkedDataCache<Double> heightCache = context.getHeight();
+        ChunkedDoubleDataCache heightCache = context.getHeight();
         ChunkedDataCache<BlockData> fluidCache = context.getFluid();
         ChunkedDataCache<BlockData> rockCache = context.getRock();
         int realX = xf + x;
@@ -183,7 +184,7 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
             int realZ = zf + z;
             IrisBiome biome = biomeCache.get(xf, zf);
             IrisRegion region = regionCache.get(xf, zf);
-            int he = (int) Math.round(Math.min(chunkHeight, heightCache.get(xf, zf)));
+            int he = Math.min(chunkHeight, context.getRoundedHeight(xf, zf));
             int hf = Math.round(Math.max(Math.min(chunkHeight, fluidHeight), he));
             if (hf < 0) {
                 continue;

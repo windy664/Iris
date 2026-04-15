@@ -59,6 +59,7 @@ public interface MatterGenerator {
         boolean optimizedRegen = forceRegen && !IrisSettings.get().getGeneral().isDebug() && regenPassKey != null;
         int writeRadius = optimizedRegen ? Math.min(getRadius(), getRealRadius()) : getRadius();
         Set<Long> clearedChunks = optimizedRegen ? getRegenPassSet(REGEN_CLEARED_CHUNKS_BY_PASS, regenPassKey) : new HashSet<>();
+        Set<Long> partialChunks = forceRegen ? null : new HashSet<>();
         Set<Long> plannedChunks = optimizedRegen ? getRegenPassSet(REGEN_PLANNED_CHUNKS_BY_PASS, regenPassKey) : null;
 
         if (optimizedRegen) {
@@ -131,10 +132,22 @@ public interface MatterGenerator {
                         }
 
                         for (MantleComponent component : pair.getA()) {
-                            if (!forceRegen && chunk.isFlagged(component.getFlag())) {
+                            if (!component.isEnabled()) {
+                                continue;
+                            }
+
+                            boolean componentAlreadyGenerated = !forceRegen && chunk.isFlagged(component.getFlag());
+                            if (componentAlreadyGenerated) {
                                 componentSkipped++;
                                 continue;
                             }
+
+                            int componentPassRadius = Math.ceilDiv(component.getRadius(), 16);
+                            if (Math.abs(i) > componentPassRadius || Math.abs(j) > componentPassRadius) {
+                                partialChunks.add(passKey);
+                                continue;
+                            }
+
                             if (forceRegen && chunk.isFlagged(component.getFlag())) {
                                 chunk.flag(component.getFlag(), false);
                                 componentForcedReset++;
@@ -184,6 +197,9 @@ public interface MatterGenerator {
                     int realZ = z + j;
                     long realKey = chunkKey(realX, realZ);
                     if (plannedChunks != null && !plannedChunks.add(realKey)) {
+                        continue;
+                    }
+                    if (partialChunks != null && partialChunks.contains(realKey)) {
                         continue;
                     }
                     writer.acquireChunk(realX, realZ).flag(MantleFlag.PLANNED, true);

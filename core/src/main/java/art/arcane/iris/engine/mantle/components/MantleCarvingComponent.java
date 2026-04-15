@@ -436,11 +436,8 @@ public class MantleCarvingComponent extends IrisMantleComponent {
                 int worldZ = baseZ + localZ;
                 int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
                 if (useContextHeight) {
-                    Double cachedHeight = context.getHeight().get(localX, localZ);
-                    if (cachedHeight != null) {
-                        surfaceHeights[columnIndex] = (int) Math.round(cachedHeight);
-                        continue;
-                    }
+                    surfaceHeights[columnIndex] = context.getRoundedHeight(localX, localZ);
+                    continue;
                 }
                 if (cachedChunkHeights != null) {
                     surfaceHeights[columnIndex] = (int) Math.round(cachedChunkHeights[columnIndex]);

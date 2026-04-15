@@ -49,7 +49,7 @@ public class ChunkContextPrefillPlanTest {
         assertEquals(256, regionCalls.get());
         assertEquals(0, caveCalls.get());
 
-        assertEquals(34051D, context.getHeight().get(2, 3), 0D);
+        assertEquals(34051D, context.getHeight().getDouble(2, 3), 0D);
         context.getCave().get(2, 3);
         context.getCave().get(2, 3);
         assertEquals(1, caveCalls.get());
@@ -112,7 +112,7 @@ public class ChunkContextPrefillPlanTest {
             double worldX = invocation.getArgument(0);
             double worldZ = invocation.getArgument(1);
             return (worldX * 1000D) + worldZ;
-        }).when(heightStream).get(anyDouble(), anyDouble());
+        }).when(heightStream).getDouble(anyDouble(), anyDouble());
 
         @SuppressWarnings("unchecked")
         ProceduralStream<IrisBiome> biomeStream = mock(ProceduralStream.class);

@@ -100,9 +100,7 @@ public class IrisDepositModifier extends EngineAssignedModifier<BlockData> {
 
             int x = rng.i(min, max + 1);
             int z = rng.i(min, max + 1);
-            int height = (he != null ? he.getHeight((cx << 4) + x, (cz << 4) + z) : (int) (Math.round(
-                    context.getHeight().get(x, z)
-            ))) - 7;
+            int height = (he != null ? he.getHeight((cx << 4) + x, (cz << 4) + z) : context.getRoundedHeight(x, z)) - 7;
 
             if (height <= 0)
                 continue;

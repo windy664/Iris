@@ -67,6 +67,8 @@ public class IrisRegion extends IrisRegistrant implements IRare {
     private final transient AtomicCache<CNG> riverGen = new AtomicCache<>();
     private final transient AtomicCache<CNG> riverChanceGen = new AtomicCache<>();
     private final transient AtomicCache<Color> cacheColor = new AtomicCache<>();
+    private final transient AtomicCache<KList<IrisOreGenerator>> surfaceOreCache = new AtomicCache<>();
+    private final transient AtomicCache<KList<IrisOreGenerator>> undergroundOreCache = new AtomicCache<>();
     @MinNumber(2)
     @Required
     @Desc("The name of the region")
@@ -152,23 +154,43 @@ public class IrisRegion extends IrisRegistrant implements IRare {
     private KList<IrisOreGenerator> ores = new KList<>();
 
     public BlockData generateOres(int x, int y, int z, RNG rng, IrisData data, boolean surface) {
-        if (ores.isEmpty()) {
+        KList<IrisOreGenerator> localOres = getOres(surface);
+        if (localOres.isEmpty()) {
             return null;
         }
-        KList<IrisOreGenerator> localOres = ores;
+
         int oreCount = localOres.size();
         for (int oreIndex = 0; oreIndex < oreCount; oreIndex++) {
             IrisOreGenerator oreGenerator = localOres.get(oreIndex);
-            if (oreGenerator.isGenerateSurface() != surface) {
-                continue;
-            }
-
             BlockData ore = oreGenerator.generate(x, y, z, rng, data);
             if (ore != null) {
                 return ore;
             }
         }
         return null;
+    }
+
+    public void setOres(KList<IrisOreGenerator> ores) {
+        this.ores = ores == null ? new KList<>() : ores;
+        surfaceOreCache.reset();
+        undergroundOreCache.reset();
+    }
+
+    private KList<IrisOreGenerator> getOres(boolean surface) {
+        AtomicCache<KList<IrisOreGenerator>> oreCache = surface ? surfaceOreCache : undergroundOreCache;
+        return oreCache.aquire(() -> {
+            KList<IrisOreGenerator> filtered = new KList<>();
+            KList<IrisOreGenerator> localOres = ores;
+            int oreCount = localOres.size();
+            for (int oreIndex = 0; oreIndex < oreCount; oreIndex++) {
+                IrisOreGenerator oreGenerator = localOres.get(oreIndex);
+                if (oreGenerator.isGenerateSurface() == surface) {
+                    filtered.add(oreGenerator);
+                }
+            }
+
+            return filtered;
+        });
     }
 
     public String getName() {

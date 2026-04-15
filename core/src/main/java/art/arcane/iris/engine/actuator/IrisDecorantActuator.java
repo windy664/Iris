@@ -79,7 +79,7 @@ public class IrisDecorantActuator extends EngineAssignedActuator<BlockData> {
                 int emptyFor = 0;
                 int lastSolid = 0;
                 realZ = Math.round(z + j);
-                height = (int) Math.round(context.getHeight().get(i, j));
+                height = context.getRoundedHeight(i, j);
                 biome = context.getBiome().get(i, j);
                 cave = shouldRay ? context.getCave().get(i, j) : null;
 

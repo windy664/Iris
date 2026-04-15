@@ -17,7 +17,8 @@ public class ChunkContext {
     private final int z;
     private final IrisComplex complex;
     private final long generationSessionId;
-    private final ChunkedDataCache<Double> height;
+    private final ChunkedDoubleDataCache height;
+    private final int[] roundedHeight;
     private final ChunkedDataCache<IrisBiome> biome;
     private final ChunkedDataCache<IrisBiome> cave;
     private final ChunkedDataCache<BlockData> rock;
@@ -45,7 +46,8 @@ public class ChunkContext {
         this.z = z;
         this.complex = complex;
         this.generationSessionId = generationSessionId;
-        this.height = new ChunkedDataCache<>(complex.getHeightStream(), x, z, cache);
+        this.height = new ChunkedDoubleDataCache(complex.getHeightStream(), x, z, cache);
+        this.roundedHeight = new int[cache ? 256 : 0];
         this.biome = new ChunkedDataCache<>(complex.getTrueBiomeStream(), x, z, cache);
         this.cave = new ChunkedDataCache<>(complex.getCaveBiomeStream(), x, z, cache);
         this.rock = new ChunkedDataCache<>(complex.getRockStream(), x, z, cache);
@@ -56,9 +58,9 @@ public class ChunkContext {
             PrefillPlan resolvedPlan = prefillPlan == null ? PrefillPlan.NO_CAVE : prefillPlan;
             boolean capturePrefillMetric = metrics != null;
             long totalStartNanos = capturePrefillMetric ? System.nanoTime() : 0L;
-            List<PrefillFillTask> fillTasks = new ArrayList<>(6);
+            List<Runnable> fillTasks = new ArrayList<>(6);
             if (resolvedPlan.height) {
-                fillTasks.add(new PrefillFillTask(height));
+                fillTasks.add(height::fill);
             }
             if (resolvedPlan.biome) {
                 fillTasks.add(new PrefillFillTask(biome));
@@ -77,12 +79,12 @@ public class ChunkContext {
             }
 
             if (!shouldPrefillAsync(fillTasks.size())) {
-                for (PrefillFillTask fillTask : fillTasks) {
+                for (Runnable fillTask : fillTasks) {
                     fillTask.run();
                 }
             } else {
                 List<CompletableFuture<Void>> futures = new ArrayList<>(fillTasks.size());
-                for (PrefillFillTask fillTask : fillTasks) {
+                for (Runnable fillTask : fillTasks) {
                     futures.add(CompletableFuture.runAsync(fillTask, MultiBurst.burst));
                 }
                 for (CompletableFuture<Void> future : futures) {
@@ -92,6 +94,10 @@ public class ChunkContext {
 
             if (capturePrefillMetric) {
                 metrics.getContextPrefill().put((System.nanoTime() - totalStartNanos) / 1_000_000D);
+            }
+
+            if (resolvedPlan.height) {
+                fillRoundedHeight();
             }
         }
     }
@@ -117,8 +123,16 @@ public class ChunkContext {
         return complex;
     }
 
-    public ChunkedDataCache<Double> getHeight() {
+    public ChunkedDoubleDataCache getHeight() {
         return height;
+    }
+
+    public int getRoundedHeight(int x, int z) {
+        if (roundedHeight.length == 0) {
+            return (int) Math.round(height.getDouble(x, z));
+        }
+
+        return roundedHeight[(z << 4) + x];
     }
 
     public ChunkedDataCache<IrisBiome> getBiome() {
@@ -173,6 +187,15 @@ public class ChunkContext {
         @Override
         public void run() {
             dataCache.fill();
+        }
+    }
+
+    private void fillRoundedHeight() {
+        for (int z = 0; z < 16; z++) {
+            int rowOffset = z << 4;
+            for (int x = 0; x < 16; x++) {
+                roundedHeight[rowOffset + x] = (int) Math.round(height.getDouble(x, z));
+            }
         }
     }
 }

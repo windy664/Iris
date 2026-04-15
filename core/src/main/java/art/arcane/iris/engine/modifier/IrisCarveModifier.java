@@ -75,7 +75,13 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         scratch.reset();
         PackedWallBuffer walls = scratch.walls;
         ColumnMask[] columnMasks = scratch.columnMasks;
+        int[] surfaceHeights = scratch.surfaceHeights;
         Map<String, IrisBiome> customBiomeCache = scratch.customBiomeCache;
+        for (int columnIndex = 0; columnIndex < 256; columnIndex++) {
+            int localX = PowerOfTwoCoordinates.unpackLocal16X(columnIndex);
+            int localZ = columnIndex & 15;
+            surfaceHeights[columnIndex] = context.getRoundedHeight(localX, localZ);
+        }
 
         try {
             PrecisionStopwatch resolveStopwatch = PrecisionStopwatch.start();
@@ -146,8 +152,9 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
                     if (biome != null) {
                         biome.setInferredType(InferredType.CAVE);
                         BlockData data = biome.getWall().get(rng, worldX, yy, worldZ, getData());
+                        int columnIndex = PowerOfTwoCoordinates.packLocal16(rx, rz);
 
-                        if (data != null && B.isSolid(output.get(rx, yy, rz)) && yy <= context.getHeight().get(rx, rz)) {
+                        if (data != null && B.isSolid(output.get(rx, yy, rz)) && yy <= surfaceHeights[columnIndex]) {
                             output.set(rx, yy, rz, data);
                         }
                     }
@@ -471,6 +478,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
 
     private static final class CarveScratch {
         private final ColumnMask[] columnMasks = new ColumnMask[256];
+        private final int[] surfaceHeights = new int[256];
         private final PackedWallBuffer walls = new PackedWallBuffer(512);
         private final Map<String, IrisBiome> customBiomeCache = new HashMap<>();
 
