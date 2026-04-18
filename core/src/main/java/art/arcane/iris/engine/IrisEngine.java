@@ -25,6 +25,7 @@ import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
 import art.arcane.iris.core.gui.PregeneratorJob;
+import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.nms.container.BlockPos;
 import art.arcane.iris.core.nms.container.Pair;
@@ -106,6 +107,7 @@ public class IrisEngine implements Engine {
     private double maxBiomeLayerDensity;
     private double maxBiomeDecoratorDensity;
     private IrisComplex complex;
+    private UpperDimensionContext upperContext;
     private final AtomicBoolean modeFallbackLogged;
 
     public IrisEngine(EngineTarget target, boolean studio) {
@@ -207,6 +209,7 @@ public class IrisEngine implements Engine {
             Iris.debug("Setup Engine " + getCacheID());
             cacheId = RNG.r.nextInt();
             complex = ensureComplex();
+            upperContext = buildUpperContext();
             effects = new IrisEngineEffects(this);
             hash32 = new CompletableFuture<>();
             mantle.hotload();
@@ -232,6 +235,25 @@ public class IrisEngine implements Engine {
         }
 
         Iris.debug("Engine Setup Complete " + getCacheID());
+    }
+
+    private UpperDimensionContext buildUpperContext() {
+        IrisDimension dim = getDimension();
+        if (!dim.hasUpperDimension()) {
+            return null;
+        }
+        String upperKey = dim.getUpperDimension();
+        IrisDimension upperDim = upperKey.equals(dim.getLoadKey())
+                ? dim
+                : IrisData.loadAnyDimension(upperKey, getData());
+        if (upperDim != null) {
+            UpperDimensionContext ctx = UpperDimensionContext.create(this, upperDim);
+            Iris.info("Upper dimension enabled: " + upperKey
+                    + (ctx.isSelfReferencing() ? " (self-referencing)" : " (cross-referencing)"));
+            return ctx;
+        }
+        Iris.warn("Upper dimension '" + upperKey + "' could not be resolved, skipping upper terrain.");
+        return null;
     }
 
     private void setupMode() {
@@ -344,6 +366,7 @@ public class IrisEngine implements Engine {
     public void hotloadComplex() {
         complex.close();
         complex = new IrisComplex(this);
+        upperContext = buildUpperContext();
     }
 
     public void hotloadSilently() {

@@ -22,6 +22,7 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedActuator;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
+import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisRegion;
@@ -167,6 +168,39 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
                     }
                 }
             }
+
+            UpperDimensionContext upperContext = getEngine().getUpperContext();
+            if (upperContext != null) {
+                int chunkHeight = h.getHeight();
+                boolean bedrockEnabled = getDimension().isBedrock();
+                int rawUpperSurface = upperContext.getUpperSurfaceY(realX, realZ);
+                int upperGap = getDimension().getUpperDimensionGap();
+                int upperSurfaceY = Math.max(rawUpperSurface, he + upperGap);
+
+                if (upperSurfaceY < chunkHeight - 1) {
+                    IrisBiome upperBiome = upperContext.getUpperBiome(realX, realZ);
+                    BlockData upperRock = upperContext.getRockBlock(realX, realZ);
+                    int upperThickness = chunkHeight - 1 - upperSurfaceY;
+                    KList<BlockData> upperBlocks = upperBiome != null
+                            ? upperBiome.generateLayers(upperContext.getDimension(),
+                            realX, realZ, rng, upperThickness, upperThickness,
+                            upperContext.getData(), getComplex())
+                            : null;
+
+                    for (int y = chunkHeight - 1; y >= upperSurfaceY; y--) {
+                        if (y == chunkHeight - 1 && bedrockEnabled) {
+                            h.setRaw(xf, y, zf, BEDROCK);
+                            continue;
+                        }
+                        int depthFromFace = y - upperSurfaceY;
+                        if (upperBlocks != null && upperBlocks.hasIndex(depthFromFace)) {
+                            h.setRaw(xf, y, zf, upperBlocks.get(depthFromFace));
+                        } else {
+                            h.setRaw(xf, y, zf, upperRock);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -186,6 +220,7 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
         ChunkedDataCache<BlockData> fluidCache = context.getFluid();
         ChunkedDataCache<BlockData> rockCache = context.getRock();
         int realX = xf + x;
+        UpperDimensionContext upperContext = getEngine().getUpperContext();
 
         for (int zf = 0; zf < chunkDepth; zf++) {
             int realZ = zf + z;
@@ -258,6 +293,36 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
                         h.setRaw(xf, i, zf, ore);
                     } else {
                         h.setRaw(xf, i, zf, rock);
+                    }
+                }
+            }
+
+            if (upperContext != null) {
+                int rawUpperSurface = upperContext.getUpperSurfaceY(realX, realZ);
+                int upperGap = dimension.getUpperDimensionGap();
+                int upperSurfaceY = Math.max(rawUpperSurface, he + upperGap);
+
+                if (upperSurfaceY < chunkHeight - 1) {
+                    IrisBiome upperBiome = upperContext.getUpperBiome(realX, realZ);
+                    BlockData upperRock = upperContext.getRockBlock(realX, realZ);
+                    int upperThickness = chunkHeight - 1 - upperSurfaceY;
+                    KList<BlockData> upperBlocks = upperBiome != null
+                            ? upperBiome.generateLayers(upperContext.getDimension(),
+                            realX, realZ, localRng, upperThickness, upperThickness,
+                            upperContext.getData(), complex)
+                            : null;
+
+                    for (int y = chunkHeight - 1; y >= upperSurfaceY; y--) {
+                        if (y == chunkHeight - 1 && bedrockEnabled) {
+                            h.setRaw(xf, y, zf, BEDROCK);
+                            continue;
+                        }
+                        int depthFromFace = y - upperSurfaceY;
+                        if (upperBlocks != null && upperBlocks.hasIndex(depthFromFace)) {
+                            h.setRaw(xf, y, zf, upperBlocks.get(depthFromFace));
+                        } else {
+                            h.setRaw(xf, y, zf, upperRock);
+                        }
                     }
                 }
             }

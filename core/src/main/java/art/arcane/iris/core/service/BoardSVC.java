@@ -173,13 +173,19 @@ public class BoardSVC implements IrisService, BoardProvider {
         }
 
         private void tick() {
-            if (cancelled || !boardEnabled || !player.isOnline()) {
+            if (!boardEnabled || !player.isOnline()) {
+                return;
+            }
+
+            if (cancelled) {
+                board.remove();
                 return;
             }
 
             if (!isEligibleWorld(player)) {
                 boards.remove(player);
-                cancel();
+                cancelled = true;
+                board.remove();
                 return;
             }
 
@@ -189,8 +195,15 @@ public class BoardSVC implements IrisService, BoardProvider {
         }
 
         public void cancel() {
+            if (cancelled) {
+                return;
+            }
             cancelled = true;
-            J.runEntity(player, board::remove);
+            if (J.isOwnedByCurrentRegion(player) && player.isOnline()) {
+                board.remove();
+            } else {
+                J.runEntity(player, board::remove);
+            }
         }
 
         public void update() {

@@ -151,6 +151,20 @@ public class IrisCaveCarver3D {
             IrisRange worldYRange,
             int[] precomputedSurfaceHeights
     ) {
+        return carve(writer, chunkX, chunkZ, columnWeights, minWeight, thresholdPenalty, worldYRange, precomputedSurfaceHeights, null);
+    }
+
+    public int carve(
+            MantleWriter writer,
+            int chunkX,
+            int chunkZ,
+            double[] columnWeights,
+            double minWeight,
+            double thresholdPenalty,
+            IrisRange worldYRange,
+            int[] precomputedSurfaceHeights,
+            IrisRange overrideVerticalRange
+    ) {
         PrecisionStopwatch applyStopwatch = PrecisionStopwatch.start();
         try {
             Scratch scratch = SCRATCH.get();
@@ -165,8 +179,9 @@ public class IrisCaveCarver3D {
             double resolvedMinWeight = Math.max(0D, Math.min(1D, minWeight));
             double resolvedThresholdPenalty = Math.max(0D, thresholdPenalty);
             int worldHeight = writer.getMantle().getWorldHeight();
-            int minY = Math.max(0, (int) Math.floor(profile.getVerticalRange().getMin()));
-            int maxY = Math.min(worldHeight - 1, (int) Math.ceil(profile.getVerticalRange().getMax()));
+            IrisRange effectiveVerticalRange = overrideVerticalRange != null ? overrideVerticalRange : profile.getVerticalRange();
+            int minY = Math.max(0, (int) Math.floor(effectiveVerticalRange.getMin()));
+            int maxY = Math.min(worldHeight - 1, (int) Math.ceil(effectiveVerticalRange.getMax()));
             if (worldYRange != null) {
                 int worldMinHeight = engine.getWorld().minHeight();
                 int rangeMinY = (int) Math.floor(worldYRange.getMin() - worldMinHeight);

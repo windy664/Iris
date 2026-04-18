@@ -18,6 +18,7 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.actuator.IrisDecorantActuator;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
@@ -82,10 +83,22 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         MatterCavern[] boundaryCaverns = scratch.boundaryCaverns;
         int[] surfaceHeights = scratch.surfaceHeights;
         Map<String, IrisBiome> customBiomeCache = scratch.customBiomeCache;
+        UpperDimensionContext upperCtx = getEngine().getUpperContext();
+        boolean protectUpper = upperCtx != null && !getEngine().getDimension().isUpperDimensionCarving();
+        int[] upperSurfaceHeights = protectUpper ? scratch.getOrCreateUpperSurfaceHeights() : null;
+        int chunkBlockX = PowerOfTwoCoordinates.chunkToBlock(x);
+        int chunkBlockZ = PowerOfTwoCoordinates.chunkToBlock(z);
         for (int columnIndex = 0; columnIndex < 256; columnIndex++) {
             int localX = PowerOfTwoCoordinates.unpackLocal16X(columnIndex);
             int localZ = columnIndex & 15;
             surfaceHeights[columnIndex] = context.getRoundedHeight(localX, localZ);
+            if (protectUpper) {
+                int worldX = localX + chunkBlockX;
+                int worldZ = localZ + chunkBlockZ;
+                int rawUpper = upperCtx.getUpperSurfaceY(worldX, worldZ);
+                int gap = getEngine().getDimension().getUpperDimensionGap();
+                upperSurfaceHeights[columnIndex] = Math.max(rawUpper, surfaceHeights[columnIndex] + gap);
+            }
         }
 
         try {
@@ -102,6 +115,11 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
                 int rx = xx & 15;
                 int rz = zz & 15;
                 int columnIndex = PowerOfTwoCoordinates.packLocal16(rx, rz);
+
+                if (upperSurfaceHeights != null && yy >= upperSurfaceHeights[columnIndex]) {
+                    return;
+                }
+
                 BlockData current = output.getRaw(rx, yy, rz);
 
                 if (B.isFluid(current)) {
@@ -723,12 +741,20 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
         private final int[] surfaceHeights = new int[256];
         private final PackedWallBuffer walls = new PackedWallBuffer(512);
         private final Map<String, IrisBiome> customBiomeCache = new HashMap<>();
+        private int[] upperSurfaceHeights;
 
         private CarveScratch() {
             for (int index = 0; index < columnMasks.length; index++) {
                 columnMasks[index] = new ColumnMask();
                 boundaryMasks[index] = new ColumnMask();
             }
+        }
+
+        private int[] getOrCreateUpperSurfaceHeights() {
+            if (upperSurfaceHeights == null) {
+                upperSurfaceHeights = new int[256];
+            }
+            return upperSurfaceHeights;
         }
 
         private void reset() {

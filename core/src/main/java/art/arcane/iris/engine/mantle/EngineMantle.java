@@ -23,6 +23,7 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.container.Pair;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.engine.IrisComplex;
+import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineTarget;
 import art.arcane.iris.engine.mantle.components.MantleObjectComponent;
@@ -191,9 +192,34 @@ public interface EngineMantle extends MatterGenerator {
             return;
         }
 
-        var chunk = getMantle().getChunk(x, z).use();
+        UpperDimensionContext upperCtx = getEngine().getUpperContext();
+        boolean protectUpper = t == BlockData.class && upperCtx != null;
+
+        MantleChunk<Matter> chunk = getMantle().getChunk(x, z).use();
         try {
-            chunk.iterate(t, blocks::set);
+            if (protectUpper) {
+                int chunkBlockX = x << 4;
+                int chunkBlockZ = z << 4;
+                int gap = getEngine().getDimension().getUpperDimensionGap();
+                int[] upperYs = new int[256];
+                for (int i = 0; i < 256; i++) {
+                    int lx = i >> 4;
+                    int lz = i & 15;
+                    int worldX = chunkBlockX + lx;
+                    int worldZ = chunkBlockZ + lz;
+                    int he = (int) Math.round(getEngine().getComplex().getHeightStream().get((double) worldX, (double) worldZ));
+                    int rawUpper = upperCtx.getUpperSurfaceY(worldX, worldZ);
+                    upperYs[i] = Math.max(rawUpper, he + gap);
+                }
+                chunk.iterate(t, (lx, y, lz, value) -> {
+                    int colIdx = (lx << 4) | (lz & 15);
+                    if (y < upperYs[colIdx]) {
+                        blocks.set(lx, y, lz, value);
+                    }
+                });
+            } else {
+                chunk.iterate(t, blocks::set);
+            }
         } finally {
             chunk.release();
         }

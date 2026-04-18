@@ -177,6 +177,19 @@ public class IrisDimension extends IrisRegistrant {
     private IrisRange dimensionHeight = new IrisRange(-64, 320);
     @Desc("Define options for this dimension")
     private IrisDimensionTypeOptions dimensionOptions = new IrisDimensionTypeOptions();
+    @Desc("When true, sets the dimension's ambient light to maximum, making all blocks fully lit regardless of light level.")
+    private boolean fullbright = false;
+    @RegistryListResource(IrisDimension.class)
+    @Desc("When set, generates the referenced dimension's terrain upside-down at the world ceiling, creating a nether-like canopy. Use the dimension's load key (e.g., 'overworld'). Set to 'none' to disable.")
+    private String upperDimension = "none";
+    @MinNumber(0)
+    @MaxNumber(256)
+    @Desc("Minimum air gap in blocks between the lower terrain surface and the upper terrain surface.")
+    private int upperDimensionGap = 32;
+    @Desc("When true, cave carving will cut through the upper dimension terrain. When false, the upper terrain is a solid untouched mass.")
+    private boolean upperDimensionCarving = false;
+    @Desc("When true, objects from the mantle (structures, trees, etc.) can be placed in the upper dimension terrain zone. When false, the upper terrain is protected from object placement.")
+    private boolean upperDimensionObjects = false;
     @RegistryListResource(IrisBiome.class)
     @Desc("Keep this either undefined or empty. Setting any biome name into this will force iris to only generate the specified biome. Great for testing.")
     private String focus = "";
@@ -650,7 +663,15 @@ public class IrisDimension extends IrisRegistrant {
     }
 
     public IrisDimensionType getDimensionType() {
-        return new IrisDimensionType(getBaseDimension(), getDimensionOptions(), getLogicalHeight(), getMaxHeight() - getMinHeight(), getMinHeight());
+        IrisDimensionTypeOptions options = getDimensionOptions();
+        if (fullbright) {
+            options = options.copy().ambientLight(1.0f);
+        }
+        return new IrisDimensionType(getBaseDimension(), options, getLogicalHeight(), getMaxHeight() - getMinHeight(), getMinHeight());
+    }
+
+    public boolean hasUpperDimension() {
+        return upperDimension != null && !upperDimension.isEmpty() && !upperDimension.equalsIgnoreCase("none");
     }
 
     public void installDimensionType(IDataFixer fixer, KList<File> folders) {

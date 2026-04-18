@@ -18,7 +18,9 @@
 
 package art.arcane.iris.core.commands;
 
+import art.arcane.iris.Iris;
 import art.arcane.iris.core.ExternalDataPackPipeline;
+import art.arcane.iris.core.service.ObjectStudioSaveService;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
@@ -99,6 +101,18 @@ public class CommandFind implements DirectorExecutor {
         if (e == null) {
             sender().sendMessage(C.GOLD + "Not in an Iris World!");
             return;
+        }
+
+        Player studioPlayer = player();
+        if (studioPlayer != null) {
+            try {
+                if (ObjectStudioSaveService.get().teleportTo(studioPlayer, object)) {
+                    sender().sendMessage(C.GREEN + "Object Studio: teleporting to " + object);
+                    return;
+                }
+            } catch (Throwable t) {
+                Iris.reportError(t);
+            }
         }
 
         if (e.hasObjectPlacement(object)) {

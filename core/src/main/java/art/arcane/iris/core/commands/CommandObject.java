@@ -21,16 +21,19 @@ package art.arcane.iris.core.commands;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.link.WorldEditLink;
 import art.arcane.iris.core.loader.IrisData;
+import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.service.ObjectSVC;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.service.WandSVC;
 import art.arcane.iris.core.tools.IrisConverter;
+import art.arcane.iris.core.tools.TreePlausibilizer;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
 import art.arcane.volmlib.util.data.Cuboid;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.common.data.registry.Materials;
 import art.arcane.iris.util.common.director.DirectorExecutor;
+import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
@@ -220,6 +223,220 @@ public class CommandObject implements DirectorExecutor {
             sender().sendMessage("Failed to save object " + o.getLoadFile() + ": " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    @Director(description = "Bridge unreachable leaves with hidden logs so trees are vanilla-decay-plausible",
+            origin = DirectorOrigin.BOTH, studio = false)
+    public void plausibilize(
+            @Param(description = "Pack key (trees/bonsai/smbase1), pack prefix (trees/), or filesystem path to a .iob file or directory")
+            String target,
+            @Param(description = "Analyze only, do not write", defaultValue = "false")
+            boolean dryRun,
+            @Param(description = "Flip persistent=true leaves to false and bridge them as well",
+                    defaultValue = "false")
+            boolean normalize,
+            @Param(description = "Wipe scattered leaves and repaint a canopy shell around every log, then bridge any gaps with interior log tendrils",
+                    defaultValue = "false")
+            boolean smoke,
+            @Param(description = "Canopy shell radius (smoke mode only), clamped to [0,5]",
+                    defaultValue = "2")
+            int radius
+    ) {
+        List<Target> targets = resolveTargets(target);
+        if (targets.isEmpty()) {
+            sender().sendMessage(C.RED + "No objects matched: " + target);
+            return;
+        }
+
+        sender().sendMessage(C.IRIS + "Plausibilize: queued " + targets.size() + " object(s)"
+                + (dryRun ? " [DRY RUN]" : "")
+                + (normalize ? " [NORMALIZE]" : "")
+                + (smoke ? " [SMOKE r=" + radius + "]" : ""));
+
+        org.bukkit.command.CommandSender s = sender();
+        J.a(() -> runPlausibilize(targets, dryRun, normalize, smoke, radius, s));
+    }
+
+    private List<Target> resolveTargets(String target) {
+        List<Target> out = new ArrayList<>();
+        if (target == null || target.isEmpty()) {
+            return out;
+        }
+
+        File direct = new File(target);
+        if (direct.isFile() && target.toLowerCase().endsWith(".iob")) {
+            out.add(new Target(direct.getName().replaceAll("\\.iob$", ""), direct));
+            return out;
+        }
+        if (direct.isDirectory()) {
+            walkIob(direct, direct, out);
+            return out;
+        }
+
+        IrisData irisData = data();
+        if (irisData != null) {
+            ResourceLoader<IrisObject> loader = irisData.getObjectLoader();
+            if (!target.endsWith("/") && loader.findFile(target) != null) {
+                out.add(new Target(target, null));
+                return out;
+            }
+            String prefix = target.endsWith("/") ? target : target + "/";
+            for (String k : loader.getPossibleKeys()) {
+                if (k.startsWith(prefix)) {
+                    out.add(new Target(k, null));
+                }
+            }
+            return out;
+        }
+
+        File packsFolder = Iris.instance.getDataFolder("packs");
+        File[] packs = packsFolder.listFiles(File::isDirectory);
+        if (packs != null) {
+            for (File pack : packs) {
+                File objectsRoot = new File(pack, "objects");
+                if (!objectsRoot.isDirectory()) continue;
+                File candidate = new File(objectsRoot, target + ".iob");
+                if (candidate.isFile()) {
+                    out.add(new Target(pack.getName() + "/" + target, candidate));
+                    continue;
+                }
+                File candidateDir = new File(objectsRoot, target);
+                if (candidateDir.isDirectory()) {
+                    walkIob(candidateDir, objectsRoot, out);
+                }
+            }
+        }
+        return out;
+    }
+
+    private static void walkIob(File root, File keyRoot, List<Target> out) {
+        File[] kids = root.listFiles();
+        if (kids == null) return;
+        for (File f : kids) {
+            if (f.isDirectory()) {
+                walkIob(f, keyRoot, out);
+            } else if (f.getName().toLowerCase().endsWith(".iob")) {
+                String rel = keyRoot.toPath().relativize(f.toPath()).toString()
+                        .replace(File.separatorChar, '/')
+                        .replaceAll("\\.iob$", "");
+                out.add(new Target(rel, f));
+            }
+        }
+    }
+
+    private record Target(String key, File file) {
+    }
+
+    private static void runPlausibilize(
+            List<Target> targets,
+            boolean dryRun,
+            boolean normalize,
+            boolean smoke,
+            int radius,
+            org.bukkit.command.CommandSender s
+    ) {
+        int processed = 0;
+        int skipped = 0;
+        int failed = 0;
+        int changed = 0;
+        long totalLogsAdded = 0L;
+        long totalReachableBefore = 0L;
+        long totalLeaves = 0L;
+        long totalPersistentInput = 0L;
+        long totalLeavesAdded = 0L;
+        long totalLeavesRemoved = 0L;
+        long totalNormalized = 0L;
+        long totalUnreachableAfter = 0L;
+
+        int progressStep = Math.max(1, targets.size() / 20);
+        int index = 0;
+
+        for (Target t : targets) {
+            index++;
+            try {
+                IrisObject o = loadTarget(t);
+                if (o == null) {
+                    s.sendMessage(C.YELLOW + "  skip " + t.key() + ": failed to load");
+                    skipped++;
+                    continue;
+                }
+
+                TreePlausibilizer.Result r = dryRun
+                        ? TreePlausibilizer.analyze(o, normalize, smoke, radius)
+                        : TreePlausibilizer.apply(o, normalize, smoke, radius);
+
+                if (r.skipReason() != null) {
+                    s.sendMessage(C.YELLOW + "  skip " + t.key() + ": " + r.skipReason());
+                    skipped++;
+                    continue;
+                }
+
+                boolean touched = r.logsAdded() > 0 || r.leavesAdded() > 0
+                        || r.leavesRemoved() > 0 || r.leavesNormalized() > 0;
+                if (!dryRun && touched) {
+                    File dest = o.getLoadFile() != null ? o.getLoadFile() : t.file();
+                    if (dest != null) {
+                        o.write(dest);
+                        changed++;
+                    }
+                }
+
+                processed++;
+                totalLogsAdded += r.logsAdded();
+                totalReachableBefore += r.reachableBefore();
+                totalLeaves += r.totalLeaves();
+                totalPersistentInput += r.persistentLeavesInput();
+                totalLeavesAdded += r.leavesAdded();
+                totalLeavesRemoved += r.leavesRemoved();
+                totalNormalized += r.leavesNormalized();
+                totalUnreachableAfter += r.unreachableAfter();
+
+                if (touched || targets.size() == 1) {
+                    s.sendMessage(C.GRAY + "  " + t.key()
+                            + " leaves=" + r.totalLeaves()
+                            + " persistentIn=" + r.persistentLeavesInput()
+                            + " reachable=" + r.reachableBefore()
+                            + " logsAdded=" + r.logsAdded()
+                            + " leavesAdded=" + r.leavesAdded()
+                            + " leavesRemoved=" + r.leavesRemoved()
+                            + " normalized=" + r.leavesNormalized()
+                            + " remaining=" + r.unreachableAfter());
+                }
+
+                if (targets.size() > 1 && index % progressStep == 0) {
+                    s.sendMessage(C.IRIS + "  [" + index + "/" + targets.size() + "]");
+                }
+            } catch (Throwable e) {
+                s.sendMessage(C.RED + "  fail " + t.key() + ": " + e.getClass().getSimpleName()
+                        + ": " + e.getMessage());
+                e.printStackTrace();
+                failed++;
+            }
+        }
+
+        s.sendMessage(C.IRIS + "Done."
+                + " processed=" + processed
+                + " changed=" + changed
+                + " skipped=" + skipped
+                + " failed=" + failed
+                + " leaves=" + totalLeaves
+                + " persistentIn=" + totalPersistentInput
+                + " reachableBefore=" + totalReachableBefore
+                + " logsAdded=" + totalLogsAdded
+                + " leavesAdded=" + totalLeavesAdded
+                + " leavesRemoved=" + totalLeavesRemoved
+                + " normalized=" + totalNormalized
+                + " remaining=" + totalUnreachableAfter);
+    }
+
+    private static IrisObject loadTarget(Target t) throws IOException {
+        if (t.file() != null) {
+            IrisObject o = new IrisObject();
+            o.read(t.file());
+            o.setLoadFile(t.file());
+            return o;
+        }
+        return IrisData.loadAnyObject(t.key(), null);
     }
 
     @Director(description = "Convert .schem files in the 'convert' folder to .iob files.")

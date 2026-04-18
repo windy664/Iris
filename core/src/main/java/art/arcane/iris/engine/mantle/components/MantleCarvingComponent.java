@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.mantle.components;
 
 import art.arcane.iris.engine.IrisComplex;
+import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.mantle.ComponentFlag;
 import art.arcane.iris.engine.mantle.EngineMantle;
@@ -91,12 +92,69 @@ public class MantleCarvingComponent extends IrisMantleComponent {
         for (WeightedProfile weightedProfile : weightedProfiles) {
             carveProfile(weightedProfile, writer, x, z, chunkSurfaceHeights);
         }
+
+        UpperDimensionContext upperCtx = getEngineMantle().getEngine().getUpperContext();
+        if (upperCtx != null && getDimension().isUpperDimensionCarving()) {
+            carveUpperTerrain(upperCtx, weightedProfiles, writer, x, z, chunkSurfaceHeights);
+        }
     }
 
     @ChunkCoordinates
     private void carveProfile(WeightedProfile weightedProfile, MantleWriter writer, int cx, int cz, int[] chunkSurfaceHeights) {
         IrisCaveCarver3D carver = getCarver(weightedProfile.profile);
         carver.carve(writer, cx, cz, weightedProfile.columnWeights, MIN_WEIGHT, THRESHOLD_PENALTY, weightedProfile.worldYRange, chunkSurfaceHeights);
+    }
+
+    private void carveUpperTerrain(UpperDimensionContext upperCtx, List<WeightedProfile> normalProfiles, MantleWriter writer, int cx, int cz, int[] lowerSurfaceHeights) {
+        int chunkHeight = getEngineMantle().getEngine().getHeight();
+        int worldMinHeight = getEngineMantle().getEngine().getWorld().minHeight();
+        int gap = getDimension().getUpperDimensionGap();
+        int baseX = PowerOfTwoCoordinates.chunkToBlock(cx);
+        int baseZ = PowerOfTwoCoordinates.chunkToBlock(cz);
+
+        int minUpperSurfaceY = chunkHeight;
+        for (int localX = 0; localX < CHUNK_SIZE; localX++) {
+            int worldX = baseX + localX;
+            for (int localZ = 0; localZ < CHUNK_SIZE; localZ++) {
+                int worldZ = baseZ + localZ;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
+                int rawUpper = upperCtx.getUpperSurfaceY(worldX, worldZ);
+                int upperY = Math.max(rawUpper, lowerSurfaceHeights[columnIndex] + gap);
+                if (upperY < minUpperSurfaceY) {
+                    minUpperSurfaceY = upperY;
+                }
+            }
+        }
+
+        if (minUpperSurfaceY >= chunkHeight - 2) {
+            return;
+        }
+
+        IrisRange upperYRange = new IrisRange(
+                minUpperSurfaceY + worldMinHeight,
+                chunkHeight - 1 + worldMinHeight
+        );
+        IrisRange fullVerticalRange = new IrisRange(0, chunkHeight);
+
+        int[] ceilingSurfaceHeights = new int[CHUNK_AREA];
+        Arrays.fill(ceilingSurfaceHeights, chunkHeight - 1);
+
+        for (WeightedProfile weightedProfile : normalProfiles) {
+            IrisRange constrainedRange;
+            if (weightedProfile.worldYRange != null) {
+                double min = Math.max(weightedProfile.worldYRange.getMin(), upperYRange.getMin());
+                double max = Math.min(weightedProfile.worldYRange.getMax(), upperYRange.getMax());
+                if (min >= max) {
+                    continue;
+                }
+                constrainedRange = new IrisRange(min, max);
+            } else {
+                constrainedRange = upperYRange;
+            }
+            IrisCaveCarver3D carver = getCarver(weightedProfile.profile);
+            carver.carve(writer, cx, cz, weightedProfile.columnWeights, MIN_WEIGHT, THRESHOLD_PENALTY,
+                    constrainedRange, ceilingSurfaceHeights, fullVerticalRange);
+        }
     }
 
     private List<WeightedProfile> resolveWeightedProfiles(int chunkX, int chunkZ, IrisComplex complex, IrisDimensionCarvingResolver.State resolverState) {

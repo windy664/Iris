@@ -92,6 +92,35 @@ public final class WorldRuntimeControlService {
         return true;
     }
 
+    public boolean applyObjectStudioWorldRules(World world) {
+        if (world == null) {
+            return false;
+        }
+
+        applyStudioWorldRules(world);
+
+        setBooleanGameRule(world, false, "DO_FIRE_TICK", "doFireTick");
+        setBooleanGameRule(world, false, "DO_MOB_SPAWNING", "doMobSpawning");
+        setBooleanGameRule(world, false, "DO_MOB_LOOT", "doMobLoot");
+        setBooleanGameRule(world, false, "DO_TRADER_SPAWNING", "doTraderSpawning");
+        setBooleanGameRule(world, false, "DO_PATROL_SPAWNING", "doPatrolSpawning");
+        setBooleanGameRule(world, false, "DO_INSOMNIA", "doInsomnia");
+        setBooleanGameRule(world, true, "DO_IMMEDIATE_RESPAWN", "doImmediateRespawn");
+        setBooleanGameRule(world, false, "FALL_DAMAGE", "fallDamage");
+        setBooleanGameRule(world, false, "FIRE_DAMAGE", "fireDamage");
+        setBooleanGameRule(world, false, "DROWNING_DAMAGE", "drowningDamage");
+        setBooleanGameRule(world, false, "FREEZE_DAMAGE", "freezeDamage");
+        setBooleanGameRule(world, false, "DO_WARDEN_SPAWNING", "doWardenSpawning");
+        setBooleanGameRule(world, false, "MOB_GRIEFING", "mobGriefing");
+        setBooleanGameRule(world, false, "DO_TILE_DROPS", "doTileDrops");
+        setBooleanGameRule(world, true, "KEEP_INVENTORY", "keepInventory");
+        setIntGameRule(world, 0, "RANDOM_TICK_SPEED", "randomTickSpeed");
+        setIntGameRule(world, 0, "SPAWN_RADIUS", "spawnRadius");
+        setIntGameRule(world, 0, "MAX_ENTITY_CRAMMING", "maxEntityCramming");
+        applyNoonTimeLock(world);
+        return true;
+    }
+
     public boolean applyNoonTimeLock(World world) {
         if (world == null) {
             return false;
@@ -345,6 +374,74 @@ public final class WorldRuntimeControlService {
         if (gameRule != null) {
             world.setGameRule(gameRule, value);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void setIntGameRule(World world, int value, String... names) {
+        GameRule<Integer> gameRule = resolveIntGameRule(world, names);
+        if (gameRule != null) {
+            world.setGameRule(gameRule, value);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static GameRule<Integer> resolveIntGameRule(World world, String... names) {
+        if (world == null || names == null || names.length == 0) {
+            return null;
+        }
+
+        Set<String> candidates = buildRuleNameCandidates(names);
+        for (String name : candidates) {
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+
+            try {
+                Field field = GameRule.class.getField(name);
+                Object value = field.get(null);
+                if (value instanceof GameRule<?> gameRule && Integer.class.equals(gameRule.getType())) {
+                    return (GameRule<Integer>) gameRule;
+                }
+            } catch (Throwable ignored) {
+            }
+
+            try {
+                GameRule<?> byName = GameRule.getByName(name);
+                if (byName != null && Integer.class.equals(byName.getType())) {
+                    return (GameRule<Integer>) byName;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        String[] availableRules = world.getGameRules();
+        if (availableRules == null || availableRules.length == 0) {
+            return null;
+        }
+
+        Set<String> normalizedCandidates = new LinkedHashSet<>();
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                normalizedCandidates.add(normalizeRuleName(candidate));
+            }
+        }
+
+        for (String availableRule : availableRules) {
+            String normalizedAvailable = normalizeRuleName(availableRule);
+            if (!normalizedCandidates.contains(normalizedAvailable)) {
+                continue;
+            }
+
+            try {
+                GameRule<?> byName = GameRule.getByName(availableRule);
+                if (byName != null && Integer.class.equals(byName.getType())) {
+                    return (GameRule<Integer>) byName;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        return null;
     }
 
     @SuppressWarnings("unchecked")

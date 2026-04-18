@@ -32,6 +32,7 @@ import art.arcane.iris.core.nms.container.Pair;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.IrisComplex;
+import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.mantle.EngineMantle;
@@ -94,6 +95,10 @@ import java.util.stream.Collectors;
 
 public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdater, Renderer, Hotloadable {
     IrisComplex getComplex();
+
+    default @Nullable UpperDimensionContext getUpperContext() {
+        return null;
+    }
 
     EngineMode getMode();
 

@@ -24,6 +24,8 @@ import art.arcane.iris.core.gui.NoiseExplorerGUI;
 import art.arcane.iris.core.gui.VisionGUI;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.project.IrisProject;
+import art.arcane.iris.core.runtime.ObjectStudioActivation;
+import art.arcane.iris.core.runtime.WorldRuntimeControlService;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
@@ -121,6 +123,101 @@ public class CommandStudio implements DirectorExecutor {
             long seed) {
         sender().sendMessage(C.GREEN + "Opening studio for the \"" + dimension.getName() + "\" pack (seed: " + seed + ")");
         Iris.service(StudioSVC.class).open(sender(), seed, dimension.getLoadKey());
+    }
+
+    @Director(description = "Open an object studio world (grid of every object; dimension optional, defaults to all packs)", aliases = {"obj", "objs"}, sync = true)
+    public void object(
+            @Param(defaultValue = "null", description = "Optional dimension whose object pack to lay out; omit to aggregate objects from every pack", aliases = "dim", customHandler = NullableDimensionHandler.class)
+            IrisDimension dimension,
+            @Param(defaultValue = "1337", description = "The seed to generate the studio with", aliases = "s")
+            long seed
+    ) {
+        VolmitSender commandSender = sender();
+        java.util.Map<String, IrisData> sources = new java.util.LinkedHashMap<>();
+        IrisDimension hostDimension = dimension;
+
+        if (dimension != null) {
+            IrisData data = dimension.getLoader();
+            if (data == null) {
+                data = IrisData.get(dimension.getLoadFile().getParentFile().getParentFile());
+            }
+            sources.put(data.getDataFolder().getName(), data);
+        } else {
+            File workspace = Iris.service(StudioSVC.class).getWorkspaceFolder();
+            File[] packs = workspace == null ? null : workspace.listFiles();
+            if (packs != null) {
+                Arrays.sort(packs, java.util.Comparator.comparing(File::getName, String.CASE_INSENSITIVE_ORDER));
+                for (File pack : packs) {
+                    if (!pack.isDirectory()) continue;
+                    File dimensionsDir = new File(pack, "dimensions");
+                    if (!dimensionsDir.isDirectory()) continue;
+                    IrisData data = IrisData.get(pack);
+                    String[] keys = data.getObjectLoader().getPossibleKeys();
+                    if (keys == null || keys.length == 0) continue;
+                    sources.put(pack.getName(), data);
+                    if (hostDimension == null) {
+                        File[] dimFiles = dimensionsDir.listFiles((f) -> f.isFile() && f.getName().endsWith(".json"));
+                        if (dimFiles != null && dimFiles.length > 0) {
+                            String loadKey = dimFiles[0].getName().replaceFirst("\\.json$", "");
+                            IrisDimension loaded = data.getDimensionLoader().load(loadKey);
+                            if (loaded != null) {
+                                hostDimension = loaded;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (hostDimension == null || sources.isEmpty()) {
+            commandSender.sendMessage(C.RED + "No packs with objects were found on this server.");
+            return;
+        }
+
+        int totalObjects = 0;
+        for (IrisData d : sources.values()) {
+            String[] k = d.getObjectLoader().getPossibleKeys();
+            if (k != null) totalObjects += k.length;
+        }
+        if (totalObjects == 0) {
+            commandSender.sendMessage(C.RED + "No objects to place across the selected pack(s).");
+            return;
+        }
+
+        hostDimension.setStudioMode(StudioMode.OBJECT_BUFFET);
+        ObjectStudioActivation.activate(hostDimension.getLoadKey());
+        ObjectStudioActivation.setSources(hostDimension.getLoadKey(), sources);
+
+        String scope = dimension == null
+                ? ("all packs [" + sources.size() + "]")
+                : ("\"" + hostDimension.getName() + "\"");
+        commandSender.sendMessage(C.GREEN + "Opening Object Studio for " + scope + " ("
+                + totalObjects + " objects)");
+
+        IrisDimension finalHost = hostDimension;
+        try {
+            Iris.service(StudioSVC.class).open(commandSender, seed, hostDimension.getLoadKey(), world -> {
+                if (world == null) return;
+                try {
+                    WorldRuntimeControlService.get().applyObjectStudioWorldRules(world);
+                } catch (Throwable e) {
+                    Iris.reportError("Failed to apply object studio world rules for " + world.getName(), e);
+                }
+
+                if (commandSender.isPlayer()) {
+                    Player p = commandSender.player();
+                    if (p != null) {
+                        Location target = new Location(world, 0.5D, 66D, 0.5D);
+                        J.runEntity(p, () -> {
+                            PaperLib.teleportAsync(p, target).thenRun(() -> p.setGameMode(GameMode.CREATIVE));
+                        });
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            Iris.reportError("Failed to open object studio world \"" + finalHost.getLoadKey() + "\".", e);
+            commandSender.sendMessage(C.RED + "Failed to open object studio: " + e.getMessage());
+        }
     }
 
     @Director(description = "Open VSCode for a dimension", aliases = {"vsc", "edit"})

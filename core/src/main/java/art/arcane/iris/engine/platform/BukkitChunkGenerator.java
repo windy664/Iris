@@ -778,9 +778,13 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
     }
 
     private void computeStudioGenerator() {
-        if (!getEngine().getDimension().getStudioMode().equals(lastMode)) {
-            lastMode = getEngine().getDimension().getStudioMode();
-            getEngine().getDimension().getStudioMode().inject(this);
+        StudioMode desired = getEngine().getDimension().getStudioMode();
+        if (studio && art.arcane.iris.core.runtime.ObjectStudioActivation.isActive(getEngine().getDimension().getLoadKey())) {
+            desired = StudioMode.OBJECT_BUFFET;
+        }
+        if (!desired.equals(lastMode)) {
+            lastMode = desired;
+            desired.inject(this);
         }
     }
 
@@ -807,6 +811,9 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
     @Override
     public boolean shouldGenerateStructures() {
+        if (isStudio() && art.arcane.iris.core.runtime.ObjectStudioActivation.isActive(getEngine().getDimension().getLoadKey())) {
+            return false;
+        }
         return IrisSettings.get().getGeneral().isAutoGenerateIntrinsicStructures();
     }
 

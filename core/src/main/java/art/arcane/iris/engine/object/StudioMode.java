@@ -21,6 +21,7 @@ package art.arcane.iris.engine.object;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.studio.generators.BiomeBuffetGenerator;
+import art.arcane.iris.engine.platform.studio.generators.ObjectStudioGenerator;
 
 import java.util.function.Consumer;
 
@@ -34,7 +35,7 @@ public enum StudioMode {
     BIOME_BUFFET_18x18(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 18))),
     BIOME_BUFFET_36x36(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 36))),
     REGION_BUFFET(i -> i.setStudioGenerator(null)),
-    OBJECT_BUFFET(i -> i.setStudioGenerator(null)),
+    OBJECT_BUFFET(i -> i.setStudioGenerator(new ObjectStudioGenerator(i.getEngine()))),
 
     ;
 
