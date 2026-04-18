@@ -293,47 +293,136 @@ public class IrisProject {
         return future;
     }
 
+    private static final int STUDIO_PROGRESS_BAR_WIDTH = 44;
+
     private void startStudioOpenReporter(VolmitSender sender, AtomicReference<String> stage, AtomicReference<Double> progress, AtomicBoolean complete, AtomicBoolean failed) {
-        String[] spinner = {"|", "/", "-", "\\"};
-        AtomicInteger spinIndex = new AtomicInteger(0);
         AtomicLong nextConsoleUpdate = new AtomicLong(0L);
+        AtomicLong startMs = new AtomicLong(System.currentTimeMillis());
         AtomicInteger taskId = new AtomicInteger(-1);
+        org.bukkit.boss.BossBar bossBar;
+
+        if (sender.isPlayer() && sender.player() != null) {
+            bossBar = Bukkit.createBossBar(
+                    C.GOLD + "Studio " + C.AQUA + "OPENING",
+                    org.bukkit.boss.BarColor.BLUE,
+                    org.bukkit.boss.BarStyle.SEGMENTED_20
+            );
+            bossBar.setProgress(0.0D);
+            bossBar.addPlayer(sender.player());
+            bossBar.setVisible(true);
+        } else {
+            bossBar = null;
+        }
 
         int scheduledTaskId = J.ar(() -> {
+            double currentProgress = Math.max(0D, Math.min(0.99D, progress.get()));
+            String currentStage = describeStage(stage.get());
+            int percent = (int) Math.round(currentProgress * 100.0D);
+            long elapsed = System.currentTimeMillis() - startMs.get();
+
             if (complete.get()) {
                 J.car(taskId.get());
+
                 if (failed.get()) {
+                    if (bossBar != null) {
+                        bossBar.setProgress(Math.max(0.0D, Math.min(1.0D, currentProgress)));
+                        bossBar.setColor(org.bukkit.boss.BarColor.RED);
+                        bossBar.setTitle(C.GOLD + "Studio " + C.RED + "FAILED" + C.GRAY + " " + C.YELLOW + percent + "%");
+                        J.a(() -> { bossBar.removeAll(); bossBar.setVisible(false); }, 60);
+                    }
                     if (sender.isPlayer()) {
-                        sender.sendProgress(1D, "Studio open failed");
+                        String action = buildStudioProgressBar(currentProgress)
+                                + C.GRAY + " " + C.RED + "FAILED"
+                                + C.GRAY + " | " + C.WHITE + currentStage;
+                        sender.sendAction(action);
                     } else {
                         sender.sendMessage(C.RED + "Studio open failed.");
                     }
-                } else if (sender.isPlayer()) {
-                    sender.sendProgress(1D, "Studio ready");
                 } else {
-                    sender.sendMessage(C.GREEN + "Studio ready.");
+                    if (bossBar != null) {
+                        bossBar.setProgress(1.0D);
+                        bossBar.setColor(org.bukkit.boss.BarColor.GREEN);
+                        bossBar.setTitle(C.GOLD + "Studio " + C.GREEN + "READY" + C.GRAY + " " + C.YELLOW + "100%");
+                        J.a(() -> { bossBar.removeAll(); bossBar.setVisible(false); }, 60);
+                    }
+                    if (sender.isPlayer()) {
+                        String action = buildStudioProgressBar(1.0D)
+                                + C.GRAY + " " + C.GREEN + "100%"
+                                + C.GRAY + " | " + C.GREEN + "Studio ready"
+                                + C.DARK_GRAY + " " + Form.duration(elapsed, 1);
+                        sender.sendAction(action);
+                    } else {
+                        sender.sendMessage(C.GREEN + "Studio ready " + C.GRAY + "(" + Form.duration(elapsed, 1) + ")");
+                    }
                 }
                 return;
             }
 
-            double currentProgress = Math.max(0D, Math.min(0.97D, progress.get()));
-            String currentStage = stage.get();
-            String currentSpinner = spinner[Math.floorMod(spinIndex.getAndIncrement(), spinner.length)];
+            if (sender.isPlayer() && sender.player() != null) {
+                if (bossBar != null) {
+                    bossBar.setProgress(Math.max(0.0D, Math.min(1.0D, currentProgress)));
+                    bossBar.setTitle(C.GOLD + "Studio " + C.AQUA + "OPENING" + C.GRAY + " " + C.YELLOW + percent + "%");
+                }
 
-            if (sender.isPlayer()) {
-                sender.sendProgress(currentProgress, "Studio " + currentSpinner + " " + currentStage);
-                return;
-            }
-
-            long now = System.currentTimeMillis();
-            long nextUpdate = nextConsoleUpdate.get();
-            if (now >= nextUpdate) {
-                sender.sendMessage(C.WHITE + "Studio " + Form.pc(currentProgress, 0) + C.GRAY + " - " + currentStage);
-                nextConsoleUpdate.set(now + 1500L);
+                String action = buildStudioProgressBar(currentProgress)
+                        + C.GRAY + " " + C.YELLOW + percent + "%"
+                        + C.GRAY + " | " + C.WHITE + currentStage
+                        + C.DARK_GRAY + " " + Form.duration(elapsed, 0);
+                sender.sendAction(action);
+            } else {
+                long now = System.currentTimeMillis();
+                long nextUpdate = nextConsoleUpdate.get();
+                if (now >= nextUpdate) {
+                    String bar = buildStudioConsoleBar(currentProgress);
+                    sender.sendMessage(C.GOLD + "Studio " + C.AQUA + bar + " " + C.YELLOW + percent + "%" + C.GRAY + " " + currentStage + C.DARK_GRAY + " (" + Form.duration(elapsed, 0) + ")");
+                    nextConsoleUpdate.set(now + 1500L);
+                }
             }
         }, 3);
 
         taskId.set(scheduledTaskId);
+    }
+
+    private static String buildStudioProgressBar(double progress) {
+        int filled = (int) Math.round(Math.max(0.0D, Math.min(1.0D, progress)) * STUDIO_PROGRESS_BAR_WIDTH);
+        StringBuilder bar = new StringBuilder(STUDIO_PROGRESS_BAR_WIDTH * 3 + 4);
+        bar.append(C.DARK_GRAY).append("[");
+        for (int i = 0; i < STUDIO_PROGRESS_BAR_WIDTH; i++) {
+            bar.append(i < filled ? C.GREEN : C.DARK_GRAY).append("|");
+        }
+        bar.append(C.DARK_GRAY).append("]");
+        return bar.toString();
+    }
+
+    private static String buildStudioConsoleBar(double progress) {
+        int width = 20;
+        int filled = (int) Math.round(Math.max(0.0D, Math.min(1.0D, progress)) * width);
+        StringBuilder bar = new StringBuilder();
+        bar.append("[");
+        for (int i = 0; i < width; i++) {
+            bar.append(i < filled ? "#" : "-");
+        }
+        bar.append("]");
+        return bar.toString();
+    }
+
+    private static String describeStage(String stage) {
+        if (stage == null || stage.isBlank()) return "Initializing";
+        return switch (stage) {
+            case "Queued" -> "Queued";
+            case "resolve_dimension" -> "Resolving dimension";
+            case "prepare_world_pack" -> "Preparing world pack";
+            case "install_datapacks" -> "Installing datapacks";
+            case "create_world" -> "Creating world";
+            case "apply_world_rules" -> "Applying world rules";
+            case "prepare_generator" -> "Preparing generator";
+            case "request_entry_chunk" -> "Loading entry chunk";
+            case "resolve_safe_entry" -> "Finding safe spawn";
+            case "teleport_player" -> "Teleporting";
+            case "finalize_open" -> "Finalizing";
+            case "cleanup" -> "Cleaning up";
+            default -> Form.capitalizeWords(stage.replace('_', ' '));
+        };
     }
 
     public CompletableFuture<StudioOpenCoordinator.StudioCloseResult> close() {

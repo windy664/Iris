@@ -157,16 +157,15 @@ public class DeepSearchPregenerator extends Thread implements Listener {
             for (int j = 0; j < 16; j++) {
                 int height = engine.getHeight(xx + i, zz + j);
                 if (height > 300) {
-                    File found = new File("plugins" + "iris" + "found.txt");
-                    FileWriter writer = new FileWriter(found);
-                    if (!found.exists()) {
-                        found.createNewFile();
-                    }
+                    File found = new File("plugins", "iris" + File.separator + "found.txt");
+                    found.getParentFile().mkdirs();
                     IrisBiome biome = engine.getBiome(xx, engine.getHeight(), zz);
-                    Iris.info("Found at! " + xx + ", " + zz + "Biome ID: " + biome.getName() + ", ");
-                    writer.write("Biome at: X: " + xx + " Z: " + zz + "Biome ID: " + biome.getName() +  ", ");
+                    Iris.info("Found at! " + xx + ", " + zz + " Biome ID: " + biome.getName());
+                    try (FileWriter writer = new FileWriter(found, true)) {
+                        writer.write("Biome at: X: " + xx + " Z: " + zz + " Biome ID: " + biome.getName() + "\n");
+                    }
                     return;
-               }
+                }
             }
         }
     }

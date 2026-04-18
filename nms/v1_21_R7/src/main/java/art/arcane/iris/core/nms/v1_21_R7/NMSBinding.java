@@ -86,16 +86,29 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public class NMSBinding implements INMSBinding {
     private final KMap<Biome, Object> baseBiomeCache = new KMap<>();
@@ -901,6 +914,96 @@ public class NMSBinding implements INMSBinding {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(Pair::getA, Pair::getB, (a, b) -> a, KMap::new));
+    }
+
+    private static final Pattern VANILLA_DATAPACK_ENTRY = Pattern.compile(
+            "^data/minecraft/(?:worldgen/(?:structure|structure_set|template_pool|processor_list)/.+\\.json"
+                    + "|structures?/.+\\.nbt"
+                    + "|tags/worldgen/biome/has_structure/.+\\.json)$"
+    );
+
+    @Override
+    public Map<String, byte[]> extractVanillaDatapack() {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        File serverJar = resolveServerJar();
+        if (serverJar == null) {
+            Iris.error("Unable to locate server JAR for vanilla datapack extraction.");
+            return entries;
+        }
+
+        Iris.info("Extracting vanilla datapack from " + serverJar.getName() + "...");
+        try (ZipFile zip = new ZipFile(serverJar)) {
+            Enumeration<? extends ZipEntry> zipEntries = zip.entries();
+            while (zipEntries.hasMoreElements()) {
+                ZipEntry entry = zipEntries.nextElement();
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                String name = entry.getName();
+                if (!VANILLA_DATAPACK_ENTRY.matcher(name).matches()) {
+                    continue;
+                }
+                String datapackPath = normalizeStructurePath(name);
+                try (InputStream is = zip.getInputStream(entry)) {
+                    entries.put(datapackPath, is.readAllBytes());
+                }
+            }
+        } catch (IOException e) {
+            Iris.error("Failed to read vanilla datapack entries from " + serverJar.getName());
+            e.printStackTrace();
+        }
+
+        Iris.info("Extracted " + entries.size() + " vanilla datapack entries.");
+        return entries;
+    }
+
+    private static String normalizeStructurePath(String path) {
+        return path.replace("data/minecraft/structures/", "data/minecraft/structure/");
+    }
+
+    private static File resolveServerJar() {
+        try {
+            URL url = MinecraftServer.class.getProtectionDomain().getCodeSource().getLocation();
+            if (url != null) {
+                File file = Path.of(url.toURI()).toFile();
+                if (file.isFile() && file.getName().endsWith(".jar")) {
+                    return file;
+                }
+                if (file.isDirectory()) {
+                    return resolveServerJarFromDirectory(file);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        String classpath = System.getProperty("java.class.path", "");
+        for (String entry : classpath.split(File.pathSeparator)) {
+            File file = new File(entry);
+            if (file.isFile() && file.getName().endsWith(".jar") && containsVanillaData(file)) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    private static File resolveServerJarFromDirectory(File dir) {
+        File[] jars = dir.listFiles((d, name) -> name.endsWith(".jar"));
+        if (jars == null) return null;
+        for (File jar : jars) {
+            if (containsVanillaData(jar)) {
+                return jar;
+            }
+        }
+        return null;
+    }
+
+    private static boolean containsVanillaData(File jar) {
+        try (ZipFile zip = new ZipFile(jar)) {
+            return zip.getEntry("data/minecraft/worldgen/structure_set/villages.json") != null
+                    || zip.getEntry("data/minecraft/worldgen/structure_set/village_plains.json") != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

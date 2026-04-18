@@ -8,11 +8,6 @@ import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.IrisDimension;
-import art.arcane.iris.engine.object.IrisExternalDatapackReplaceTargets;
-import art.arcane.iris.engine.object.IrisExternalDatapackStructureAlias;
-import art.arcane.iris.engine.object.IrisExternalDatapackStructureSetAlias;
-import art.arcane.iris.engine.object.IrisExternalDatapackStructurePatch;
-import art.arcane.iris.engine.object.IrisExternalDatapackTemplateAlias;
 import art.arcane.iris.engine.object.TileData;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.math.Vector3i;
@@ -90,8 +85,11 @@ public final class ExternalDataPackPipeline {
     private static final Pattern STRUCTURE_ENTRY = Pattern.compile("(?i)(?:^|.*/)data/([^/]+)/(?:structure|structures)/(.+\\.nbt)$");
     private static final String EXTERNAL_PACK_INDEX = "datapack-imports";
     private static final String PACK_NAME = EXTERNAL_PACK_INDEX;
+    private static final String EXTERNAL_PACK_INDEX_SUBFOLDER = "datapack-imports";
+    private static final String IMPORT_INDEX_FILE_NAME = "datapack-index.json";
     private static final String MANAGED_WORLD_PACK_PREFIX = "iris-external-";
     private static final String MANAGED_PACK_META_DESCRIPTION = "Iris managed external structure datapack assets.";
+    private static final long MANAGED_ZIP_ENTRY_TIME = 315532800000L;
     private static final String IMPORT_PREFIX = "imports";
     private static final String LOCATE_MANIFEST_PATH = "cache/external-datapack-locate-manifest.json";
     private static final String OBJECT_LOCATE_MANIFEST_PATH = "cache/external-datapack-object-locate-manifest.json";
@@ -270,6 +268,19 @@ public final class ExternalDataPackPipeline {
             return summary;
         }
 
+        migrateLegacyImportIndex();
+
+        Map<String, JSONObject> oldIndexByPack = readAllImportIndexes();
+        Map<String, JSONObject> oldSources = flattenOldSources(oldIndexByPack);
+        Map<String, JSONArray> newSourcesByPack = new HashMap<>();
+        Map<String, ImportSummary> importSummaryByPack = new HashMap<>();
+        Set<String> seenSourceKeys = new HashSet<>();
+        Set<String> activeManagedWorldDatapackNames = new HashSet<>();
+
+        Map<String, Set<String>> priorLocateManifest = readLocateManifest();
+        Map<String, Set<String>> priorObjectLocateManifest = readObjectLocateManifest();
+        Map<String, Set<String>> priorSmartBoreManifest = readSmartBoreManifest();
+
         List<RequestedSourceInput> sourceInputs = new ArrayList<>();
         LinkedHashMap<String, Set<String>> resolvedLocateStructuresById = new LinkedHashMap<>();
         LinkedHashMap<String, Set<String>> resolvedLocateStructuresByObjectKey = new LinkedHashMap<>();
@@ -281,14 +292,34 @@ public final class ExternalDataPackPipeline {
             }
 
             if (request.replaceVanilla() && !request.hasReplacementTargets()) {
-                if (request.required()) {
-                    summary.requiredFailures++;
-                } else {
-                    summary.optionalFailures++;
+                Iris.verbose("Datapack id=" + request.id() + " has replaceVanilla without explicit targets; all minecraft namespace entries will be projected.");
+            }
+
+            KList<File> targetWorldFolders = resolveTargetWorldFolders(request.targetPack(), worldDatapackFoldersByPack);
+            if (!targetWorldFolders.isEmpty()) {
+                Map<File, File> existingManagedZips = findExistingManagedZipsForRequest(targetWorldFolders, request.targetPack(), request.id());
+                if (existingManagedZips.size() == targetWorldFolders.size()) {
+                    adoptExistingManagedRequest(
+                            request,
+                            existingManagedZips,
+                            oldSources,
+                            newSourcesByPack,
+                            seenSourceKeys,
+                            activeManagedWorldDatapackNames,
+                            importSummaryByPack,
+                            priorLocateManifest,
+                            priorObjectLocateManifest,
+                            priorSmartBoreManifest,
+                            resolvedLocateStructuresById,
+                            resolvedLocateStructuresByObjectKey,
+                            resolvedSmartBoreStructuresById
+                    );
+                    summary.skippedExistingRequests++;
+                    Iris.verbose("External datapack already present, skipping sync/projection: id=" + request.id()
+                            + ", targetPack=" + request.targetPack()
+                            + ", existingDatapacks=" + existingManagedZips.size());
+                    continue;
                 }
-                Iris.warn("Downloading datapacks [" + (requestIndex + 1) + "/" + normalizedRequests.size() + "] Failed! id=" + request.id() + " (replaceVanilla requires explicit replacement targets).");
-                mergeResolvedLocateStructures(resolvedLocateStructuresById, request.id(), request.resolvedLocateStructures());
-                continue;
             }
 
             RequestSyncResult syncResult = syncRequest(request);
@@ -313,7 +344,7 @@ public final class ExternalDataPackPipeline {
             sourceInputs.add(new RequestedSourceInput(syncResult.source(), request));
         }
 
-        if (sourceInputs.isEmpty()) {
+        if (sourceInputs.isEmpty() && summary.skippedExistingRequests == 0) {
             if (summary.requiredFailures == 0) {
                 summary.legacyWorldCopyRemovals += pruneManagedWorldDatapacks(knownWorldDatapackFolders, Set.of());
             }
@@ -325,17 +356,6 @@ public final class ExternalDataPackPipeline {
             RESOLVED_SMARTBORE_STRUCTURES_BY_ID.putAll(resolvedSmartBoreStructuresById);
             return summary;
         }
-
-        File importPackFolder = Iris.instance.getDataFolder("packs", EXTERNAL_PACK_INDEX);
-        File indexFile = new File(importPackFolder, "datapack-index.json");
-        importPackFolder.mkdirs();
-
-        JSONObject oldIndex = readExistingIndex(indexFile);
-        Map<String, JSONObject> oldSources = mapExistingSources(oldIndex);
-        JSONArray newSources = new JSONArray();
-        Set<String> seenSourceKeys = new HashSet<>();
-        Set<String> activeManagedWorldDatapackNames = new HashSet<>();
-        ImportSummary importSummary = new ImportSummary();
 
         for (int sourceIndex = 0; sourceIndex < sourceInputs.size(); sourceIndex++) {
             RequestedSourceInput sourceInput = sourceInputs.get(sourceIndex);
@@ -373,13 +393,16 @@ public final class ExternalDataPackPipeline {
             boolean sameObjectRoot = cachedObjectRootKey.equals(sourceDescriptor.objectRootKey());
             JSONObject activeSource = null;
 
+            JSONArray newSources = newSourcesByPack.computeIfAbsent(sourceDescriptor.targetPack(), k -> new JSONArray());
+            ImportSummary packImportSummary = importSummaryByPack.computeIfAbsent(sourceDescriptor.targetPack(), k -> new ImportSummary());
+
             if (cachedSource != null
                     && sourceDescriptor.fingerprint().equals(cachedSource.optString("fingerprint", ""))
                     && sameTargetPack
                     && sameObjectRoot
                     && sourceRoot.exists()) {
                 newSources.put(cachedSource);
-                addSourceToSummary(importSummary, cachedSource, true);
+                addSourceToSummary(packImportSummary, cachedSource, true);
                 activeSource = cachedSource;
             } else {
                 if (cachedTargetPack != null && cachedSource != null) {
@@ -394,7 +417,7 @@ public final class ExternalDataPackPipeline {
                 sourceRoot.mkdirs();
                 JSONObject sourceResult = convertSource(entry, sourceDescriptor, sourceRoot, request.id());
                 newSources.put(sourceResult);
-                addSourceToSummary(importSummary, sourceResult, false);
+                addSourceToSummary(packImportSummary, sourceResult, false);
                 activeSource = sourceResult;
                 int conversionFailed = sourceResult.optInt("failed", 0);
                 if (conversionFailed > 0) {
@@ -465,8 +488,23 @@ public final class ExternalDataPackPipeline {
         }
 
         pruneRemovedSourceFolders(oldSources, seenSourceKeys);
-        writeIndex(indexFile, newSources, importSummary);
-        summary.setImportSummary(importSummary);
+        ImportSummary combinedImportSummary = new ImportSummary();
+        for (Map.Entry<String, JSONArray> entry : newSourcesByPack.entrySet()) {
+            String targetPack = entry.getKey();
+            JSONArray packSources = entry.getValue();
+            ImportSummary packSummary = importSummaryByPack.getOrDefault(targetPack, new ImportSummary());
+            writeIndex(resolveImportIndexFile(targetPack), packSources, packSummary);
+            mergeImportSummaryInto(combinedImportSummary, packSummary);
+        }
+        for (String stalePack : oldIndexByPack.keySet()) {
+            if (!newSourcesByPack.containsKey(stalePack)) {
+                File staleIndex = resolveImportIndexFile(stalePack);
+                if (staleIndex.exists()) {
+                    writeIndex(staleIndex, new JSONArray(), new ImportSummary());
+                }
+            }
+        }
+        summary.setImportSummary(combinedImportSummary);
         if (summary.requiredFailures == 0) {
             summary.legacyWorldCopyRemovals += pruneManagedWorldDatapacks(knownWorldDatapackFolders, activeManagedWorldDatapackNames);
         }
@@ -1153,6 +1191,163 @@ public final class ExternalDataPackPipeline {
         return removed;
     }
 
+    private static void adoptExistingManagedRequest(
+            DatapackRequest request,
+            Map<File, File> existingManagedZips,
+            Map<String, JSONObject> oldSources,
+            Map<String, JSONArray> newSourcesByPack,
+            Set<String> seenSourceKeys,
+            Set<String> activeManagedWorldDatapackNames,
+            Map<String, ImportSummary> importSummaryByPack,
+            Map<String, Set<String>> priorLocateManifest,
+            Map<String, Set<String>> priorObjectLocateManifest,
+            Map<String, Set<String>> priorSmartBoreManifest,
+            Map<String, Set<String>> resolvedLocateStructuresById,
+            Map<String, Set<String>> resolvedLocateStructuresByObjectKey,
+            Map<String, Set<String>> resolvedSmartBoreStructuresById
+    ) {
+        if (request == null) {
+            return;
+        }
+
+        String normalizedId = normalizeLocateId(request.id());
+        String requestObjectRootKey = normalizeObjectRootKey(request.id());
+        String requestTargetPack = sanitizePackName(request.targetPack());
+        JSONArray newSources = newSourcesByPack.computeIfAbsent(requestTargetPack, k -> new JSONArray());
+        ImportSummary importSummary = importSummaryByPack.computeIfAbsent(requestTargetPack, k -> new ImportSummary());
+
+        LinkedHashSet<String> mergedLocate = new LinkedHashSet<>();
+        if (request.resolvedLocateStructures() != null) {
+            mergedLocate.addAll(request.resolvedLocateStructures());
+        }
+        if (!normalizedId.isBlank() && priorLocateManifest != null) {
+            Set<String> priorStructures = priorLocateManifest.get(normalizedId);
+            if (priorStructures != null) {
+                mergedLocate.addAll(priorStructures);
+            }
+        }
+        mergeResolvedLocateStructures(resolvedLocateStructuresById, request.id(), mergedLocate);
+
+        if (request.supportSmartBore()) {
+            LinkedHashSet<String> mergedSmartBore = new LinkedHashSet<>(mergedLocate);
+            if (!normalizedId.isBlank() && priorSmartBoreManifest != null) {
+                Set<String> priorSmartBore = priorSmartBoreManifest.get(normalizedId);
+                if (priorSmartBore != null) {
+                    mergedSmartBore.addAll(priorSmartBore);
+                }
+            }
+            mergeResolvedLocateStructures(resolvedSmartBoreStructuresById, request.id(), mergedSmartBore);
+        }
+
+        if (oldSources != null) {
+            for (JSONObject source : oldSources.values()) {
+                if (source == null) {
+                    continue;
+                }
+
+                String sourceObjectRootKey = normalizeObjectRootKey(source.optString("objectRootKey", ""));
+                String sourceTargetPack = sanitizePackName(source.optString("targetPack", ""));
+                if (!requestObjectRootKey.equals(sourceObjectRootKey) || !requestTargetPack.equals(sourceTargetPack)) {
+                    continue;
+                }
+
+                String sourceKey = source.optString("sourceKey", "");
+                if (sourceKey.isEmpty() || !seenSourceKeys.add(sourceKey)) {
+                    continue;
+                }
+
+                newSources.put(source);
+                addSourceToSummary(importSummary, source, true);
+                mergeResolvedLocateStructuresByObjectKey(
+                        resolvedLocateStructuresByObjectKey,
+                        extractObjectKeys(source),
+                        mergedLocate
+                );
+            }
+        }
+
+        if (priorObjectLocateManifest != null && !priorObjectLocateManifest.isEmpty() && !mergedLocate.isEmpty()) {
+            LinkedHashSet<String> normalizedMergedLocate = new LinkedHashSet<>();
+            for (String structure : mergedLocate) {
+                String normalizedStructure = normalizeLocateStructure(structure);
+                if (!normalizedStructure.isBlank()) {
+                    normalizedMergedLocate.add(normalizedStructure);
+                }
+            }
+            if (!normalizedMergedLocate.isEmpty()) {
+                for (Map.Entry<String, Set<String>> entry : priorObjectLocateManifest.entrySet()) {
+                    Set<String> priorStructures = entry.getValue();
+                    if (priorStructures == null || priorStructures.isEmpty()) {
+                        continue;
+                    }
+
+                    boolean overlaps = false;
+                    for (String candidate : priorStructures) {
+                        if (normalizedMergedLocate.contains(candidate)) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    if (!overlaps) {
+                        continue;
+                    }
+
+                    Set<String> destination = resolvedLocateStructuresByObjectKey.computeIfAbsent(entry.getKey(), key -> new LinkedHashSet<>());
+                    destination.addAll(priorStructures);
+                }
+            }
+        }
+
+        for (File managedZip : existingManagedZips.values()) {
+            if (managedZip != null) {
+                activeManagedWorldDatapackNames.add(managedZip.getName());
+            }
+        }
+    }
+
+    private static Map<File, File> findExistingManagedZipsForRequest(
+            KList<File> worldDatapackFolders,
+            String targetPack,
+            String requestId
+    ) {
+        LinkedHashMap<File, File> existing = new LinkedHashMap<>();
+        if (worldDatapackFolders == null || worldDatapackFolders.isEmpty()) {
+            return existing;
+        }
+
+        String sanitizedPack = sanitizePackName(targetPack);
+        String sanitizedId = normalizeObjectRootKey(requestId);
+        if (sanitizedPack.isBlank() || sanitizedId.isBlank()) {
+            return existing;
+        }
+
+        String prefix = MANAGED_WORLD_PACK_PREFIX + sanitizedPack + "-" + sanitizedId + "-";
+        for (File folder : worldDatapackFolders) {
+            if (folder == null || !folder.isDirectory()) {
+                continue;
+            }
+
+            File[] entries = folder.listFiles();
+            if (entries == null) {
+                continue;
+            }
+
+            for (File entry : entries) {
+                if (entry == null || !entry.isFile()) {
+                    continue;
+                }
+
+                String name = entry.getName();
+                if (name.startsWith(prefix) && name.endsWith(".zip") && entry.length() > 0L) {
+                    existing.put(folder, entry);
+                    break;
+                }
+            }
+        }
+
+        return existing;
+    }
+
     private static KList<File> resolveTargetWorldFolders(String targetPack, Map<String, KList<File>> worldDatapackFoldersByPack) {
         KList<File> resolved = new KList<>();
         if (worldDatapackFoldersByPack == null || worldDatapackFoldersByPack.isEmpty()) {
@@ -1244,13 +1439,10 @@ public final class ExternalDataPackPipeline {
                 File managedFolder = new File(worldDatapackFolder, baseManagedName);
                 File managedZip = new File(worldDatapackFolder, managedName);
                 deleteFolder(managedFolder);
-                if (managedZip.exists() && !managedZip.delete()) {
-                    throw new IOException("failed to replace managed external datapack zip " + managedZip.getPath());
-                }
                 int copiedAssets = writeProjectedAssets(managedZip, projectionAssetSummary.assets());
                 if (copiedAssets <= 0) {
                     if (managedZip.exists() && !managedZip.delete()) {
-                        Iris.warn("Failed to remove empty managed external datapack zip " + managedZip.getPath());
+                        Iris.verbose("Unable to remove empty managed external datapack zip " + managedZip.getPath() + " (likely locked by the running server).");
                     }
                     continue;
                 }
@@ -1283,69 +1475,30 @@ public final class ExternalDataPackPipeline {
 
     private static ProjectionAssetSummary buildProjectedAssets(File source, SourceDescriptor sourceDescriptor, DatapackRequest request) throws IOException {
         ProjectionSelection projectionSelection = readProjectedEntries(source, request);
-        if (!projectionSelection.missingSeededTargets().isEmpty()) {
-            throw new IOException("Strict replace validation missing target(s): " + summarizeMissingSeededTargets(projectionSelection.missingSeededTargets()));
-        }
 
         List<ProjectionInputAsset> inputAssets = projectionSelection.assets();
         if (inputAssets.isEmpty()) {
             return new ProjectionAssetSummary(List.of(), Set.copyOf(request.resolvedLocateStructures()), 0, Set.of(), 0, 0, 0);
         }
-        int selectedStructureNbtCount = 0;
-        for (ProjectionInputAsset inputAsset : inputAssets) {
-            if (inputAsset == null || inputAsset.entry() == null) {
-                continue;
-            }
-            if (inputAsset.entry().type() == ProjectedEntryType.STRUCTURE_NBT) {
-                selectedStructureNbtCount++;
-            }
-        }
 
         String scopeNamespace = buildScopeNamespace(sourceDescriptor, request);
-        LinkedHashMap<String, String> remappedKeys = new LinkedHashMap<>();
-        for (ProjectionInputAsset inputAsset : inputAssets) {
-            if (inputAsset.entry().namespace().equals("minecraft") && request.alongsideMode()) {
-                String remappedKey = scopeNamespace + ":" + extractPathFromKey(inputAsset.entry().key());
-                remappedKeys.put(inputAsset.entry().key(), remappedKey);
-            }
-        }
-
-        LinkedHashMap<String, String> remapStringValues = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : remappedKeys.entrySet()) {
-            remapStringValues.put(entry.getKey(), entry.getValue());
-            remapStringValues.put("#" + entry.getKey(), "#" + entry.getValue());
-        }
-
         LinkedHashMap<String, KList<String>> scopedTagValues = new LinkedHashMap<>();
         LinkedHashSet<String> resolvedLocateStructures = new LinkedHashSet<>();
         resolvedLocateStructures.addAll(request.resolvedLocateStructures());
-        LinkedHashSet<String> remappedStructureKeys = new LinkedHashSet<>();
         LinkedHashSet<String> projectedStructureKeys = new LinkedHashSet<>();
-        LinkedHashSet<String> structureSetReferences = new LinkedHashSet<>();
-        int templateAliasesApplied = 0;
-        int emptyElementConversions = 0;
-        LinkedHashSet<String> unresolvedTemplateRefs = new LinkedHashSet<>();
         LinkedHashSet<String> writtenPaths = new LinkedHashSet<>();
         ArrayList<ProjectionOutputAsset> outputAssets = new ArrayList<>();
         int projectedCanonicalStructureNbtCount = 0;
 
         for (ProjectionInputAsset inputAsset : inputAssets) {
             ProjectedEntry projectedEntry = inputAsset.entry();
-            String remappedKey = remappedKeys.get(projectedEntry.key());
-            ProjectedEntry effectiveEntry = remappedKey == null
-                    ? projectedEntry
-                    : new ProjectedEntry(projectedEntry.type(), extractNamespaceFromKey(remappedKey), remappedKey);
-
-            String outputRelativePath = buildProjectedPath(effectiveEntry);
+            String outputRelativePath = buildProjectedPath(projectedEntry);
             if (outputRelativePath == null || writtenPaths.contains(outputRelativePath)) {
                 continue;
             }
             writtenPaths.add(outputRelativePath);
 
             byte[] outputBytes = inputAsset.bytes();
-            if (projectedEntry.type() == ProjectedEntryType.STRUCTURE_NBT && !remappedKeys.isEmpty()) {
-                outputBytes = StructureNbtJigsawPoolRewriter.rewrite(outputBytes, remappedKeys);
-            }
             if (projectedEntry.type() == ProjectedEntryType.STRUCTURE
                     || projectedEntry.type() == ProjectedEntryType.STRUCTURE_SET
                     || projectedEntry.type() == ProjectedEntryType.CONFIGURED_FEATURE
@@ -1354,42 +1507,20 @@ public final class ExternalDataPackPipeline {
                     || projectedEntry.type() == ProjectedEntryType.PROCESSOR_LIST
                     || projectedEntry.type() == ProjectedEntryType.BIOME_HAS_STRUCTURE_TAG) {
                 JSONObject root = new JSONObject(new String(outputBytes, StandardCharsets.UTF_8));
-                rewriteJsonValues(root, remapStringValues);
-
-                if (projectedEntry.type() == ProjectedEntryType.TEMPLATE_POOL && !request.templateAliases().isEmpty()) {
-                    TemplateAliasRewriteResult templateAliasRewriteResult = applyTemplateAliasesToTemplatePool(root, request.templateAliases());
-                    templateAliasesApplied += templateAliasRewriteResult.appliedCount();
-                    emptyElementConversions += templateAliasRewriteResult.emptyConversions();
-                    unresolvedTemplateRefs.addAll(templateAliasRewriteResult.unresolvedReferences());
-                }
 
                 if (projectedEntry.type() == ProjectedEntryType.STRUCTURE) {
-                    Integer startHeightAbsolute = getPatchedStartHeightAbsolute(projectedEntry, request);
-                    if (startHeightAbsolute == null && remappedKey != null) {
-                        startHeightAbsolute = request.structureStartHeights().get(remappedKey);
-                    }
-
-                    if (startHeightAbsolute != null) {
-                        JSONObject startHeight = new JSONObject();
-                        startHeight.put("absolute", startHeightAbsolute);
-                        root.put("start_height", startHeight);
-                    }
-
                     if (!request.forcedBiomeKeys().isEmpty()) {
-                        String scopeTagKey = scopeNamespace + ":has_structure/" + extractPathFromKey(effectiveEntry.key());
+                        String scopeTagKey = scopeNamespace + ":has_structure/" + extractPathFromKey(projectedEntry.key());
                         root.put("biomes", "#" + scopeTagKey);
                         KList<String> values = scopedTagValues.computeIfAbsent(scopeTagKey, key -> new KList<>());
                         values.addAll(request.forcedBiomeKeys());
                     }
 
-                    remappedStructureKeys.add(effectiveEntry.key());
-                    resolvedLocateStructures.add(effectiveEntry.key());
-                    String normalizedProjectedStructure = normalizeLocateStructure(effectiveEntry.key());
+                    resolvedLocateStructures.add(projectedEntry.key());
+                    String normalizedProjectedStructure = normalizeLocateStructure(projectedEntry.key());
                     if (!normalizedProjectedStructure.isBlank()) {
                         projectedStructureKeys.add(normalizedProjectedStructure);
                     }
-                } else if (projectedEntry.type() == ProjectedEntryType.STRUCTURE_SET) {
-                    structureSetReferences.addAll(readStructureSetReferences(root));
                 }
 
                 outputBytes = root.toString(4).getBytes(StandardCharsets.UTF_8);
@@ -1401,19 +1532,6 @@ public final class ExternalDataPackPipeline {
                     && outputRelativePath.contains("/structure/")) {
                 projectedCanonicalStructureNbtCount++;
             }
-        }
-
-        int syntheticStructureSets = 0;
-        if (request.alongsideMode()) {
-            SyntheticStructureSetResult syntheticResult = synthesizeMissingStructureSets(
-                    remappedStructureKeys,
-                    structureSetReferences,
-                    remappedKeys,
-                    scopeNamespace,
-                    writtenPaths
-            );
-            outputAssets.addAll(syntheticResult.assets());
-            syntheticStructureSets += syntheticResult.count();
         }
 
         for (Map.Entry<String, KList<String>> scopedEntry : scopedTagValues.entrySet()) {
@@ -1436,52 +1554,14 @@ public final class ExternalDataPackPipeline {
             outputAssets.add(new ProjectionOutputAsset(tagPath, root.toString(4).getBytes(StandardCharsets.UTF_8)));
         }
 
-        if (request.required() && selectedStructureNbtCount > 0 && projectedCanonicalStructureNbtCount <= 0) {
-            throw new IOException("Required external datapack projection produced no canonical structure template outputs (data/*/structure/*.nbt).");
-        }
-
-        if (request.required() && !unresolvedTemplateRefs.isEmpty()) {
-            throw new IOException("Required external datapack template alias rewrite unresolved reference(s): "
-                    + summarizeMissingSeededTargets(unresolvedTemplateRefs));
-        }
-
-        if (request.replaceVanilla() && !request.alongsideMode()) {
-            int directTargetCount = projectionSelection.directResolvedTargets().size();
-            int aliasTargetCount = projectionSelection.aliasResolvedTargets().size();
-            int projectedStructureCount = projectedStructureKeys.size();
-            int projectedTemplateCount = projectedCanonicalStructureNbtCount;
-            int unresolvedTemplateRefCount = unresolvedTemplateRefs.size();
-            if (request.required()) {
-                Iris.info("External datapack strict replace validation: id=" + request.id()
-                        + ", directTargets=" + directTargetCount
-                        + ", aliasTargets=" + aliasTargetCount
-                        + ", projectedStructures=" + projectedStructureCount
-                        + ", templates=" + projectedTemplateCount
-                        + ", templateAliasesApplied=" + templateAliasesApplied
-                        + ", emptyElementConversions=" + emptyElementConversions
-                        + ", unresolvedTemplateRefs=" + unresolvedTemplateRefCount
-                        + ", missingTargets=0");
-            } else {
-                Iris.verbose("External datapack strict replace validation: id=" + request.id()
-                        + ", directTargets=" + directTargetCount
-                        + ", aliasTargets=" + aliasTargetCount
-                        + ", projectedStructures=" + projectedStructureCount
-                        + ", templates=" + projectedTemplateCount
-                        + ", templateAliasesApplied=" + templateAliasesApplied
-                        + ", emptyElementConversions=" + emptyElementConversions
-                        + ", unresolvedTemplateRefs=" + unresolvedTemplateRefCount
-                        + ", missingTargets=0");
-            }
-        }
-
         return new ProjectionAssetSummary(
                 outputAssets,
                 Set.copyOf(resolvedLocateStructures),
-                syntheticStructureSets,
+                0,
                 Set.copyOf(projectedStructureKeys),
-                templateAliasesApplied,
-                emptyElementConversions,
-                unresolvedTemplateRefs.size()
+                0,
+                0,
+                0
         );
     }
 
@@ -1565,10 +1645,6 @@ public final class ExternalDataPackPipeline {
     private static ProjectionSelection selectProjectedEntries(List<ProjectionInputAsset> inputAssets, DatapackRequest request) {
         if (inputAssets == null || inputAssets.isEmpty() || request == null) {
             return ProjectionSelection.empty();
-        }
-
-        if (!request.alongsideMode() && request.replaceVanilla()) {
-            return selectReplaceVanillaEntries(inputAssets, request);
         }
 
         ArrayList<ProjectionInputAsset> selected = new ArrayList<>();
@@ -2458,12 +2534,57 @@ public final class ExternalDataPackPipeline {
         File temp = parent == null
                 ? new File(managedZipFile.getPath() + ".tmp-" + System.nanoTime())
                 : new File(parent, managedZipFile.getName() + ".tmp-" + System.nanoTime());
+        int copied;
+        try {
+            copied = buildDeterministicManagedZip(temp, assets);
+        } catch (IOException e) {
+            deleteQuietly(temp);
+            throw e;
+        }
+
+        if (copied <= 0) {
+            deleteQuietly(temp);
+            return 0;
+        }
+
+        try {
+            if (managedZipFile.exists()
+                    && managedZipFile.length() == temp.length()
+                    && Files.mismatch(temp.toPath(), managedZipFile.toPath()) == -1L) {
+                deleteQuietly(temp);
+                return copied;
+            }
+        } catch (IOException compareFailure) {
+            Iris.verbose("Managed external datapack zip equality check failed (" + compareFailure.getMessage() + "); attempting replacement.");
+        }
+
+        try {
+            Files.move(temp.toPath(), managedZipFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return copied;
+        } catch (IOException atomicFailure) {
+            try {
+                Files.move(temp.toPath(), managedZipFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                return copied;
+            } catch (IOException replaceFailure) {
+                deleteQuietly(temp);
+                if (managedZipFile.exists()) {
+                    Iris.warn("Managed external datapack " + managedZipFile.getName()
+                            + " is locked by the running server and cannot be replaced in place."
+                            + " The previously installed version remains active; restart the server to apply updated assets.");
+                    return copied;
+                }
+                throw replaceFailure;
+            }
+        }
+    }
+
+    private static int buildDeterministicManagedZip(File temp, List<ProjectionOutputAsset> assets) throws IOException {
         int copied = 0;
         try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(temp.toPath()))) {
-            byte[] packMetaBytes = buildManagedPackMetaBytes();
             ZipEntry packMetaEntry = new ZipEntry("pack.mcmeta");
+            packMetaEntry.setTime(MANAGED_ZIP_ENTRY_TIME);
             zipOutputStream.putNextEntry(packMetaEntry);
-            zipOutputStream.write(packMetaBytes);
+            zipOutputStream.write(buildManagedPackMetaBytes());
             zipOutputStream.closeEntry();
 
             for (ProjectionOutputAsset asset : assets) {
@@ -2477,20 +2598,23 @@ public final class ExternalDataPackPipeline {
                 }
 
                 ZipEntry zipEntry = new ZipEntry(relativePath);
+                zipEntry.setTime(MANAGED_ZIP_ENTRY_TIME);
                 zipOutputStream.putNextEntry(zipEntry);
                 zipOutputStream.write(asset.bytes());
                 zipOutputStream.closeEntry();
                 copied++;
             }
         }
-
-        try {
-            Files.move(temp.toPath(), managedZipFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            Files.move(temp.toPath(), managedZipFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        }
-
         return copied;
+    }
+
+    private static void deleteQuietly(File file) {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (!file.delete()) {
+            file.deleteOnExit();
+        }
     }
 
     private static void writeBytesToFile(byte[] data, File output) throws IOException {
@@ -2879,28 +3003,7 @@ public final class ExternalDataPackPipeline {
             return true;
         }
 
-        if (request.alongsideMode()) {
-            return true;
-        }
-
-        if (!request.replaceVanilla()) {
-            return false;
-        }
-
-        if (!request.hasReplacementTargets()) {
-            return false;
-        }
-
-        return switch (entry.type()) {
-            case STRUCTURE -> request.structures().contains(entry.key());
-            case STRUCTURE_SET -> request.structureSets().contains(entry.key());
-            case CONFIGURED_FEATURE -> request.configuredFeatures().contains(entry.key());
-            case PLACED_FEATURE -> request.placedFeatures().contains(entry.key());
-            case TEMPLATE_POOL -> request.templatePools().contains(entry.key());
-            case PROCESSOR_LIST -> request.processorLists().contains(entry.key());
-            case BIOME_HAS_STRUCTURE_TAG -> request.biomeHasStructureTags().contains(entry.key());
-            case STRUCTURE_NBT -> request.structures().contains(entry.key()) || !request.templatePools().isEmpty();
-        };
+        return request.replaceVanilla();
     }
 
     private static ProjectedEntry parseProjectedEntry(String relativePath) {
@@ -3819,6 +3922,126 @@ public final class ExternalDataPackPipeline {
         }
     }
 
+    private static File resolveImportIndexFile(String targetPack) {
+        String sanitized = sanitizePackName(targetPack);
+        if (sanitized.isBlank()) {
+            sanitized = defaultTargetPack();
+        }
+        return new File(Iris.instance.getDataFolder("packs", sanitized, EXTERNAL_PACK_INDEX_SUBFOLDER), IMPORT_INDEX_FILE_NAME);
+    }
+
+    private static Map<String, JSONObject> readAllImportIndexes() {
+        Map<String, JSONObject> byPack = new HashMap<>();
+        File packsRoot = Iris.instance.getDataFolder("packs");
+        File[] packDirs = packsRoot.listFiles();
+        if (packDirs == null) {
+            return byPack;
+        }
+        for (File packDir : packDirs) {
+            if (packDir == null || !packDir.isDirectory()) {
+                continue;
+            }
+            File importsFolder = new File(packDir, EXTERNAL_PACK_INDEX_SUBFOLDER);
+            if (!importsFolder.isDirectory()) {
+                continue;
+            }
+            File indexFile = new File(importsFolder, IMPORT_INDEX_FILE_NAME);
+            if (!indexFile.exists()) {
+                continue;
+            }
+            JSONObject index = readExistingIndex(indexFile);
+            if (index != null) {
+                byPack.put(packDir.getName(), index);
+            }
+        }
+        return byPack;
+    }
+
+    private static Map<String, JSONObject> flattenOldSources(Map<String, JSONObject> oldIndexByPack) {
+        Map<String, JSONObject> combined = new HashMap<>();
+        if (oldIndexByPack == null || oldIndexByPack.isEmpty()) {
+            return combined;
+        }
+        for (JSONObject packIndex : oldIndexByPack.values()) {
+            Map<String, JSONObject> packSources = mapExistingSources(packIndex);
+            for (Map.Entry<String, JSONObject> entry : packSources.entrySet()) {
+                combined.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+        }
+        return combined;
+    }
+
+    private static void migrateLegacyImportIndex() {
+        File legacyFolder = Iris.instance.getDataFolder("packs", EXTERNAL_PACK_INDEX);
+        if (!legacyFolder.exists()) {
+            return;
+        }
+        try {
+            File legacyIndex = new File(legacyFolder, IMPORT_INDEX_FILE_NAME);
+            if (!legacyIndex.exists()) {
+                deleteFolder(legacyFolder);
+                return;
+            }
+
+            JSONObject legacy = readExistingIndex(legacyIndex);
+            JSONArray sources = legacy.optJSONArray("sources");
+            if (sources == null || sources.length() == 0) {
+                deleteFolder(legacyFolder);
+                Iris.info("Removed empty legacy datapack-imports folder at packs/" + EXTERNAL_PACK_INDEX + "/");
+                return;
+            }
+
+            Map<String, JSONArray> sourcesByPack = new HashMap<>();
+            Map<String, ImportSummary> summariesByPack = new HashMap<>();
+            int migratedEntries = 0;
+            for (int i = 0; i < sources.length(); i++) {
+                JSONObject source = sources.optJSONObject(i);
+                if (source == null) {
+                    continue;
+                }
+                String targetPack = sanitizePackName(source.optString("targetPack", ""));
+                if (targetPack.isBlank() || EXTERNAL_PACK_INDEX.equals(targetPack)) {
+                    targetPack = defaultTargetPack();
+                    if (EXTERNAL_PACK_INDEX.equals(targetPack)) {
+                        targetPack = "overworld";
+                    }
+                }
+                sourcesByPack.computeIfAbsent(targetPack, k -> new JSONArray()).put(source);
+                ImportSummary packSummary = summariesByPack.computeIfAbsent(targetPack, k -> new ImportSummary());
+                addSourceToSummary(packSummary, source, true);
+                migratedEntries++;
+            }
+
+            for (Map.Entry<String, JSONArray> entry : sourcesByPack.entrySet()) {
+                File indexFile = resolveImportIndexFile(entry.getKey());
+                ImportSummary packSummary = summariesByPack.getOrDefault(entry.getKey(), new ImportSummary());
+                writeIndex(indexFile, entry.getValue(), packSummary);
+            }
+
+            deleteFolder(legacyFolder);
+            Iris.info("Migrated datapack-imports index from packs/" + EXTERNAL_PACK_INDEX
+                    + "/ into per-pack folders (" + migratedEntries + " entries across "
+                    + sourcesByPack.size() + " pack(s)).");
+        } catch (Throwable e) {
+            Iris.warn("Failed to migrate legacy datapack-imports index; leaving legacy folder in place.");
+            Iris.reportError(e);
+        }
+    }
+
+    private static void mergeImportSummaryInto(ImportSummary target, ImportSummary source) {
+        if (target == null || source == null) {
+            return;
+        }
+        target.sources += source.sources;
+        target.cachedSources += source.cachedSources;
+        target.nbtScanned += source.nbtScanned;
+        target.converted += source.converted;
+        target.failed += source.failed;
+        target.skipped += source.skipped;
+        target.entitiesIgnored += source.entitiesIgnored;
+        target.blockEntities += source.blockEntities;
+    }
+
     private static Map<String, JSONObject> mapExistingSources(JSONObject index) {
         Map<String, JSONObject> mapped = new HashMap<>();
         if (index == null) {
@@ -4152,10 +4375,27 @@ public final class ExternalDataPackPipeline {
                 String baseManagedName = managedName.endsWith(".zip") ? managedName.substring(0, managedName.length() - 4) : managedName;
                 deleteFolder(new File(worldDatapackFolder, baseManagedName));
                 File managedZip = new File(worldDatapackFolder, managedName);
-                if (managedZip.exists()) {
-                    managedZip.delete();
+                if (managedZip.exists()
+                        && managedZip.length() == cachedZip.length()
+                        && managedZip.length() > 0
+                        && Files.mismatch(managedZip.toPath(), cachedZip.toPath()) == -1L) {
+                    installedDatapacks++;
+                    installedAssets += meta.optInt("installedAssets", 0);
+                    continue;
                 }
-                Files.copy(cachedZip.toPath(), managedZip.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                try {
+                    Files.copy(cachedZip.toPath(), managedZip.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException copyFailure) {
+                    if (managedZip.exists() && managedZip.length() > 0) {
+                        Iris.warn("Managed external datapack " + managedZip.getName()
+                                + " is locked by the running server and cannot be replaced in place."
+                                + " The previously installed version remains active; restart the server to apply updated assets.");
+                        installedDatapacks++;
+                        installedAssets += meta.optInt("installedAssets", 0);
+                        continue;
+                    }
+                    throw copyFailure;
+                }
                 if (managedZip.exists() && managedZip.length() > 0) {
                     installedDatapacks++;
                     installedAssets += meta.optInt("installedAssets", 0);
@@ -4261,50 +4501,8 @@ public final class ExternalDataPackPipeline {
                 String requiredEnvironment,
                 boolean required,
                 boolean replaceVanilla,
-                boolean supportSmartBore,
-                IrisExternalDatapackReplaceTargets replaceTargets,
-                KList<IrisExternalDatapackStructureAlias> structureAliases,
-                KList<IrisExternalDatapackStructureSetAlias> structureSetAliases,
-                KList<IrisExternalDatapackTemplateAlias> templateAliases,
-                KList<IrisExternalDatapackStructurePatch> structurePatches
-        ) {
-            this(
-                    id,
-                    url,
-                    targetPack,
-                    requiredEnvironment,
-                    required,
-                    replaceVanilla,
-                    supportSmartBore,
-                    replaceTargets,
-                    structureAliases,
-                    structureSetAliases,
-                    templateAliases,
-                    structurePatches,
-                    Set.of(),
-                    "dimension-root",
-                    !replaceVanilla,
-                    Set.of()
-            );
-        }
-
-        public DatapackRequest(
-                String id,
-                String url,
-                String targetPack,
-                String requiredEnvironment,
-                boolean required,
-                boolean replaceVanilla,
-                boolean supportSmartBore,
-                IrisExternalDatapackReplaceTargets replaceTargets,
-                KList<IrisExternalDatapackStructureAlias> structureAliases,
-                KList<IrisExternalDatapackStructureSetAlias> structureSetAliases,
-                KList<IrisExternalDatapackTemplateAlias> templateAliases,
-                KList<IrisExternalDatapackStructurePatch> structurePatches,
                 Set<String> forcedBiomeKeys,
-                String scopeKey,
-                boolean alongsideMode,
-                Set<String> resolvedLocateStructures
+                String scopeKey
         ) {
             this(
                     normalizeRequestId(id, url),
@@ -4313,25 +4511,22 @@ public final class ExternalDataPackPipeline {
                     normalizeEnvironment(requiredEnvironment),
                     required,
                     replaceVanilla,
-                    supportSmartBore,
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getStructures(), "worldgen/structure/"),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getStructureSets(), "worldgen/structure_set/"),
-                    normalizeStructureAliases(structureAliases),
-                    normalizeStructureSetAliases(structureSetAliases),
-                    normalizeTemplateAliases(templateAliases),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getConfiguredFeatures(), "worldgen/configured_feature/"),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getPlacedFeatures(), "worldgen/placed_feature/"),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getTemplatePools(), "worldgen/template_pool/"),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getProcessorLists(), "worldgen/processor_list/"),
-                    normalizeTargets(replaceTargets == null ? null : replaceTargets.getBiomeHasStructureTags(),
-                            "tags/worldgen/biome/has_structure/",
-                            "worldgen/biome/has_structure/",
-                            "has_structure/"),
-                    normalizeStructureStartHeights(structurePatches),
+                    replaceVanilla,
+                    Set.of(),
+                    Set.of(),
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    Set.of(),
+                    Set.of(),
+                    Set.of(),
+                    Set.of(),
+                    Set.of(),
+                    Map.of(),
                     normalizeBiomeKeys(forcedBiomeKeys),
                     normalizeScopeKey(scopeKey),
-                    alongsideMode,
-                    normalizeLocateStructures(resolvedLocateStructures, replaceTargets == null ? null : replaceTargets.getStructures())
+                    !replaceVanilla,
+                    Set.of()
             );
         }
 
@@ -4471,87 +4666,6 @@ public final class ExternalDataPackPipeline {
                     normalized.add(normalizedKey);
                 }
             }
-            return normalized;
-        }
-
-        private static Map<String, List<String>> normalizeStructureAliases(KList<IrisExternalDatapackStructureAlias> aliases) {
-            LinkedHashMap<String, List<String>> normalized = new LinkedHashMap<>();
-            if (aliases == null) {
-                return normalized;
-            }
-
-            for (IrisExternalDatapackStructureAlias alias : aliases) {
-                if (alias == null) {
-                    continue;
-                }
-
-                String target = normalizeResourceKey("minecraft", alias.getTarget(), "worldgen/structure/");
-                String source = normalizeResourceKey("minecraft", alias.getSource(), "worldgen/structure/");
-                if (target == null || target.isBlank() || source == null || source.isBlank()) {
-                    continue;
-                }
-                List<String> targetSources = normalized.computeIfAbsent(target, key -> new ArrayList<>());
-                if (!targetSources.contains(source)) {
-                    targetSources.add(source);
-                }
-            }
-
-            return normalized;
-        }
-
-        private static Map<String, String> normalizeStructureSetAliases(KList<IrisExternalDatapackStructureSetAlias> aliases) {
-            LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
-            if (aliases == null) {
-                return normalized;
-            }
-
-            for (IrisExternalDatapackStructureSetAlias alias : aliases) {
-                if (alias == null) {
-                    continue;
-                }
-
-                String target = normalizeResourceKey("minecraft", alias.getTarget(), "worldgen/structure_set/");
-                String source = normalizeResourceKey("minecraft", alias.getSource(), "worldgen/structure_set/");
-                if (target == null || target.isBlank() || source == null || source.isBlank()) {
-                    continue;
-                }
-                normalized.put(target, source);
-            }
-
-            return normalized;
-        }
-
-        private static Map<String, String> normalizeTemplateAliases(KList<IrisExternalDatapackTemplateAlias> aliases) {
-            LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
-            if (aliases == null) {
-                return normalized;
-            }
-
-            for (IrisExternalDatapackTemplateAlias alias : aliases) {
-                if (alias == null || !alias.isEnabled()) {
-                    continue;
-                }
-
-                String from = normalizeResourceKey("minecraft", alias.getFrom(), "structure/", "structures/");
-                if (from == null || from.isBlank()) {
-                    continue;
-                }
-
-                String toRaw = alias.getTo() == null ? "" : alias.getTo().trim();
-                String to;
-                if ("minecraft:empty".equalsIgnoreCase(toRaw)) {
-                    to = "minecraft:empty";
-                } else {
-                    to = normalizeResourceKey("minecraft", toRaw, "structure/", "structures/");
-                }
-
-                if (to == null || to.isBlank()) {
-                    continue;
-                }
-
-                normalized.put(from, to);
-            }
-
             return normalized;
         }
 
@@ -4705,33 +4819,6 @@ public final class ExternalDataPackPipeline {
             return merged;
         }
 
-        private static Map<String, Integer> normalizeStructureStartHeights(KList<IrisExternalDatapackStructurePatch> patches) {
-            LinkedHashMap<String, Integer> normalized = new LinkedHashMap<>();
-            if (patches == null) {
-                return normalized;
-            }
-
-            for (IrisExternalDatapackStructurePatch patch : patches) {
-                if (patch == null || !patch.isEnabled()) {
-                    continue;
-                }
-
-                String structure = patch.getStructure();
-                if (structure == null || structure.isBlank()) {
-                    continue;
-                }
-
-                String normalizedStructure = normalizeResourceKey("minecraft", structure, "worldgen/structure/");
-                if (normalizedStructure == null || normalizedStructure.isBlank()) {
-                    continue;
-                }
-
-                normalized.put(normalizedStructure, patch.getStartHeightAbsolute());
-            }
-
-            return normalized;
-        }
-
         private static Map<String, Integer> unionStructureStartHeights(Map<String, Integer> first, Map<String, Integer> second) {
             LinkedHashMap<String, Integer> merged = new LinkedHashMap<>();
             if (first != null) {
@@ -4765,6 +4852,7 @@ public final class ExternalDataPackPipeline {
         private int requests;
         private int syncedRequests;
         private int restoredRequests;
+        private int skippedExistingRequests;
         private int optionalFailures;
         private int requiredFailures;
         private int importedSources;
@@ -4804,6 +4892,10 @@ public final class ExternalDataPackPipeline {
 
         public int getRestoredRequests() {
             return restoredRequests;
+        }
+
+        public int getSkippedExistingRequests() {
+            return skippedExistingRequests;
         }
 
         public int getOptionalFailures() {

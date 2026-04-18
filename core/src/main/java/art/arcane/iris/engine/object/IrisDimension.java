@@ -154,6 +154,8 @@ public class IrisDimension extends IrisRegistrant {
     private IrisCaveProfile caveProfile = new IrisCaveProfile();
     @Desc("Configuration of fluid bodies such as rivers & lakes")
     private IrisFluidBodies fluidBodies = new IrisFluidBodies();
+    @Desc("Enable or disable vanilla structure generation from the extracted vanilla datapack. When disabled, no vanilla structures spawn. When enabled, structures come from the vanilla datapack and can be overridden by external datapacks.")
+    private boolean vanillaStructures = true;
     @ArrayType(type = IrisExternalDatapack.class, min = 1)
     @Desc("Pack-scoped external datapack sources for structure import and optional vanilla replacement")
     private KList<IrisExternalDatapack> externalDatapacks = new KList<>();

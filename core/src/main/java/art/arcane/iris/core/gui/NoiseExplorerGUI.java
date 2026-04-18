@@ -21,8 +21,12 @@ package art.arcane.iris.core.gui;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
+import art.arcane.iris.core.loader.IrisData;
+import art.arcane.iris.core.tools.IrisToolbelt;
+import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.object.IrisGenerator;
 import art.arcane.iris.engine.object.NoiseStyle;
-import art.arcane.volmlib.util.collection.KList;
+import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.volmlib.util.function.Function2;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.RNG;
@@ -32,305 +36,519 @@ import art.arcane.iris.util.common.parallel.BurstExecutor;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.locks.ReentrantLock;
+import java.awt.image.DataBufferInt;
+import java.util.*;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, Listener {
 
     private static final long serialVersionUID = 2094606939770332040L;
+    private static final Color BG = new Color(24, 24, 28);
+    private static final Color SIDEBAR_BG = new Color(20, 20, 24);
+    private static final Color SIDEBAR_SELECTED = new Color(40, 50, 70);
+    private static final Color SIDEBAR_ITEM_COLOR = new Color(170, 170, 185);
+    private static final Color SEARCH_BG = new Color(30, 30, 38);
+    private static final Color SEARCH_FG = new Color(180, 180, 190);
+    private static final Color STATUS_BG = new Color(32, 32, 38, 230);
+    private static final Color STATUS_TEXT = new Color(180, 180, 190);
+    private static final Color ACCENT = new Color(90, 140, 255);
+    private static final Color SEPARATOR = new Color(40, 40, 50);
+    private static final Font STATUS_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 12);
+    private static final Font SIDEBAR_HEADER_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 11);
+    private static final Font SIDEBAR_ITEM_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    private static final Font SEARCH_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    private static final int SIDEBAR_WIDTH = 240;
+    private static final int[] HSB_LUT = new int[256];
 
-    static JComboBox<String> combo;
-    @SuppressWarnings("CanBeFinal")
-    static boolean hd = false;
-    static double ascale = 10;
-    static double oxp = 0;
-    static double ozp = 0;
-    static double mxx = 0;
-    static double mzz = 0;
-    @SuppressWarnings("CanBeFinal")
-    static boolean down = false;
-    @SuppressWarnings("CanBeFinal")
-    RollingSequence r = new RollingSequence(20);
-    @SuppressWarnings("CanBeFinal")
-    boolean colorMode = IrisSettings.get().getGui().colorMode;
-    double scale = 1;
-    CNG cng = NoiseStyle.STATIC.create(new RNG(RNG.r.nextLong()));
-    @SuppressWarnings("CanBeFinal")
-    MultiBurst gx = MultiBurst.burst;
-    ReentrantLock l = new ReentrantLock();
-    BufferedImage img;
-    int w = 0;
-    int h = 0;
-    Function2<Double, Double, Double> generator;
-    Supplier<Function2<Double, Double, Double>> loader;
-    double ox = 0; //Offset X
-    double oz = 0; //Offset Y
-    double mx = 0;
-    double mz = 0;
-    double lx = Double.MAX_VALUE; //MouseX
-    double lz = Double.MAX_VALUE; //MouseY
-    double t;
-    double tz;
+    private static final String[] CATEGORY_ORDER = {
+            "Pack Generators", "Simplex", "Perlin", "Cellular", "Iris", "Clover",
+            "Hexagon", "Vascular", "Globe", "Cubic", "Fractal", "Static",
+            "Nowhere", "Sierpinski", "Utility", "Other"
+    };
+
+    static {
+        for (int i = 0; i < 256; i++) {
+            float n = i / 255f;
+            HSB_LUT[i] = Color.HSBtoRGB(0.666f - n * 0.666f, 1f, 1f - n * 0.8f);
+        }
+    }
+
+    private final RollingSequence fpsHistory = new RollingSequence(60);
+    private final boolean colorMode = IrisSettings.get().getGui().colorMode;
+    private final MultiBurst gx = MultiBurst.burst;
+    private double scale = 1;
+    private double animScale = 10;
+    private double ox = 0;
+    private double oz = 0;
+    private double animOx = 0;
+    private double animOz = 0;
+    private double lastMouseX = Double.MAX_VALUE;
+    private double lastMouseZ = Double.MAX_VALUE;
+    private double time = 0;
+    private double animTime = 0;
+    private int imgWidth = 0;
+    private int imgHeight = 0;
+    private BufferedImage img;
+    private CNG cng = NoiseStyle.STATIC.create(new RNG(RNG.r.nextLong()));
+    private Function2<Double, Double, Double> generator;
+    private Supplier<Function2<Double, Double, Double>> loader;
+    private String currentName = "STATIC";
 
     public NoiseExplorerGUI() {
         Iris.instance.registerListener(this);
+        setBackground(BG);
         addMouseWheelListener(this);
         addMouseMotionListener(new MouseMotionListener() {
             @Override
             public void mouseMoved(MouseEvent e) {
                 Point cp = e.getPoint();
-
-                lx = (cp.getX());
-                lz = (cp.getY());
-                mx = lx;
-                mz = lz;
+                lastMouseX = cp.getX();
+                lastMouseZ = cp.getY();
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
                 Point cp = e.getPoint();
-                ox += (lx - cp.getX()) * scale;
-                oz += (lz - cp.getY()) * scale;
-                lx = cp.getX();
-                lz = cp.getY();
+                ox += (lastMouseX - cp.getX()) * scale;
+                oz += (lastMouseZ - cp.getY()) * scale;
+                lastMouseX = cp.getX();
+                lastMouseZ = cp.getY();
             }
         });
     }
 
-    private static void createAndShowGUI(Supplier<Function2<Double, Double, Double>> loader, String genName) {
-        JFrame frame = new JFrame("Noise Explorer: " + genName);
-        NoiseExplorerGUI nv = new NoiseExplorerGUI();
-        frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-        JLayeredPane pane = new JLayeredPane();
-        nv.setSize(new Dimension(1440, 820));
-        pane.add(nv, 1, 0);
-        nv.loader = loader;
-        nv.generator = loader.get();
-        frame.add(pane);
-        File file = Iris.getCached("Iris Icon", "https://raw.githubusercontent.com/VolmitSoftware/Iris/master/icon.png");
-
-        if (file != null) {
-            try {
-                frame.setIconImage(ImageIO.read(file));
-            } catch (IOException e) {
-                Iris.reportError(e);
-            }
-        }
-        frame.setSize(1440, 820);
-        frame.setVisible(true);
-    }
-
-    private static void createAndShowGUI() {
-        JFrame frame = new JFrame("Noise Explorer");
-        NoiseExplorerGUI nv = new NoiseExplorerGUI();
-        frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-        KList<String> li = new KList<>(NoiseStyle.values()).toStringList().sort();
-        combo = new JComboBox<>(li.toArray(new String[0]));
-        combo.setSelectedItem("STATIC");
-        combo.setFocusable(false);
-        combo.addActionListener(e -> {
-            @SuppressWarnings("unchecked")
-            String b = (String) (((JComboBox<String>) e.getSource()).getSelectedItem());
-            NoiseStyle s = NoiseStyle.valueOf(b);
-            nv.cng = s.create(RNG.r.nextParallelRNG(RNG.r.imax()));
-        });
-
-        combo.setSize(500, 30);
-        JLayeredPane pane = new JLayeredPane();
-        nv.setSize(new Dimension(1440, 820));
-        pane.add(nv, 1, 0);
-        pane.add(combo, 2, 0);
-        frame.add(pane);
-        File file = Iris.getCached("Iris Icon", "https://raw.githubusercontent.com/VolmitSoftware/Iris/master/icon.png");
-
-        if (file != null) {
-            try {
-                frame.setIconImage(ImageIO.read(file));
-            } catch (IOException e) {
-                Iris.reportError(e);
-            }
-        }
-        frame.setSize(1440, 820);
-        frame.setVisible(true);
-        frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                Iris.instance.unregisterListener(nv);
-            }
+    public static void launch() {
+        Engine engine = findActiveEngine();
+        EventQueue.invokeLater(() -> {
+            NoiseExplorerGUI nv = new NoiseExplorerGUI();
+            buildFrame("Noise Explorer", nv, engine, null, null);
         });
     }
 
     public static void launch(Supplier<Function2<Double, Double, Double>> gen, String genName) {
-        EventQueue.invokeLater(() -> createAndShowGUI(gen, genName));
+        Engine engine = findActiveEngine();
+        EventQueue.invokeLater(() -> {
+            NoiseExplorerGUI nv = new NoiseExplorerGUI();
+            nv.loader = gen;
+            nv.generator = gen.get();
+            nv.currentName = genName;
+            buildFrame("Noise Explorer: " + genName, nv, engine, gen, genName);
+        });
     }
 
-    public static void launch() {
-        EventQueue.invokeLater(NoiseExplorerGUI::createAndShowGUI);
+    private static Engine findActiveEngine() {
+        try {
+            for (World w : new ArrayList<>(Bukkit.getWorlds())) {
+                try {
+                    PlatformChunkGenerator access = IrisToolbelt.access(w);
+                    if (access != null && access.getEngine() != null && !access.getEngine().isClosed()) {
+                        return access.getEngine();
+                    }
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static JFrame buildFrame(String title, NoiseExplorerGUI nv, Engine engine,
+                                     Supplier<Function2<Double, Double, Double>> customGen, String customName) {
+        JFrame frame = new JFrame(title);
+        frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+        frame.getContentPane().setBackground(BG);
+        frame.setLayout(new BorderLayout());
+
+        JPanel sidebar = buildSidebar(nv, engine, customGen, customName);
+        frame.add(sidebar, BorderLayout.WEST);
+        frame.add(nv, BorderLayout.CENTER);
+
+        frame.setSize(1440, 820);
+        frame.setMinimumSize(new Dimension(640, 480));
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                Iris.instance.unregisterListener(nv);
+            }
+        });
+        return frame;
+    }
+
+    private static JPanel buildSidebar(NoiseExplorerGUI nv, Engine engine,
+                                       Supplier<Function2<Double, Double, Double>> customGen, String customName) {
+        JPanel sidebar = new JPanel(new BorderLayout());
+        sidebar.setPreferredSize(new Dimension(SIDEBAR_WIDTH, 0));
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, SEPARATOR));
+
+        JTextField search = new JTextField();
+        search.setBackground(SEARCH_BG);
+        search.setForeground(SEARCH_FG);
+        search.setCaretColor(SEARCH_FG);
+        search.setFont(SEARCH_FONT);
+        search.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, SEPARATOR),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
+        search.putClientProperty("JTextField.placeholderText", "Search...");
+
+        LinkedHashMap<String, List<ListItem>> categories = buildCategoryMap(nv, engine, customGen, customName);
+        DefaultListModel<ListItem> model = new DefaultListModel<>();
+        populateModel(model, categories, "");
+
+        JList<ListItem> list = new JList<>(model);
+        list.setBackground(SIDEBAR_BG);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setCellRenderer(new SidebarCellRenderer());
+        list.setFixedCellHeight(-1);
+
+        list.addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            ListItem selected = list.getSelectedValue();
+            if (selected != null && !selected.header && selected.action != null) {
+                selected.action.run();
+            }
+        });
+
+        search.getDocument().addDocumentListener(new DocumentListener() {
+            private void filter() {
+                String text = search.getText().trim();
+                populateModel(model, categories, text);
+            }
+
+            public void insertUpdate(DocumentEvent e) { filter(); }
+            public void removeUpdate(DocumentEvent e) { filter(); }
+            public void changedUpdate(DocumentEvent e) { filter(); }
+        });
+
+        JScrollPane scrollPane = new JScrollPane(list);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.getVerticalScrollBar().setBackground(SIDEBAR_BG);
+
+        sidebar.add(search, BorderLayout.NORTH);
+        sidebar.add(scrollPane, BorderLayout.CENTER);
+        return sidebar;
+    }
+
+    private static void populateModel(DefaultListModel<ListItem> model, LinkedHashMap<String, List<ListItem>> categories, String filter) {
+        model.clear();
+        String lower = filter.toLowerCase();
+        for (Map.Entry<String, List<ListItem>> entry : categories.entrySet()) {
+            List<ListItem> matching = new ArrayList<>();
+            for (ListItem item : entry.getValue()) {
+                if (lower.isEmpty() || item.text.toLowerCase().contains(lower) || item.rawName.toLowerCase().contains(lower)) {
+                    matching.add(item);
+                }
+            }
+            if (!matching.isEmpty()) {
+                model.addElement(new ListItem(entry.getKey(), entry.getKey(), true, null));
+                for (ListItem item : matching) {
+                    model.addElement(item);
+                }
+            }
+        }
+    }
+
+    private static LinkedHashMap<String, List<ListItem>> buildCategoryMap(NoiseExplorerGUI nv, Engine engine,
+                                                                          Supplier<Function2<Double, Double, Double>> customGen, String customName) {
+        LinkedHashMap<String, List<ListItem>> categories = new LinkedHashMap<>();
+
+        if (customGen != null && customName != null) {
+            List<ListItem> custom = new ArrayList<>();
+            custom.add(new ListItem(customName, customName, false, () -> {
+                nv.generator = customGen.get();
+                nv.loader = customGen;
+                nv.currentName = customName;
+            }));
+            categories.put("Custom", custom);
+        }
+
+        Map<String, List<NoiseStyle>> styleGroups = new LinkedHashMap<>();
+        for (NoiseStyle style : NoiseStyle.values()) {
+            String cat = categorize(style);
+            styleGroups.computeIfAbsent(cat, k -> new ArrayList<>()).add(style);
+        }
+
+        if (engine != null && !engine.isClosed()) {
+            List<ListItem> genItems = new ArrayList<>();
+            try {
+                IrisData data = engine.getData();
+                String[] keys = data.getGeneratorLoader().getPossibleKeys();
+                Arrays.sort(keys);
+                for (String key : keys) {
+                    IrisGenerator gen = data.getGeneratorLoader().load(key);
+                    if (gen != null) {
+                        long seed = new RNG(12345).nextParallelRNG(3245).lmax();
+                        genItems.add(new ListItem(formatName(key), key, false, () -> {
+                            nv.generator = (x, z) -> gen.getHeight(x, z, seed);
+                            nv.loader = null;
+                            nv.currentName = key;
+                        }));
+                    }
+                }
+            } catch (Throwable ignored) {}
+            if (!genItems.isEmpty()) {
+                categories.put("Pack Generators", genItems);
+            }
+        }
+
+        for (String cat : CATEGORY_ORDER) {
+            if ("Pack Generators".equals(cat)) continue;
+            List<NoiseStyle> styles = styleGroups.get(cat);
+            if (styles != null && !styles.isEmpty()) {
+                List<ListItem> items = new ArrayList<>();
+                for (NoiseStyle style : styles) {
+                    items.add(new ListItem(formatName(style.name()), style.name(), false, () -> {
+                        nv.cng = style.create(RNG.r.nextParallelRNG(RNG.r.imax()));
+                        nv.generator = null;
+                        nv.loader = null;
+                        nv.currentName = style.name();
+                    }));
+                }
+                categories.put(cat, items);
+            }
+        }
+
+        for (Map.Entry<String, List<NoiseStyle>> entry : styleGroups.entrySet()) {
+            if (!categories.containsKey(entry.getKey())) {
+                List<ListItem> items = new ArrayList<>();
+                for (NoiseStyle style : entry.getValue()) {
+                    items.add(new ListItem(formatName(style.name()), style.name(), false, () -> {
+                        nv.cng = style.create(RNG.r.nextParallelRNG(RNG.r.imax()));
+                        nv.generator = null;
+                        nv.loader = null;
+                        nv.currentName = style.name();
+                    }));
+                }
+                categories.put(entry.getKey(), items);
+            }
+        }
+
+        return categories;
+    }
+
+    private static String categorize(NoiseStyle style) {
+        String n = style.name();
+        if (n.startsWith("STATIC")) return "Static";
+        if (n.startsWith("IRIS")) return "Iris";
+        if (n.startsWith("CLOVER")) return "Clover";
+        if (n.startsWith("VASCULAR")) return "Vascular";
+        if (n.equals("FLAT")) return "Utility";
+        if (n.startsWith("CELLULAR")) return "Cellular";
+        if (n.startsWith("HEX") || n.equals("HEXAGON")) return "Hexagon";
+        if (n.startsWith("SIERPINSKI")) return "Sierpinski";
+        if (n.startsWith("NOWHERE")) return "Nowhere";
+        if (n.startsWith("GLOB")) return "Globe";
+        if (n.startsWith("PERLIN")) return "Perlin";
+        if (n.startsWith("CUBIC") || (n.startsWith("FRACTAL") && n.contains("CUBIC"))) return "Cubic";
+        if (n.contains("SIMPLEX") && !n.startsWith("FRACTAL")) return "Simplex";
+        if (n.startsWith("FRACTAL")) return "Fractal";
+        return "Other";
+    }
+
+    private static String formatName(String enumName) {
+        String lower = enumName.toLowerCase().replace('_', ' ');
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
     @EventHandler
     public void on(IrisEngineHotloadEvent e) {
-        if (generator != null)
+        if (generator != null && loader != null) {
             generator = loader.get();
+        }
     }
 
+    @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
-
         int notches = e.getWheelRotation();
         if (e.isControlDown()) {
-            t = t + ((0.0025 * t) * notches);
+            time = time + ((0.0025 * time) * notches);
             return;
         }
-
         scale = scale + ((0.044 * scale) * notches);
         scale = Math.max(scale, 0.00001);
     }
 
+    private double lerp(double current, double target, double speed) {
+        double diff = target - current;
+        if (Math.abs(diff) < 0.001) return target;
+        return current + diff * speed;
+    }
+
     @Override
     public void paint(Graphics g) {
-        if (scale < ascale) {
-            ascale -= Math.abs(scale - ascale) * 0.16;
-        }
-
-        if (scale > ascale) {
-            ascale += Math.abs(ascale - scale) * 0.16;
-        }
-
-        if (t < tz) {
-            tz -= Math.abs(t - tz) * 0.29;
-        }
-
-        if (t > tz) {
-            tz += Math.abs(tz - t) * 0.29;
-        }
-
-        if (ox < oxp) {
-            oxp -= Math.abs(ox - oxp) * 0.16;
-        }
-
-        if (ox > oxp) {
-            oxp += Math.abs(oxp - ox) * 0.16;
-        }
-
-        if (oz < ozp) {
-            ozp -= Math.abs(oz - ozp) * 0.16;
-        }
-
-        if (oz > ozp) {
-            ozp += Math.abs(ozp - oz) * 0.16;
-        }
-
-        if (mx < mxx) {
-            mxx -= Math.abs(mx - mxx) * 0.16;
-        }
-
-        if (mx > mxx) {
-            mxx += Math.abs(mxx - mx) * 0.16;
-        }
-
-        if (mz < mzz) {
-            mzz -= Math.abs(mz - mzz) * 0.16;
-        }
-
-        if (mz > mzz) {
-            mzz += Math.abs(mzz - mz) * 0.16;
-        }
+        animScale = lerp(animScale, scale, 0.16);
+        animTime = lerp(animTime, time, 0.29);
+        animOx = lerp(animOx, ox, 0.16);
+        animOz = lerp(animOz, oz, 0.16);
 
         PrecisionStopwatch p = PrecisionStopwatch.start();
-        int accuracy = hd ? 1 : M.clip((r.getAverage() / 12D), 2D, 128D).intValue();
-        accuracy = down ? accuracy * 4 : accuracy;
-        int v = 1000;
 
         if (g instanceof Graphics2D gg) {
+            gg.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+            gg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-            if (getParent().getWidth() != w || getParent().getHeight() != h) {
-                w = getParent().getWidth();
-                h = getParent().getHeight();
+            int pw = getWidth();
+            int ph = getHeight();
+
+            if (pw != imgWidth || ph != imgHeight || img == null) {
+                imgWidth = pw;
+                imgHeight = ph;
                 img = null;
             }
 
-            if (img == null) {
-                img = new BufferedImage(w / accuracy, h / accuracy, BufferedImage.TYPE_INT_RGB);
+            int accuracy = M.clip((fpsHistory.getAverage() / 14D), 1D, 64D).intValue();
+            int rw = Math.max(1, pw / accuracy);
+            int rh = Math.max(1, ph / accuracy);
+
+            if (img == null || img.getWidth() != rw || img.getHeight() != rh) {
+                img = new BufferedImage(rw, rh, BufferedImage.TYPE_INT_RGB);
             }
 
-            BurstExecutor e = gx.burst(w);
+            int[] pixels = ((DataBufferInt) img.getRaster().getDataBuffer()).getData();
 
-            for (int x = 0; x < w / accuracy; x++) {
+            BurstExecutor burst = gx.burst(rw);
+            for (int x = 0; x < rw; x++) {
                 int xx = x;
+                burst.queue(() -> {
+                    for (int z = 0; z < rh; z++) {
+                        double worldX = (xx * accuracy * animScale) + animOx;
+                        double worldZ = (z * accuracy * animScale) + animOz;
+                        double n = generator != null
+                                ? generator.apply(worldX, worldZ)
+                                : cng.noise(worldX, worldZ);
+                        n = Math.max(0, Math.min(1, n));
 
-                int finalAccuracy = accuracy;
-                e.queue(() -> {
-                    for (int z = 0; z < h / finalAccuracy; z++) {
-                        double n = generator != null ? generator.apply(((xx * finalAccuracy) * ascale) + oxp, ((z * finalAccuracy) * ascale) + ozp) : cng.noise(((xx * finalAccuracy) * ascale) + oxp, ((z * finalAccuracy) * ascale) + ozp);
-                        n = n > 1 ? 1 : n < 0 ? 0 : n;
-
-                        try {
-                            //Color color = colorMode ? Color.getHSBColor((float) (n), 1f - (float) (n * n * n * n * n * n), 1f - (float) n) : Color.getHSBColor(0f, 0f, (float) n);
-                            Color color = colorMode ? Color.getHSBColor((float) (0.666f - n * 0.666f), 1f, (float) (1f - n * 0.8f)) : Color.getHSBColor(0f, 0f, (float) n);
-                            int rgb = color.getRGB();
-                            img.setRGB(xx, z, rgb);
-                        } catch (Throwable ignored) {
+                        int rgb;
+                        if (colorMode) {
+                            rgb = HSB_LUT[(int) (n * 255)];
+                        } else {
+                            int v = (int) (n * 255);
+                            rgb = (v << 16) | (v << 8) | v;
                         }
+                        pixels[z * rw + xx] = rgb;
                     }
                 });
             }
+            burst.complete();
 
-            e.complete();
-            gg.drawImage(img, 0, 0, getParent().getWidth() * accuracy, getParent().getHeight() * accuracy, (img, infoflags, x, y, width, height) -> true);
+            gg.setColor(BG);
+            gg.fillRect(0, 0, pw, ph);
+            gg.drawImage(img, 0, 0, pw, ph, null);
+
+            renderStatusBar(gg, pw, ph, p.getMilliseconds());
+            renderCrosshair(gg, pw, ph);
         }
 
         p.end();
+        time += 1D;
+        fpsHistory.put(p.getMilliseconds());
 
-        t += 1D;
-        r.put(p.getMilliseconds());
-
-        if (!isVisible()) {
+        if (!isVisible() || !getParent().isVisible()) {
             return;
         }
 
-        if (!getParent().isVisible()) {
-            return;
-        }
-
-        if (!getParent().getParent().isVisible()) {
-            return;
-        }
-
-        EventQueue.invokeLater(() ->
-        {
-            J.sleep((long) Math.max(0, 32 - r.getAverage()));
+        long sleepMs = Math.max(1, 16 - (long) p.getMilliseconds());
+        EventQueue.invokeLater(() -> {
+            J.sleep(sleepMs);
             repaint();
         });
     }
 
-    static class HandScrollListener extends MouseAdapter {
-        private static final Point pp = new Point();
+    private void renderCrosshair(Graphics2D g, int w, int h) {
+        int cx = w / 2;
+        int cy = h / 2;
+        g.setColor(new Color(255, 255, 255, 40));
+        g.drawLine(cx - 8, cy, cx + 8, cy);
+        g.drawLine(cx, cy - 8, cx, cy + 8);
+    }
 
-        @Override
-        public void mouseDragged(MouseEvent e) {
-            JViewport vport = (JViewport) e.getSource();
-            JComponent label = (JComponent) vport.getView();
-            Point cp = e.getPoint();
-            Point vp = vport.getViewPosition();
-            vp.translate(pp.x - cp.x, pp.y - cp.y);
-            label.scrollRectToVisible(new Rectangle(vp, vport.getSize()));
+    private void renderStatusBar(Graphics2D g, int w, int h, double frameMs) {
+        int barHeight = 28;
+        int y = h - barHeight;
 
-            pp.setLocation(cp);
+        g.setColor(STATUS_BG);
+        g.fillRect(0, y, w, barHeight);
+        g.setColor(new Color(50, 50, 60));
+        g.drawLine(0, y, w, y);
+
+        g.setFont(STATUS_FONT);
+        g.setColor(STATUS_TEXT);
+
+        double worldX = (w / 2.0 * animScale) + animOx;
+        double worldZ = (h / 2.0 * animScale) + animOz;
+        double noiseVal = generator != null
+                ? generator.apply(worldX, worldZ)
+                : cng.noise(worldX, worldZ);
+        noiseVal = Math.max(0, Math.min(1, noiseVal));
+
+        int fps = frameMs > 0 ? (int) (1000.0 / frameMs) : 0;
+
+        String status = String.format("  %s  |  X: %.1f  Z: %.1f  |  Zoom: %.4f  |  Value: %.4f  |  %d FPS",
+                currentName, worldX, worldZ, animScale, noiseVal, fps);
+        g.drawString(status, 8, y + 18);
+
+        int barW = 60;
+        int barX = w - barW - 12;
+        int barY = y + 6;
+        int barH = barHeight - 12;
+        g.setColor(new Color(40, 40, 48));
+        g.fillRoundRect(barX, barY, barW, barH, 4, 4);
+        int fillW = (int) (noiseVal * (barW - 2));
+        g.setColor(ACCENT);
+        g.fillRoundRect(barX + 1, barY + 1, fillW, barH - 2, 3, 3);
+    }
+
+    private static final class ListItem {
+        final String text;
+        final String rawName;
+        final boolean header;
+        final Runnable action;
+
+        ListItem(String text, String rawName, boolean header, Runnable action) {
+            this.text = text;
+            this.rawName = rawName;
+            this.header = header;
+            this.action = action;
         }
 
         @Override
-        public void mousePressed(MouseEvent e) {
-            pp.setLocation(e.getPoint());
+        public String toString() {
+            return text;
+        }
+    }
+
+    private static final class SidebarCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
+            ListItem item = (ListItem) value;
+            super.getListCellRendererComponent(list, item.text, index, !item.header && selected, false);
+            setOpaque(true);
+            if (item.header) {
+                setFont(SIDEBAR_HEADER_FONT);
+                setForeground(ACCENT);
+                setBackground(SIDEBAR_BG);
+                setBorder(BorderFactory.createEmptyBorder(10, 10, 4, 10));
+            } else {
+                setFont(SIDEBAR_ITEM_FONT);
+                setForeground(selected ? Color.WHITE : SIDEBAR_ITEM_COLOR);
+                setBackground(selected ? SIDEBAR_SELECTED : SIDEBAR_BG);
+                setBorder(BorderFactory.createEmptyBorder(3, 20, 3, 10));
+            }
+            return this;
         }
     }
 }

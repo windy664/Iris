@@ -30,7 +30,6 @@ import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisExternalDatapack;
-import art.arcane.iris.engine.object.IrisExternalDatapackReplaceTargets;
 import art.arcane.iris.engine.platform.ChunkReplacementListener;
 import art.arcane.iris.engine.platform.ChunkReplacementOptions;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
@@ -99,6 +98,7 @@ public class CommandIris implements DirectorExecutor {
     private CommandEdit edit;
     private CommandFind find;
     private CommandDeveloper developer;
+    private CommandPack pack;
     public static boolean worldCreation = false;
     private static final AtomicReference<Thread> mainWorld = new AtomicReference<>();
     String WorldEngine;
@@ -591,42 +591,7 @@ public class CommandIris implements DirectorExecutor {
     }
 
     private static Map<String, Set<String>> buildExternalLocateFallbackById(KList<IrisExternalDatapack> externalDatapacks) {
-        Map<String, Set<String>> mapped = new ConcurrentHashMap<>();
-        if (externalDatapacks == null || externalDatapacks.isEmpty()) {
-            return mapped;
-        }
-
-        for (IrisExternalDatapack externalDatapack : externalDatapacks) {
-            if (externalDatapack == null) {
-                continue;
-            }
-
-            String url = externalDatapack.getUrl() == null ? "" : externalDatapack.getUrl().trim();
-            String entryId = externalDatapack.getId() == null ? "" : externalDatapack.getId().trim();
-            String normalizedEntryId = normalizeLocateExternalToken(entryId.isBlank() ? url : entryId);
-            if (normalizedEntryId.isBlank()) {
-                continue;
-            }
-
-            IrisExternalDatapackReplaceTargets replaceTargets = externalDatapack.getReplaceTargets();
-            if (replaceTargets == null || replaceTargets.getStructures() == null || replaceTargets.getStructures().isEmpty()) {
-                continue;
-            }
-
-            LinkedHashSet<String> structures = new LinkedHashSet<>();
-            for (String structure : replaceTargets.getStructures()) {
-                String normalizedStructure = normalizeLocateStructureToken(structure);
-                if (!normalizedStructure.isBlank()) {
-                    structures.add(normalizedStructure);
-                }
-            }
-
-            if (!structures.isEmpty()) {
-                mapped.put(normalizedEntryId, Set.copyOf(structures));
-            }
-        }
-
-        return mapped;
+        return new ConcurrentHashMap<>();
     }
 
     private static String normalizeLocateStructureToken(String structure) {
@@ -803,7 +768,7 @@ public class CommandIris implements DirectorExecutor {
     public void download(
             @Param(name = "pack", description = "The pack to download", defaultValue = "overworld", aliases = "project")
             String pack,
-            @Param(name = "branch", description = "The branch to download from", defaultValue = "main")
+            @Param(name = "branch", description = "The branch to download from", defaultValue = "stable")
             String branch,
             //@Param(name = "trim", description = "Whether or not to download a trimmed version (do not enable when editing)", defaultValue = "false")
             //boolean trim,

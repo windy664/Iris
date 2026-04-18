@@ -42,10 +42,8 @@ public class IrisCaveCarver3D {
     private static final byte LIQUID_LAVA = 2;
     private static final byte LIQUID_FORCED_AIR = 3;
     private static final int ADAPTIVE_MIN_PLANE_COLUMNS = 32;
-    private static final int ADAPTIVE_DEEP_MIN_PLANE_COLUMNS = 64;
     private static final int ADAPTIVE_DEEP_SAMPLE_STEP = 8;
     private static final int ADAPTIVE_DEEP_SURFACE_MARGIN = 12;
-    private static final int ADAPTIVE_DEEP_NEAR_SURFACE_DIVISOR = 4;
     private static final double ADAPTIVE_LOCAL_RANGE_SCALE = 0.25D;
     private static final double ADAPTIVE_DEEP_MARGIN_BOOST = 0.015D;
     private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
@@ -232,8 +230,6 @@ public class IrisCaveCarver3D {
                 }
             }
 
-            int minCarveCells = Math.max(0, profile.getMinCarveCells());
-            double recoveryThresholdBoost = Math.max(0, profile.getRecoveryThresholdBoost());
             int carved;
             if (exactSampling) {
                 if (adaptiveSampling) {
@@ -258,29 +254,6 @@ public class IrisCaveCarver3D {
                             0D,
                             false
                     );
-                    if (carved < minCarveCells && recoveryThresholdBoost > 0D) {
-                        carved += carvePassAdaptive(
-                                chunk,
-                                x0,
-                                z0,
-                                minY,
-                                maxY,
-                                adaptiveSampleStep,
-                                adaptiveThresholdMargin,
-                                surfaceBreakThresholdBoost,
-                                columnMaxY,
-                                surfaceBreakFloorY,
-                                surfaceBreakColumn,
-                                columnThreshold,
-                                clampedWeights,
-                                verticalEdgeFade,
-                                matterByY,
-                                resolvedMinWeight,
-                                resolvedThresholdPenalty,
-                                recoveryThresholdBoost,
-                                true
-                        );
-                    }
                 } else {
                     carved = carvePassExact(
                             chunk,
@@ -301,27 +274,6 @@ public class IrisCaveCarver3D {
                             0D,
                             false
                     );
-                    if (carved < minCarveCells && recoveryThresholdBoost > 0D) {
-                        carved += carvePassExact(
-                                chunk,
-                                x0,
-                                z0,
-                                minY,
-                                maxY,
-                                surfaceBreakThresholdBoost,
-                                columnMaxY,
-                                surfaceBreakFloorY,
-                                surfaceBreakColumn,
-                                columnThreshold,
-                                clampedWeights,
-                                verticalEdgeFade,
-                                matterByY,
-                                resolvedMinWeight,
-                                resolvedThresholdPenalty,
-                                recoveryThresholdBoost,
-                                true
-                        );
-                    }
                 }
             } else {
                 int latticeStep = sampleStep;
@@ -345,28 +297,6 @@ public class IrisCaveCarver3D {
                         0D,
                         false
                 );
-                if (carved < minCarveCells && recoveryThresholdBoost > 0D) {
-                    carved += carvePassLattice(
-                            chunk,
-                            x0,
-                            z0,
-                            minY,
-                            maxY,
-                            latticeStep,
-                            surfaceBreakThresholdBoost,
-                            columnMaxY,
-                            surfaceBreakFloorY,
-                            surfaceBreakColumn,
-                            columnThreshold,
-                            clampedWeights,
-                            verticalEdgeFade,
-                            matterByY,
-                            resolvedMinWeight,
-                            resolvedThresholdPenalty,
-                            recoveryThresholdBoost,
-                            true
-                    );
-                }
                 if (carved == 0 && hasFallbackCandidates(columnMaxY, clampedWeights, minY, resolvedMinWeight)) {
                     carved += carvePassFallback(
                             chunk,
@@ -388,28 +318,6 @@ public class IrisCaveCarver3D {
                             0D,
                             false
                     );
-                    if (carved < minCarveCells && recoveryThresholdBoost > 0D) {
-                        carved += carvePassFallback(
-                                chunk,
-                                x0,
-                                z0,
-                                minY,
-                                maxY,
-                                sampleStep,
-                                surfaceBreakThresholdBoost,
-                                columnMaxY,
-                                surfaceBreakFloorY,
-                                surfaceBreakColumn,
-                                columnThreshold,
-                                clampedWeights,
-                                verticalEdgeFade,
-                                matterByY,
-                                resolvedMinWeight,
-                                resolvedThresholdPenalty,
-                                recoveryThresholdBoost,
-                                true
-                        );
-                    }
                 }
             }
 
@@ -614,14 +522,7 @@ public class IrisCaveCarver3D {
                     continue;
                 }
 
-                int effectiveAdaptiveSampleStep = resolveAdaptivePlaneSampleStep(
-                        y,
-                        planeColumnIndices,
-                        planeCount,
-                        adaptiveSampleStep,
-                        surfaceBreakColumn,
-                        surfaceBreakFloorY
-                );
+                int effectiveAdaptiveSampleStep = resolveAdaptivePlaneSampleStep(y, adaptiveSampleStep);
                 double effectiveAdaptiveThresholdMargin = resolveAdaptivePlaneThresholdMargin(
                         adaptiveThresholdMargin,
                         adaptiveSampleStep,
@@ -678,31 +579,14 @@ public class IrisCaveCarver3D {
         return carved;
     }
 
-    private int resolveAdaptivePlaneSampleStep(
-            int y,
-            int[] planeColumnIndices,
-            int planeCount,
-            int adaptiveSampleStep,
-            boolean[] surfaceBreakColumn,
-            int[] surfaceBreakFloorY
-    ) {
-        if (adaptiveSampleStep >= ADAPTIVE_DEEP_SAMPLE_STEP || planeCount < ADAPTIVE_DEEP_MIN_PLANE_COLUMNS) {
+    private int resolveAdaptivePlaneSampleStep(int y, int adaptiveSampleStep) {
+        if (adaptiveSampleStep >= ADAPTIVE_DEEP_SAMPLE_STEP) {
             return adaptiveSampleStep;
         }
 
-        int nearSurfaceColumns = 0;
-        int allowedNearSurfaceColumns = Math.max(8, planeCount / ADAPTIVE_DEEP_NEAR_SURFACE_DIVISOR);
-        for (int planeIndex = 0; planeIndex < planeCount; planeIndex++) {
-            int columnIndex = planeColumnIndices[planeIndex];
-            if (surfaceBreakColumn[columnIndex] || y > (surfaceBreakFloorY[columnIndex] - ADAPTIVE_DEEP_SURFACE_MARGIN)) {
-                nearSurfaceColumns++;
-                if (nearSurfaceColumns > allowedNearSurfaceColumns) {
-                    return adaptiveSampleStep;
-                }
-            }
-        }
-
-        return ADAPTIVE_DEEP_SAMPLE_STEP;
+        int profileMaxY = (int) Math.ceil(profile.getVerticalRange().getMax());
+        int fineBandFloorY = profileMaxY - profile.getSurfaceBreakDepth() - ADAPTIVE_DEEP_SURFACE_MARGIN;
+        return y >= fineBandFloorY ? adaptiveSampleStep : ADAPTIVE_DEEP_SAMPLE_STEP;
     }
 
     private double resolveAdaptivePlaneThresholdMargin(

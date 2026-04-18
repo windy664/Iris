@@ -156,11 +156,16 @@ public class IrisPregenerator {
     }
 
     private long computeETA() {
-        double d = (long) (generated.get() > 1024 ? // Generated chunks exceed 1/8th of total?
-                // If yes, use smooth function (which gets more accurate over time since its less sensitive to outliers)
-                ((totalChunks.get() - generated.get()) * ((double) (M.ms() - startTime.get()) / (double) generated.get())) :
-                // If no, use quick function (which is less accurate over time but responds better to the initial delay)
-                ((totalChunks.get() - generated.get()) / chunksPerSecond.getAverage()) * 1000);
+        long gen = generated.get();
+        long total = totalChunks.get();
+        long remaining = total - gen;
+        double d;
+        if (gen > 1024) {
+            d = remaining * ((double) (M.ms() - startTime.get()) / (double) gen);
+        } else {
+            double cps = chunksPerSecond.getAverage();
+            d = cps > 0 ? (remaining / cps) * 1000 : 0;
+        }
         return Double.isFinite(d) && d != INVALID ? (long) d : 0;
     }
 
@@ -175,11 +180,7 @@ public class IrisPregenerator {
         checkRegions();
         PrecisionStopwatch p = PrecisionStopwatch.start();
         task.iterateRegions((x, z) -> visitRegion(x, z, true));
-        if (generator.isAsyncChunkMode()) {
-            visitChunksInterleaved();
-        } else {
-            task.iterateRegions((x, z) -> visitRegion(x, z, false));
-        }
+        task.iterateRegions((x, z) -> visitRegion(x, z, false));
         Iris.info("Pregen took " + Form.duration((long) p.getMilliseconds()));
         shutdown();
         if (benchmarking == null) {
@@ -248,6 +249,10 @@ public class IrisPregenerator {
             if (saveLatch.flip()) {
                 listener.onSaving();
                 generator.save();
+                Mantle mantle = getMantle();
+                if (mantle != null) {
+                    mantle.trim(0, 0);
+                }
             }
 
             generatedRegions.add(pos);
@@ -261,46 +266,6 @@ public class IrisPregenerator {
         }
 
         generator.supportsRegions(x, z, listener);
-    }
-
-    private void visitChunksInterleaved() {
-        task.iterateAllChunksInterleaved((regionX, regionZ, chunkX, chunkZ, firstChunkInRegion, lastChunkInRegion) -> {
-            while (paused.get() && !shutdown.get()) {
-                J.sleep(50);
-            }
-
-            Position2 regionPos = new Position2(regionX, regionZ);
-            if (shutdown.get()) {
-                if (!generatedRegions.contains(regionPos)) {
-                    listener.onRegionSkipped(regionX, regionZ);
-                    generatedRegions.add(regionPos);
-                }
-                return false;
-            }
-
-            if (generatedRegions.contains(regionPos)) {
-                return true;
-            }
-
-            if (firstChunkInRegion) {
-                currentGeneratorMethod.set(generator.getMethod(regionX, regionZ));
-                listener.onRegionGenerating(regionX, regionZ);
-            }
-
-            generator.generateChunk(chunkX, chunkZ, listener);
-
-            if (lastChunkInRegion) {
-                listener.onRegionGenerated(regionX, regionZ);
-                if (saveLatch.flip()) {
-                    listener.onSaving();
-                    generator.save();
-                }
-                generatedRegions.add(regionPos);
-                checkRegions();
-            }
-
-            return true;
-        });
     }
 
     public void pause() {

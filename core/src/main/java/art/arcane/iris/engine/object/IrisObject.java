@@ -57,6 +57,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.data.type.Leaves;
+import org.bukkit.block.data.type.Slab;
+import org.bukkit.block.data.type.Stairs;
 import org.bukkit.util.BlockVector;
 import org.bukkit.util.Vector;
 
@@ -131,13 +133,10 @@ public class IrisObject extends IrisRegistrant {
                 new IrisPosition(new BlockVector(size.getX() - 1, size.getY() - 1, size.getZ() - 1).subtract(center).toBlockVector()));
     }
 
-    @SuppressWarnings({"resource", "RedundantSuppression"})
     public static BlockVector sampleSize(File file) throws IOException {
-        FileInputStream in = new FileInputStream(file);
-        DataInputStream din = new DataInputStream(in);
-        BlockVector bv = new BlockVector(din.readInt(), din.readInt(), din.readInt());
-        Iris.later(din::close);
-        return bv;
+        try (DataInputStream din = new DataInputStream(new FileInputStream(file))) {
+            return new BlockVector(din.readInt(), din.readInt(), din.readInt());
+        }
     }
 
     private static List<BlockVector> blocksBetweenTwoPoints(Vector loc1, Vector loc2) {
@@ -157,6 +156,16 @@ public class IrisObject extends IrisRegistrant {
             }
         }
         return locations;
+    }
+
+    private static boolean shouldStilt(BlockData data) {
+        if (!data.getMaterial().isOccluding()) {
+            return false;
+        }
+        if (data instanceof Stairs || data instanceof Slab) {
+            return false;
+        }
+        return data.getMaterial() != Material.DIRT_PATH;
     }
 
     public AxisAlignedBB getAABB() {
@@ -494,9 +503,9 @@ public class IrisObject extends IrisRegistrant {
             return;
         }
 
-        FileOutputStream out = new FileOutputStream(file);
-        write(out);
-        out.close();
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            write(out);
+        }
     }
 
     public void write(File file, VolmitSender sender) throws IOException {
@@ -504,9 +513,9 @@ public class IrisObject extends IrisRegistrant {
             return;
         }
 
-        FileOutputStream out = new FileOutputStream(file);
-        write(out, sender);
-        out.close();
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            write(out, sender);
+        }
     }
 
     public void shrinkwrap() {
@@ -672,7 +681,8 @@ public class IrisObject extends IrisRegistrant {
         boolean warped = !config.getWarp().isFlat();
         boolean stilting = (config.getMode().equals(ObjectPlaceMode.STILT) || config.getMode().equals(ObjectPlaceMode.FAST_STILT) ||
                 config.getMode() == ObjectPlaceMode.MIN_STILT || config.getMode() == ObjectPlaceMode.FAST_MIN_STILT ||
-                config.getMode() == ObjectPlaceMode.CENTER_STILT);
+                config.getMode() == ObjectPlaceMode.CENTER_STILT || config.getMode() == ObjectPlaceMode.ERODE_STILT);
+        boolean eroding = config.getMode() == ObjectPlaceMode.ERODE_STILT;
         KMap<Position2, Integer> heightmap = config.getSnow() > 0 ? new KMap<>() : null;
         int spinx = rng.imax() / 1000;
         int spiny = rng.imax() / 1000;
@@ -954,7 +964,7 @@ public class IrisObject extends IrisRegistrant {
                 i = config.getRotation().rotate(i.clone(), spinx, spiny, spinz).clone();
                 i = config.getTranslate().translate(i.clone(), config.getRotation(), spinx, spiny, spinz).clone();
 
-                if (stilting && i.getBlockY() < lowest && B.isSolid(data)) {
+                if (stilting && i.getBlockY() < lowest && shouldStilt(data)) {
                     lowest = i.getBlockY();
                 }
 
@@ -1054,6 +1064,45 @@ public class IrisObject extends IrisRegistrant {
         if (stilting) {
             readLock.lock();
             IrisStiltSettings settings = config.getStiltSettings();
+
+            double erodeCentroidX = 0;
+            double erodeCentroidZ = 0;
+            double erodeMaxDist = 1;
+            if (eroding) {
+                int centroidCount = 0;
+                for (BlockVector g : blocks.keys()) {
+                    BlockVector rot = config.getRotation().rotate(g.clone(), spinx, spiny, spinz).clone();
+                    rot = config.getTranslate().translate(rot.clone(), config.getRotation(), spinx, spiny, spinz).clone();
+                    if (rot.getBlockY() == lowest) {
+                        BlockData bd = blocks.get(g);
+                        if (bd != null && shouldStilt(bd)) {
+                            erodeCentroidX += rot.getX();
+                            erodeCentroidZ += rot.getZ();
+                            centroidCount++;
+                        }
+                    }
+                }
+                if (centroidCount > 0) {
+                    erodeCentroidX /= centroidCount;
+                    erodeCentroidZ /= centroidCount;
+                }
+                for (BlockVector g : blocks.keys()) {
+                    BlockVector rot = config.getRotation().rotate(g.clone(), spinx, spiny, spinz).clone();
+                    rot = config.getTranslate().translate(rot.clone(), config.getRotation(), spinx, spiny, spinz).clone();
+                    if (rot.getBlockY() == lowest) {
+                        BlockData bd = blocks.get(g);
+                        if (bd != null && shouldStilt(bd)) {
+                            double dx = rot.getX() - erodeCentroidX;
+                            double dz = rot.getZ() - erodeCentroidZ;
+                            double dist = Math.sqrt(dx * dx + dz * dz);
+                            if (dist > erodeMaxDist) {
+                                erodeMaxDist = dist;
+                            }
+                        }
+                    }
+                }
+            }
+
             for (BlockVector g : blocks.keys()) {
                 BlockData sourceData;
                 try {
@@ -1069,13 +1118,18 @@ public class IrisObject extends IrisRegistrant {
                     sourceData = AIR;
                 }
 
-                if (!B.isSolid(sourceData)) {
+                if (!shouldStilt(sourceData)) {
                     continue;
                 }
 
                 BlockData d = sourceData;
                 if (settings != null && settings.getPalette() != null) {
                     d = config.getStiltSettings().getPalette().get(rng, x, y, z, rdata);
+                } else {
+                    Material mat = d.getMaterial();
+                    if (mat == Material.GRASS_BLOCK || mat == Material.MYCELIUM || mat == Material.PODZOL || mat == Material.DIRT_PATH) {
+                        d = Material.DIRT.createBlockData();
+                    }
                 }
 
                 BlockVector i = g.clone();
@@ -1102,7 +1156,7 @@ public class IrisObject extends IrisRegistrant {
                     }
                 }
 
-                if (d == null || !B.isSolid(d))
+                if (d == null || !d.getMaterial().isOccluding())
                     continue;
 
                 xx = x + (int) Math.round(i.getX());
@@ -1127,7 +1181,31 @@ public class IrisObject extends IrisRegistrant {
                     if (settings.getYMax() != 0)
                         lowerBound -= Math.min(config.getStiltSettings().getYMax() - (lowest + y - highest), 0);
                 }
+
+                if (eroding) {
+                    double dx = i.getX() - erodeCentroidX;
+                    double dz = i.getZ() - erodeCentroidZ;
+                    double normalizedDist = Math.sqrt(dx * dx + dz * dz) / erodeMaxDist;
+                    normalizedDist = Math.min(normalizedDist, 1.0);
+                    int totalDepth = (lowest + y) - lowerBound;
+                    int erodeDepth = (int) (totalDepth * Math.pow(1.0 - normalizedDist, 1.5));
+                    lowerBound = (lowest + y) - erodeDepth;
+                }
+
                 for (int j = lowest + y; j > lowerBound; j--) {
+                    if (eroding) {
+                        int depth = (lowest + y) - j;
+                        int totalDepth = (lowest + y) - lowerBound;
+                        double depthRatio = totalDepth > 0 ? (double) depth / totalDepth : 0;
+                        if (depthRatio > 0.4) {
+                            long hash = ((long) (xx * 341873128712L) ^ ((long) j * 132897987541L) ^ ((long) zz * 735791245321L));
+                            double skipChance = (depthRatio - 0.4) / 0.6;
+                            if ((Math.abs(hash) % 1000) / 1000.0 < skipChance * 0.7) {
+                                continue;
+                            }
+                        }
+                    }
+
                     if (B.isVineBlock(d)) {
                         MultipleFacing f = (MultipleFacing) d;
                         for (BlockFace face : f.getAllowedFaces()) {

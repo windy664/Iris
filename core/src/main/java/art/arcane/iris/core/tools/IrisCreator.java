@@ -336,12 +336,22 @@ public class IrisCreator {
                     return;
                 }
 
+                int percent = (int) Math.round(progress * 100.0D);
+                int remaining = required - generated;
                 if (sender.isPlayer()) {
-                    sender.sendProgress(progress, "Generating");
+                    int barWidth = 44;
+                    int filled = (int) Math.round(Math.max(0.0D, Math.min(1.0D, progress)) * barWidth);
+                    StringBuilder bar = new StringBuilder(barWidth * 3 + 4);
+                    bar.append(C.DARK_GRAY).append("[");
+                    for (int bi = 0; bi < barWidth; bi++) {
+                        bar.append(bi < filled ? C.GREEN : C.DARK_GRAY).append("|");
+                    }
+                    bar.append(C.DARK_GRAY).append("]");
+                    sender.sendAction(bar.toString() + C.GRAY + " " + C.YELLOW + percent + "%" + C.DARK_GRAY + " " + Form.f(generated) + "/" + Form.f(required) + " chunks");
                     return;
                 }
 
-                sender.sendMessage(C.WHITE + "Generating " + Form.pc(progress) + ((C.GRAY + " (" + (required - generated) + " Left)")));
+                sender.sendMessage(C.GOLD + "Generating " + C.YELLOW + percent + "%" + C.GRAY + " " + Form.f(generated) + "/" + Form.f(required) + " chunks" + C.DARK_GRAY + " (" + remaining + " left)");
             }, interval));
         });
         return taskId;
@@ -356,12 +366,22 @@ public class IrisCreator {
                 return;
             }
 
+            double p = progress.get();
+            int percent = (int) Math.round(p * 100.0D);
             if (sender.isPlayer()) {
-                sender.sendProgress(progress.get(), "Pregenerating");
+                int barWidth = 44;
+                int filled = (int) Math.round(Math.max(0.0D, Math.min(1.0D, p)) * barWidth);
+                StringBuilder bar = new StringBuilder(barWidth * 3 + 4);
+                bar.append(C.DARK_GRAY).append("[");
+                for (int bi = 0; bi < barWidth; bi++) {
+                    bar.append(bi < filled ? C.GREEN : C.DARK_GRAY).append("|");
+                }
+                bar.append(C.DARK_GRAY).append("]");
+                sender.sendAction(bar.toString() + C.GRAY + " " + C.YELLOW + percent + "%" + C.GRAY + " | " + C.WHITE + "Pregenerating");
                 return;
             }
 
-            sender.sendMessage(C.WHITE + "Pregenerating " + Form.pc(progress.get()));
+            sender.sendMessage(C.GOLD + "Pregenerating " + C.YELLOW + percent + "%");
         }, interval));
         return taskId;
     }

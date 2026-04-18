@@ -51,6 +51,7 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
         IrisDecorator decorator = getDecorator(rng, biome, realX, realZ);
         bdx = data.get(x, height, z);
         boolean underwater = height < getDimension().getFluidHeight() && biome.getInferredType() != InferredType.CAVE;
+        boolean caveSkipFluid = biome.getInferredType() == InferredType.CAVE;
 
         if (decorator != null) {
             if (!decorator.isForcePlace() && !decorator.getSlopeCondition().isDefault()
@@ -68,6 +69,9 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
                 }
 
                 if (decorator.getForceBlock() != null) {
+                    if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
+                        return;
+                    }
                     data.set(x, height, z, fixFaces(decorator.getForceBlock().getBlockData(getData()), data, x, z, realX, height, realZ));
                 } else if (!decorator.isForcePlace()) {
                     if (decorator.getWhitelist() != null && decorator.getWhitelist().stream().noneMatch(d -> d.getBlockData(getData()).equals(bdx))) {
@@ -82,7 +86,9 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
                     bd = bd.clone();
                     ((Bisected) bd).setHalf(Bisected.Half.TOP);
                     try {
-                        data.set(x, height + 2, z, bd);
+                        if (!caveSkipFluid || !B.isFluid(data.get(x, height + 2, z))) {
+                            data.set(x, height + 2, z, bd);
+                        }
                     } catch (Throwable e) {
                         Iris.reportError(e);
                     }
@@ -107,6 +113,9 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
                 }
 
                 if (stack == 1) {
+                    if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
+                        return;
+                    }
                     data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
                     return;
                 }
@@ -127,6 +136,10 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
                     }
 
                     if (underwater && height + 1 + i > getDimension().getFluidHeight()) {
+                        break;
+                    }
+
+                    if (caveSkipFluid && B.isFluid(data.get(x, height + 1 + i, z))) {
                         break;
                     }
 

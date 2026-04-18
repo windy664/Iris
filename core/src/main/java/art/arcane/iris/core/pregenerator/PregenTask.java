@@ -121,56 +121,6 @@ public class PregenTask {
         iterateRegions(((rX, rZ) -> iterateChunks(rX, rZ, s)));
     }
 
-    public void iterateAllChunksInterleaved(InterleavedChunkSpiraled spiraled) {
-        if (spiraled == null) {
-            return;
-        }
-
-        KList<RegionChunkCursor> cursors = new KList<>();
-        Bound bound = bounds.chunk();
-        iterateRegions((regionX, regionZ) -> {
-            RegionChunkCursor cursor = new RegionChunkCursor(regionX, regionZ, bound);
-            if (cursor.hasNext()) {
-                cursors.add(cursor);
-            }
-        });
-
-        boolean hasProgress = true;
-        while (hasProgress) {
-            hasProgress = false;
-            for (RegionChunkCursor cursor : cursors) {
-                if (!cursor.hasNext()) {
-                    continue;
-                }
-
-                hasProgress = true;
-                long chunk = cursor.next();
-                if (chunk == Long.MIN_VALUE) {
-                    continue;
-                }
-                int chunkX = (int) (chunk >> 32);
-                int chunkZ = (int) chunk;
-
-                boolean shouldContinue = spiraled.on(
-                        cursor.getRegionX(),
-                        cursor.getRegionZ(),
-                        chunkX,
-                        chunkZ,
-                        cursor.getIndex() == 1,
-                        !cursor.hasNext()
-                );
-                if (!shouldContinue) {
-                    return;
-                }
-            }
-        }
-    }
-
-    @FunctionalInterface
-    public interface InterleavedChunkSpiraled {
-        boolean on(int regionX, int regionZ, int chunkX, int chunkZ, boolean firstChunkInRegion, boolean lastChunkInRegion);
-    }
-
     private class Bounds {
         private Bound chunk = null;
         private Bound region = null;
@@ -206,9 +156,9 @@ public class PregenTask {
         }
     }
 
-    private record Bound(int minX, int maxX, int minZ, int maxZ, int sizeX, int sizeZ) {
+    private record Bound(int minX, int minZ, int maxX, int maxZ, int sizeX, int sizeZ) {
         private Bound(int minX, int minZ, int maxX, int maxZ) {
-            this(minX, maxX, minZ, maxZ, maxZ - minZ + 1, maxZ - minZ + 1);
+            this(minX, minZ, maxX, maxZ, maxX - minX + 1, maxZ - minZ + 1);
         }
 
         boolean check(int x, int z) {
@@ -229,78 +179,6 @@ public class PregenTask {
         @Override
         public void setZ(int z) {
             throw new IllegalStateException("This Position2 may not be modified");
-        }
-    }
-
-    private static final class RegionChunkCursor {
-        private final int regionX;
-        private final int regionZ;
-        private final Bound bound;
-        private final int[] order;
-        private final int chunkOffsetX;
-        private final int chunkOffsetZ;
-        private int scanIndex;
-        private int emittedIndex;
-        private int currentChunkX;
-        private int currentChunkZ;
-        private boolean hasCurrent;
-
-        private RegionChunkCursor(int regionX, int regionZ, Bound bound) {
-            this.regionX = regionX;
-            this.regionZ = regionZ;
-            this.bound = bound;
-            this.chunkOffsetX = PowerOfTwoCoordinates.regionToChunk(regionX);
-            this.chunkOffsetZ = PowerOfTwoCoordinates.regionToChunk(regionZ);
-            this.order = orderForPull(-chunkOffsetX, -chunkOffsetZ);
-            this.scanIndex = 0;
-            this.emittedIndex = 0;
-            advance();
-        }
-
-        private boolean hasNext() {
-            return hasCurrent;
-        }
-
-        private long next() {
-            if (!hasNext()) {
-                return Long.MIN_VALUE;
-            }
-
-            long high = (long) currentChunkX << 32;
-            long low = currentChunkZ & 0xFFFFFFFFL;
-            emittedIndex++;
-            advance();
-            return high | low;
-        }
-
-        private void advance() {
-            hasCurrent = false;
-            while (scanIndex < order.length) {
-                int local = order[scanIndex];
-                scanIndex++;
-                int chunkX = chunkOffsetX + PowerOfTwoCoordinates.unpackLocal32X(local);
-                int chunkZ = chunkOffsetZ + PowerOfTwoCoordinates.unpackLocal32Z(local);
-                if (!bound.check(chunkX, chunkZ)) {
-                    continue;
-                }
-
-                currentChunkX = chunkX;
-                currentChunkZ = chunkZ;
-                hasCurrent = true;
-                return;
-            }
-        }
-
-        private int getRegionX() {
-            return regionX;
-        }
-
-        private int getRegionZ() {
-            return regionZ;
-        }
-
-        private int getIndex() {
-            return emittedIndex;
         }
     }
 }

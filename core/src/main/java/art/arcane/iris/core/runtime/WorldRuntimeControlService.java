@@ -294,19 +294,12 @@ public final class WorldRuntimeControlService {
     }
 
     static int[] buildSafeLocationScanOrder(World world, Location source) {
-        int x = source.getBlockX();
-        int z = source.getBlockZ();
         int minY = world.getMinHeight() + 1;
         int maxY = world.getMaxHeight() - 2;
-        int highestY = Math.max(minY, Math.min(maxY, world.getHighestBlockYAt(x, z) + 1));
         int[] scanOrder = new int[maxY - minY + 1];
         int index = 0;
 
-        for (int y = highestY; y >= minY; y--) {
-            scanOrder[index++] = y;
-        }
-
-        for (int y = highestY + 1; y <= maxY; y++) {
+        for (int y = maxY; y >= minY; y--) {
             scanOrder[index++] = y;
         }
 

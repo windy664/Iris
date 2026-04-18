@@ -114,9 +114,14 @@ public interface Locator<T> {
     boolean matches(Engine engine, Position2 chunk);
 
     default void find(Player player, boolean teleport, String message) {
-        find(player, location -> {
+        find(player, 120_000, location -> {
+            if (location == null) {
+                player.sendMessage(C.RED + "Could not find " + message + " within search range.");
+                return;
+            }
             if (teleport) {
                 J.runEntity(player, () -> teleportAsyncSafely(player, location));
+                player.sendMessage(C.GREEN + "Teleporting to " + message + "...");
             } else {
                 player.sendMessage(C.GREEN + message + " at: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ());
             }
@@ -124,7 +129,7 @@ public interface Locator<T> {
     }
 
     default void find(Player player, Consumer<Location> consumer) {
-        find(player, 30_000, consumer);
+        find(player, 120_000, consumer);
     }
 
     default void find(Player player, long timeout, Consumer<Location> consumer) {
@@ -137,11 +142,13 @@ public interface Locator<T> {
                 Position2 at = find(engine, new Position2(player.getLocation().getBlockX() >> 4, player.getLocation().getBlockZ() >> 4), timeout, checks::set).get();
 
                 if (at != null) {
-                    consumer.accept(new Location(world, (at.getX() << 4) + 8,
-                            engine.getHeight(
-                                    (at.getX() << 4) + 8,
-                                    (at.getZ() << 4) + 8, false),
-                            (at.getZ() << 4) + 8));
+                    int bx = (at.getX() << 4) + 8;
+                    int bz = (at.getZ() << 4) + 8;
+                    consumer.accept(new Location(world, bx,
+                            world.getHighestBlockYAt(bx, bz) + 2,
+                            bz));
+                } else {
+                    consumer.accept(null);
                 }
             } catch (WrongEngineBroException | InterruptedException | ExecutionException e) {
                 e.printStackTrace();
@@ -172,18 +179,17 @@ public interface Locator<T> {
         cancelSearch();
 
         return MultiBurst.burst.completeValue(() -> {
-            int tc = IrisSettings.getThreadCount(IrisSettings.get().getConcurrency().getParallelism()) * 17;
+            int tc = IrisSettings.getThreadCount(IrisSettings.get().getConcurrency().getParallelism()) * 32;
             MultiBurst burst = MultiBurst.burst;
             AtomicBoolean found = new AtomicBoolean(false);
-            Position2 cursor = pos;
             AtomicInteger searched = new AtomicInteger();
             AtomicBoolean stop = new AtomicBoolean(false);
             AtomicReference<Position2> foundPos = new AtomicReference<>();
             PrecisionStopwatch px = PrecisionStopwatch.start();
             LocatorCanceller.cancel = () -> stop.set(true);
-            AtomicReference<Position2> next = new AtomicReference<>(cursor);
+            AtomicReference<Position2> next = new AtomicReference<>(pos);
             Spiraler s = new Spiraler(100000, 100000, (x, z) -> next.set(new Position2(x, z)));
-            s.setOffset(cursor.getX(), cursor.getZ());
+            s.setOffset(pos.getX(), pos.getZ());
             s.next();
             while (!found.get() && !stop.get() && px.getMilliseconds() < timeout) {
                 BurstExecutor e = burst.burst(tc);
@@ -192,11 +198,11 @@ public interface Locator<T> {
                     Position2 p = next.get();
                     s.next();
                     e.queue(() -> {
+                        if (found.get()) {
+                            return;
+                        }
                         if (matches(engine, p)) {
-                            if (foundPos.get() == null) {
-                                foundPos.set(p);
-                            }
-
+                            foundPos.compareAndSet(null, p);
                             found.set(true);
                         }
                         searched.incrementAndGet();

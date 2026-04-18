@@ -62,6 +62,10 @@ public enum ObjectPlaceMode {
 
     CENTER_STILT,
 
+    @Desc("Erode stilting tapers columns downward like an ice cream cone. Blocks near the center extend deepest while edge blocks drop off first. Blocks are randomly skipped in the lower portion for a rough organic eroded texture.")
+
+    ERODE_STILT,
+
     @Desc("Samples the height of the terrain at every x,z position of your object and pushes it down to the surface. It's pretty much like a melt function over the terrain.")
 
     PAINT

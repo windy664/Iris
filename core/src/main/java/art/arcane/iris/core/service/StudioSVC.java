@@ -26,6 +26,8 @@ import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.pack.IrisPack;
+import art.arcane.iris.core.pack.PackValidationRegistry;
+import art.arcane.iris.core.pack.PackValidationResult;
 import art.arcane.iris.core.project.IrisProject;
 import art.arcane.iris.core.runtime.TransientWorldCleanupSupport;
 import art.arcane.iris.core.tools.IrisToolbelt;
@@ -69,12 +71,12 @@ public class StudioSVC implements IrisService {
             File f = IrisPack.packsPack(pack);
 
             if (!f.exists()) {
-                Iris.info("Downloading Default Pack " + pack);
                 if (pack.equals("overworld")) {
+                    Iris.info("Downloading Default Pack " + pack);
                     String url = "https://github.com/IrisDimensions/overworld/releases/download/" + INMS.OVERWORLD_TAG + "/overworld.zip";
                     Iris.service(StudioSVC.class).downloadRelease(Iris.getSender(), url, false, false);
                 } else {
-                    downloadSearch(Iris.getSender(), pack, false);
+                    Iris.warn("Default pack '" + pack + "' is not installed. Please download it manually with /iris download");
                 }
             }
         });
@@ -130,11 +132,14 @@ public class StudioSVC implements IrisService {
         IrisDimension dim = IrisData.loadAnyDimension(type, null);
 
         if (dim == null) {
-            for (File i : getWorkspaceFolder().listFiles()) {
-                if (i.isFile() && i.getName().equals(type + ".iris")) {
-                    sender.sendMessage("Found " + type + ".iris in " + WORKSPACE_NAME + " folder");
-                    ZipUtil.unpack(i, folder);
-                    break;
+            File[] workspaceFiles = getWorkspaceFolder().listFiles();
+            if (workspaceFiles != null) {
+                for (File i : workspaceFiles) {
+                    if (i.isFile() && i.getName().equals(type + ".iris")) {
+                        sender.sendMessage("Found " + type + ".iris in " + WORKSPACE_NAME + " folder");
+                        ZipUtil.unpack(i, folder);
+                        break;
+                    }
                 }
             }
         } else {
@@ -153,26 +158,29 @@ public class StudioSVC implements IrisService {
         if (!dimensionFile.exists() || !dimensionFile.isFile()) {
             downloadSearch(sender, type, false);
             File downloaded = getWorkspaceFolder(type);
+            File[] files = downloaded.listFiles();
 
-            for (File i : downloaded.listFiles()) {
-                if (i.isFile()) {
-                    try {
-                        FileUtils.copyFile(i, new File(folder, i.getName()));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Iris.reportError(e);
-                    }
-                } else {
-                    try {
-                        FileUtils.copyDirectory(i, new File(folder, i.getName()));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Iris.reportError(e);
+            if (files != null) {
+                for (File i : files) {
+                    if (i.isFile()) {
+                        try {
+                            FileUtils.copyFile(i, new File(folder, i.getName()));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Iris.reportError(e);
+                        }
+                    } else {
+                        try {
+                            FileUtils.copyDirectory(i, new File(folder, i.getName()));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Iris.reportError(e);
+                        }
                     }
                 }
-            }
 
-            IO.delete(downloaded);
+                IO.delete(downloaded);
+            }
         }
 
         if (!dimensionFile.exists() || !dimensionFile.isFile()) {
@@ -198,26 +206,24 @@ public class StudioSVC implements IrisService {
     }
 
     public void downloadSearch(VolmitSender sender, String key, boolean trim, boolean forceOverwrite) {
-        String url = "?";
-
         try {
-            url = getListing(false).get(key);
+            String url = getListing(false).get(key);
 
             if (url == null) {
-                Iris.warn("ITS ULL for " + key);
+                sender.sendMessage("Pack '" + key + "' was not found in the pack listing.");
+                sender.sendMessage("Use /iris download <user/repo> <branch> to download manually.");
+                return;
             }
 
-            url = url == null ? key : url;
-            Iris.info("Assuming URL " + url);
-            String branch = "master";
+            Iris.info("Resolved pack '" + key + "' to " + url);
             String[] nodes = url.split("\\Q/\\E");
             String repo = nodes.length == 1 ? "IrisDimensions/" + nodes[0] : nodes[0] + "/" + nodes[1];
-            branch = nodes.length > 2 ? nodes[2] : branch;
+            String branch = nodes.length > 2 ? nodes[2] : "stable";
             download(sender, repo, branch, trim, forceOverwrite, false);
         } catch (Throwable e) {
             Iris.reportError(e);
             e.printStackTrace();
-            sender.sendMessage("Failed to download '" + key + "' from " + url + ".");
+            sender.sendMessage("Failed to download '" + key + "'.");
         }
     }
 
@@ -246,7 +252,7 @@ public class StudioSVC implements IrisService {
         if (zip == null || !zip.exists()) {
             sender.sendMessage("Failed to find pack at " + url);
             sender.sendMessage("Make sure you specified the correct repo and branch!");
-            sender.sendMessage("For example: /iris download IrisDimensions/overworld branch=master");
+            sender.sendMessage("For example: /iris download IrisDimensions/overworld branch=stable");
             return;
         }
         sender.sendMessage("Unpacking " + repo);
@@ -355,9 +361,6 @@ public class StudioSVC implements IrisService {
                 l.put(i, a.getString(i));
         }
 
-        // TEMP FIX
-        l.put("IrisDimensions/overworld/master", "IrisDimensions/overworld/stable");
-        l.put("overworld", "IrisDimensions/overworld/stable");
         return l;
     }
 
@@ -379,7 +382,23 @@ public class StudioSVC implements IrisService {
         }
     }
 
+    private static boolean blockIfPackBroken(VolmitSender sender, String dimm) {
+        PackValidationResult validation = PackValidationRegistry.get(dimm);
+        if (validation == null || validation.isLoadable()) {
+            return false;
+        }
+        sender.sendMessage("Cannot open studio '" + dimm + "' - pack has blocking errors:");
+        for (String reason : validation.getBlockingErrors()) {
+            sender.sendMessage(" - " + reason);
+        }
+        sender.sendMessage("Fix the pack and run /iris pack validate " + dimm + " to revalidate.");
+        return true;
+    }
+
     public void open(VolmitSender sender, long seed, String dimm, Consumer<World> onDone) throws IrisException {
+        if (blockIfPackBroken(sender, dimm)) {
+            return;
+        }
         CompletableFuture<art.arcane.iris.core.runtime.StudioOpenCoordinator.StudioCloseResult> pendingClose = close();
         pendingClose.whenComplete((closeResult, closeThrowable) -> {
             if (closeThrowable != null) {
@@ -572,16 +591,18 @@ public class StudioSVC implements IrisService {
     public void create(VolmitSender sender, String s, String downloadable) {
         boolean shouldDelete = false;
         File importPack = getWorkspaceFolder(downloadable);
+        File[] packFiles = importPack.listFiles();
 
-        if (importPack.listFiles().length == 0) {
+        if (packFiles == null || packFiles.length == 0) {
             downloadSearch(sender, downloadable, false);
+            packFiles = importPack.listFiles();
 
-            if (importPack.listFiles().length > 0) {
+            if (packFiles != null && packFiles.length > 0) {
                 shouldDelete = true;
             }
         }
 
-        if (importPack.listFiles().length == 0) {
+        if (packFiles == null || packFiles.length == 0) {
             sender.sendMessage("Couldn't find the pack to create a new dimension from.");
             return;
         }

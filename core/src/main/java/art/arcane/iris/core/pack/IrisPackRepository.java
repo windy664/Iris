@@ -45,7 +45,7 @@ public class IrisPackRepository {
     private String repo = "overworld";
 
     @Builder.Default
-    private String branch = "master";
+    private String branch = "stable";
 
     @Builder.Default
     private String tag = "";
@@ -94,7 +94,7 @@ public class IrisPackRepository {
             return IrisPackRepository.builder()
                     .user("IrisDimensions")
                     .repo(g)
-                    .branch(g.equals("overworld") ? "stable" : "master")
+                    .branch("stable")
                     .build();
         }
 

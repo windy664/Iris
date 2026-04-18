@@ -22,11 +22,17 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisBiomeGeneratorLink;
 import art.arcane.iris.util.project.interpolation.IrisInterpolation;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.util.function.BiFunction;
 
 public class IrisRenderer {
+    private static final int BLUE = Color.BLUE.getRGB();
+    private static final int YELLOW = Color.YELLOW.getRGB();
+    private static final int GREEN = Color.GREEN.getRGB();
+
     private final Engine renderer;
 
     public IrisRenderer(Engine renderer) {
@@ -35,7 +41,8 @@ public class IrisRenderer {
 
     public BufferedImage render(double sx, double sz, double size, int resolution, RenderType currentType) {
         BufferedImage image = new BufferedImage(resolution, resolution, BufferedImage.TYPE_INT_RGB);
-        BiFunction<Double, Double, Integer> colorFunction = (d, dx) -> Color.black.getRGB();
+        int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        BiFunction<Double, Double, Integer> colorFunction = (d, dx) -> 0;
 
         switch (currentType) {
             case BIOME, DECORATOR_LOAD, OBJECT_LOAD, LAYER_LOAD ->
@@ -49,33 +56,22 @@ public class IrisRenderer {
             case CAVE_LAND ->
                     colorFunction = (x, z) -> renderer.getComplex().getCaveBiomeStream().get(x, z).getColor(renderer, currentType).getRGB();
             case HEIGHT ->
-                    colorFunction = (x, z) -> Color.getHSBColor(renderer.getComplex().getHeightStream().get(x, z).floatValue(), 100, 100).getRGB();
+                    colorFunction = (x, z) -> Color.getHSBColor(renderer.getComplex().getHeightStream().get(x, z).floatValue(), 1f, 1f).getRGB();
             case CONTINENT -> colorFunction = (x, z) -> {
                 IrisBiome b = renderer.getBiome((int) Math.round(x), renderer.getMaxHeight() - 1, (int) Math.round(z));
                 IrisBiomeGeneratorLink g = b.getGenerators().get(0);
-                Color c;
-                if (g.getMax() <= 0) {
-                    // Max is below water level, so it is most likely an ocean biome
-                    c = Color.BLUE;
-                } else if (g.getMin() < 0) {
-                    // Min is below water level, but max is not, so it is most likely a shore biome
-                    c = Color.YELLOW;
-                } else {
-                    // Both min and max are above water level, so it is most likely a land biome
-                    c = Color.GREEN;
-                }
-                return c.getRGB();
+                if (g.getMax() <= 0) return BLUE;
+                if (g.getMin() < 0) return YELLOW;
+                return GREEN;
             };
         }
 
         double x, z;
-        int i, j;
-        for (i = 0; i < resolution; i++) {
-            x = IrisInterpolation.lerp(sx, sx + size, (double) i / (double) (resolution));
-
-            for (j = 0; j < resolution; j++) {
-                z = IrisInterpolation.lerp(sz, sz + size, (double) j / (double) (resolution));
-                image.setRGB(i, j, colorFunction.apply(x, z));
+        for (int i = 0; i < resolution; i++) {
+            x = IrisInterpolation.lerp(sx, sx + size, (double) i / (double) resolution);
+            for (int j = 0; j < resolution; j++) {
+                z = IrisInterpolation.lerp(sz, sz + size, (double) j / (double) resolution);
+                pixels[j * resolution + i] = colorFunction.apply(x, z);
             }
         }
 

@@ -32,6 +32,10 @@ import art.arcane.iris.core.link.IrisPapiExpansion;
 import art.arcane.iris.core.link.MultiverseCoreLink;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
+import art.arcane.iris.core.pack.BrokenPackException;
+import art.arcane.iris.core.pack.PackValidationRegistry;
+import art.arcane.iris.core.pack.PackValidationResult;
+import art.arcane.iris.core.pack.PackValidator;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.EnginePanic;
@@ -537,6 +541,7 @@ public class Iris extends VolmitPlugin implements Listener {
         IO.delete(new File("iris"));
         compat = IrisCompat.configured(getDataFile("compat.json"));
         ServerConfigurator.configure();
+        validateAllPacks();
         IrisSafeguard.execute();
         getSender().setTag(getTag());
         IrisSafeguard.splash();
@@ -1008,6 +1013,16 @@ public class Iris extends VolmitPlugin implements Listener {
         Iris.debug("Default World Generator Called for " + worldName + " using ID: " + id);
         if (id == null || id.isEmpty()) id = IrisSettings.get().getGenerator().getDefaultWorldType();
         Iris.debug("Generator ID: " + id + " requested by bukkit/plugin");
+
+        PackValidationResult validation = PackValidationRegistry.get(id);
+        if (validation != null && !validation.isLoadable()) {
+            Iris.error("Refusing to create world '" + worldName + "' using broken pack '" + id + "':");
+            for (String reason : validation.getBlockingErrors()) {
+                Iris.error("  - " + reason);
+            }
+            throw new BrokenPackException(id, validation.getBlockingErrors());
+        }
+
         IrisDimension dim = loadDimension(worldName, id);
         if (dim == null) {
             throw new RuntimeException("Can't find dimension " + id + "!");
@@ -1037,6 +1052,38 @@ public class Iris extends VolmitPlugin implements Listener {
         }
 
         return new BukkitChunkGenerator(w, false, ff, dim.getLoadKey());
+    }
+
+    public static void validateAllPacks() {
+        File packsRoot = Iris.instance.getDataFolder("packs");
+        File[] packDirs = packsRoot.listFiles(File::isDirectory);
+        if (packDirs == null || packDirs.length == 0) {
+            return;
+        }
+        PackValidationRegistry.clear();
+        for (File packDir : packDirs) {
+            try {
+                PackValidationResult result = PackValidator.validate(packDir);
+                PackValidationRegistry.publish(result);
+                if (!result.isLoadable()) {
+                    Iris.error("Pack '" + result.getPackName() + "' FAILED validation - world/studio creation will be refused. Reasons:");
+                    for (String reason : result.getBlockingErrors()) {
+                        Iris.error("  - " + reason);
+                    }
+                } else if (!result.getWarnings().isEmpty() || !result.getRemovedUnusedFiles().isEmpty()) {
+                    Iris.info("Pack '" + result.getPackName() + "' validated ("
+                            + result.getRemovedUnusedFiles().size() + " unused file(s) quarantined to .iris-trash/, "
+                            + result.getWarnings().size() + " warning(s)).");
+                    for (String warning : result.getWarnings()) {
+                        Iris.warn("  [" + result.getPackName() + "] " + warning);
+                    }
+                } else {
+                    Iris.success("Pack '" + result.getPackName() + "' validated.");
+                }
+            } catch (Throwable e) {
+                Iris.reportError("Pack validation failed for '" + packDir.getName() + "'", e);
+            }
+        }
     }
 
     @Nullable

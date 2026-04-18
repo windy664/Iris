@@ -960,50 +960,11 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
     }
 
     default void gotoBiome(IrisBiome biome, Player player, boolean teleport) {
-        Set<String> regionKeys = getDimension()
-                .getAllRegions(this).stream()
-                .filter((i) -> i.getAllBiomeIds().contains(biome.getLoadKey()))
-                .map(IrisRegistrant::getLoadKey)
-                .collect(Collectors.toSet());
-        Locator<IrisBiome> lb = Locator.surfaceBiome(biome.getLoadKey());
-        Locator<IrisBiome> locator = (engine, chunk)
-                -> regionKeys.contains(getRegion((chunk.getX() << 4) + 8, (chunk.getZ() << 4) + 8).getLoadKey())
-                && lb.matches(engine, chunk);
-
-        if (!regionKeys.isEmpty()) {
-            locator.find(player, teleport, "Biome " + biome.getName());
-        } else {
-            player.sendMessage(C.RED + biome.getName() + " is not in any defined regions!");
-        }
+        Locator.surfaceBiome(biome.getLoadKey()).find(player, teleport, "Biome " + biome.getName());
     }
 
     default void gotoObject(String s, Player player, boolean teleport) {
-        Set<String> biomeKeys = getDimension().getAllBiomes(this).stream()
-                .filter((i) -> i.getObjects().stream().anyMatch((f) -> f.getPlace().contains(s)))
-                .map(IrisRegistrant::getLoadKey)
-                .collect(Collectors.toSet());
-        Set<String> regionKeys = getDimension().getAllRegions(this).stream()
-                .filter((i) -> i.getAllBiomeIds().stream().anyMatch(biomeKeys::contains)
-                        || i.getObjects().stream().anyMatch((f) -> f.getPlace().contains(s)))
-                .map(IrisRegistrant::getLoadKey)
-                .collect(Collectors.toSet());
-
-        Locator<IrisObject> sl = Locator.object(s);
-        Locator<IrisBiome> locator = (engine, chunk) -> {
-            if (biomeKeys.contains(getSurfaceBiome((chunk.getX() << 4) + 8, (chunk.getZ() << 4) + 8).getLoadKey())) {
-                return sl.matches(engine, chunk);
-            } else if (regionKeys.contains(getRegion((chunk.getX() << 4) + 8, (chunk.getZ() << 4) + 8).getLoadKey())) {
-                return sl.matches(engine, chunk);
-            }
-
-            return false;
-        };
-
-        if (!regionKeys.isEmpty()) {
-            locator.find(player, teleport, "Object " + s);
-        } else {
-            player.sendMessage(C.RED + s + " is not in any defined regions or biomes!");
-        }
+        Locator.object(s).find(player, teleport, "Object " + s);
     }
 
     default boolean hasObjectPlacement(String objectKey) {

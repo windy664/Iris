@@ -19,9 +19,11 @@
 package art.arcane.iris.engine.decorator;
 
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.object.InferredType;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
+import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.math.RNG;
@@ -40,9 +42,13 @@ public class IrisCeilingDecorator extends IrisEngineDecorator {
     public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1, Hunk<BlockData> data, IrisBiome biome, int height, int max) {
         RNG rng = getRNG(realX, realZ);
         IrisDecorator decorator = getDecorator(rng, biome, realX, realZ);
+        boolean caveSkipFluid = biome.getInferredType() == InferredType.CAVE;
 
         if (decorator != null) {
             if (!decorator.isStacking()) {
+                if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
+                    return;
+                }
                 data.set(x, height, z, fixFaces(decorator.getBlockData100(biome, rng, realX, height, realZ, getData()), data, x, z, realX, height, realZ));
             } else {
                 int stack = decorator.getHeight(rng, realX, realZ, getData());
@@ -53,6 +59,9 @@ public class IrisCeilingDecorator extends IrisEngineDecorator {
                 }
 
                 if (stack == 1) {
+                    if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
+                        return;
+                    }
                     data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
                     return;
                 }
@@ -92,6 +101,9 @@ public class IrisCeilingDecorator extends IrisEngineDecorator {
                         ((PointedDripstone) bd).setVerticalDirection(BlockFace.DOWN);
                     }
 
+                    if (caveSkipFluid && B.isFluid(data.get(x, h, z))) {
+                        break;
+                    }
                     data.set(x, h, z, bd);
                 }
             }

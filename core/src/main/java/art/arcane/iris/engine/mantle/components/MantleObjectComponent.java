@@ -37,10 +37,8 @@ import art.arcane.iris.util.project.stream.ProceduralStream;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.format.Form;
-import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.mantle.flag.ReservedFlag;
 import art.arcane.volmlib.util.math.RNG;
-import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.matter.MatterStructurePOI;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.project.noise.NoiseType;
@@ -373,19 +371,46 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int zz = rng.i(z, z + 15);
             int surfaceObjectExclusionDepth = resolveSurfaceObjectExclusionDepth(surfaceObjectExclusionBaseDepth, v);
             int surfaceObjectExclusionRadius = resolveSurfaceObjectExclusionRadius(v);
-            if (surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius)) {
-                rejected++;
-                continue;
-            }
+            boolean overCave = surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius);
             int id = rng.i(0, Integer.MAX_VALUE);
             IrisObjectPlacement effectivePlacement = resolveEffectivePlacement(objectPlacement, v);
             try {
-                int result = v.place(xx, -1, zz, writer, effectivePlacement, rng, (b, data) -> {
-                    writer.setData(b.getX(), b.getY(), b.getZ(), v.getLoadKey() + "@" + id);
-                    if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(data)) {
-                        writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
+                int result = -1;
+                String fallbackPath = "surface";
+
+                if (overCave) {
+                    int caveFloorY = findNearestCaveFloor(writer, xx, zz);
+                    if (caveFloorY > 0) {
+                        IrisObjectPlacement floorPlacement = effectivePlacement.toPlacement(v.getLoadKey());
+                        floorPlacement.setMode(ObjectPlaceMode.FAST_MIN_HEIGHT);
+                        result = v.place(xx, caveFloorY, zz, writer, floorPlacement, rng, (b, data) -> {
+                            writer.setData(b.getX(), b.getY(), b.getZ(), v.getLoadKey() + "@" + id);
+                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(data)) {
+                                writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
+                            }
+                        }, null, getData());
+                        fallbackPath = "cave-floor";
                     }
-                }, null, getData());
+
+                    if (result < 0) {
+                        IrisObjectPlacement stiltPlacement = effectivePlacement.toPlacement(v.getLoadKey());
+                        stiltPlacement.setMode(ObjectPlaceMode.FAST_MIN_STILT);
+                        result = v.place(xx, -1, zz, writer, stiltPlacement, rng, (b, data) -> {
+                            writer.setData(b.getX(), b.getY(), b.getZ(), v.getLoadKey() + "@" + id);
+                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(data)) {
+                                writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
+                            }
+                        }, null, getData());
+                        fallbackPath = "stilt";
+                    }
+                } else {
+                    result = v.place(xx, -1, zz, writer, effectivePlacement, rng, (b, data) -> {
+                        writer.setData(b.getX(), b.getY(), b.getZ(), v.getLoadKey() + "@" + id);
+                        if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(data)) {
+                            writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
+                        }
+                    }, null, getData());
+                }
 
                 if (result >= 0) {
                     placed++;
@@ -400,6 +425,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                             + " resultY=" + result
                             + " px=" + xx
                             + " pz=" + zz
+                            + " overCave=" + overCave
+                            + " fallback=" + fallbackPath
                             + " densityIndex=" + i
                             + " density=" + density);
                 }
@@ -729,6 +756,14 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return null;
     }
 
+    private int findNearestCaveFloor(MantleWriter writer, int x, int z) {
+        KList<Integer> anchors = scanCaveAnchorColumn(writer, IrisCaveAnchorMode.FLOOR, 1, 0, x, z);
+        if (anchors.isEmpty()) {
+            return -1;
+        }
+        return anchors.get(anchors.size() - 1);
+    }
+
     private int findCaveAnchorY(MantleWriter writer, RNG rng, int x, int z, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, KMap<Long, KList<Integer>> anchorCache) {
         long key = Cache.key(x, z);
         KList<Integer> anchors = anchorCache.computeIfAbsent(key, (k) -> scanCaveAnchorColumn(writer, anchorMode, anchorScanStep, objectMinDepthBelowSurface, x, z));
@@ -744,55 +779,58 @@ public class MantleObjectComponent extends IrisMantleComponent {
     }
 
     private KList<Integer> scanCaveAnchorColumn(MantleWriter writer, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, int x, int z) {
-        KList<Integer> anchors = new KList<>();
         int height = getEngineMantle().getEngine().getHeight();
         int step = Math.max(1, anchorScanStep);
         int surfaceY = getEngineMantle().getEngine().getHeight(x, z);
-        int maxAnchorY = Math.min(height - 1, surfaceY - Math.max(0, objectMinDepthBelowSurface));
-        if (maxAnchorY <= 1) {
-            logCaveAnchorDiag(writer, x, z, surfaceY, maxAnchorY, height, objectMinDepthBelowSurface, 0, 0);
+        int baseMaxAnchorY = Math.min(height - 1, surfaceY - Math.max(0, objectMinDepthBelowSurface));
+        if (baseMaxAnchorY <= 1) {
+            return new KList<>();
+        }
+
+        KList<Integer> anchors = scanCaveAnchorRange(writer, anchorMode, step, x, z, height, baseMaxAnchorY);
+        if (!anchors.isEmpty()) {
             return anchors;
         }
 
-        int carvedCount = 0;
-        for (int y = 1; y < maxAnchorY; y += step) {
-            if (!writer.isCarved(x, y, z)) {
-                continue;
+        int widenedMaxAnchorY = Math.min(height - 1, surfaceY - 3);
+        widenedMaxAnchorY = Math.min(widenedMaxAnchorY, baseMaxAnchorY + Math.max(0, objectMinDepthBelowSurface) / 2);
+        if (widenedMaxAnchorY > baseMaxAnchorY) {
+            anchors = scanCaveAnchorRange(writer, anchorMode, step, x, z, height, widenedMaxAnchorY);
+            if (!anchors.isEmpty()) {
+                return anchors;
             }
-
-            carvedCount++;
-            boolean solidBelow = y <= 0 || !writer.isCarved(x, y - 1, z);
-            boolean solidAbove = y >= (height - 1) || !writer.isCarved(x, y + 1, z);
-            if (matchesCaveAnchor(anchorMode, solidBelow, solidAbove)) {
-                anchors.add(y);
-            }
-        }
-
-        if (anchors.isEmpty()) {
-            logCaveAnchorDiag(writer, x, z, surfaceY, maxAnchorY, height, objectMinDepthBelowSurface, carvedCount, 0);
         }
 
         return anchors;
     }
 
-    private void logCaveAnchorDiag(MantleWriter writer, int x, int z, int surfaceY, int maxAnchorY, int height, int minDepth, int carvedCount, int anchorCount) {
-        long now = System.currentTimeMillis();
-        CaveRejectLogState state = CAVE_REJECT_LOG_STATE.computeIfAbsent("anchor-diag-" + (x >> 4) + "," + (z >> 4), k -> new CaveRejectLogState());
-        if (now - state.lastLogMs.get() < CAVE_REJECT_LOG_THROTTLE_MS) {
-            return;
+    private KList<Integer> scanCaveAnchorRange(MantleWriter writer, IrisCaveAnchorMode anchorMode, int step, int x, int z, int height, int maxAnchorY) {
+        KList<Integer> anchors = new KList<>();
+        for (int y = 1; y < maxAnchorY; y += step) {
+            if (!writer.isCarved(x, y, z)) {
+                continue;
+            }
+
+            boolean solidBelow = hasSolidNeighbor(writer, x, y, z, height, -1);
+            boolean solidAbove = hasSolidNeighbor(writer, x, y, z, height, 1);
+            if (matchesCaveAnchor(anchorMode, solidBelow, solidAbove)) {
+                anchors.add(y);
+            }
         }
-        state.lastLogMs.set(now);
-        MantleChunk<Matter> chunk = writer.acquireChunk(x >> 4, z >> 4);
-        Iris.info("Cave anchor diag: block=" + x + "," + z
-                + " chunk=" + (x >> 4) + "," + (z >> 4)
-                + " surfaceY=" + surfaceY
-                + " maxAnchorY=" + maxAnchorY
-                + " worldHeight=" + height
-                + " minDepth=" + minDepth
-                + " carvedInColumn=" + carvedCount
-                + " anchorsFound=" + anchorCount
-                + " chunkRef=" + (chunk == null ? "null" : System.identityHashCode(chunk))
-                + " writerRef=" + System.identityHashCode(writer));
+        return anchors;
+    }
+
+    private boolean hasSolidNeighbor(MantleWriter writer, int x, int y, int z, int height, int direction) {
+        for (int d = 1; d <= 3; d++) {
+            int ny = y + (direction * d);
+            if (ny < 0 || ny >= height) {
+                return true;
+            }
+            if (!writer.isCarved(x, ny, z)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesCaveAnchor(IrisCaveAnchorMode anchorMode, boolean solidBelow, boolean solidAbove) {

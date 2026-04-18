@@ -185,6 +185,13 @@ public class ServerConfigurator {
         DimensionHeight height = new DimensionHeight(fixer);
         KList<File> baseFolders = getDatapacksFolder();
         KList<File> folders = collectInstallDatapackFolders(baseFolders, extraWorldDatapackFoldersByPack);
+        if (fullInstall) {
+            if (anyDimensionHasVanillaStructures()) {
+                VanillaDatapackDumper.dumpIfNeeded(baseFolders);
+            } else {
+                VanillaDatapackDumper.removeIfPresent(baseFolders);
+            }
+        }
         if (includeExternal) {
             installExternalDataPacks(baseFolders, extraWorldDatapackFoldersByPack);
         }
@@ -254,10 +261,35 @@ public class ServerConfigurator {
         if (summary.getLegacyWorldCopyRemovals() > 0) {
             Iris.verbose("Removed " + summary.getLegacyWorldCopyRemovals() + " legacy managed world datapack copies.");
         }
+        if (summary.getSkippedExistingRequests() > 0) {
+            Iris.verbose("Reused " + summary.getSkippedExistingRequests() + " already-installed external datapack(s) (no download/projection).");
+        }
         int loadedDatapackCount = Math.max(0, summary.getRequests() - summary.getOptionalFailures() - summary.getRequiredFailures());
         Iris.info("Loaded Datapacks into Iris: " + loadedDatapackCount + "!");
         if (summary.getRequiredFailures() > 0) {
             throw new IllegalStateException("Required external datapack setup failed for " + summary.getRequiredFailures() + " request(s).");
+        }
+    }
+
+    private static boolean anyDimensionHasVanillaStructures() {
+        try (Stream<IrisData> stream = allPacks()) {
+            return stream.anyMatch(data -> {
+                ResourceLoader<IrisDimension> loader = data.getDimensionLoader();
+                if (loader == null) {
+                    return false;
+                }
+                String[] keys = loader.getPossibleKeys();
+                if (keys == null || keys.length == 0) {
+                    return false;
+                }
+                for (String key : keys) {
+                    IrisDimension dim = loader.load(key);
+                    if (dim != null && dim.isVanillaStructures()) {
+                        return true;
+                    }
+                }
+                return false;
+            });
         }
     }
 
@@ -370,17 +402,9 @@ public class ServerConfigurator {
                             targetPack,
                             environment,
                             definition.isRequired(),
-                            definition.isReplaceVanilla(),
-                            definition.isSupportSmartBore(),
-                            definition.getReplaceTargets(),
-                            definition.getStructureAliases(),
-                            definition.getStructureSetAliases(),
-                            definition.getTemplateAliases(),
-                            definition.getStructurePatches(),
+                            definition.isReplace(),
                             Set.of(),
-                            scopeKey,
-                            !definition.isReplaceVanilla(),
-                            Set.of()
+                            scopeKey
                     );
                     dedupeMerges += mergeDeduplicatedRequest(deduplicated, request);
                     unscopedRequests++;
@@ -389,8 +413,7 @@ public class ServerConfigurator {
                             + ", dimension=" + dimension.getLoadKey()
                             + ", scope=dimension-root"
                             + ", forcedBiomes=0"
-                            + ", replaceVanilla=" + definition.isReplaceVanilla()
-                            + ", alongsideMode=" + (!definition.isReplaceVanilla())
+                            + ", replace=" + definition.isReplace()
                             + ", required=" + definition.isRequired());
                     continue;
                 }
@@ -403,16 +426,8 @@ public class ServerConfigurator {
                             environment,
                             group.required(),
                             group.replaceVanilla(),
-                            definition.isSupportSmartBore(),
-                            definition.getReplaceTargets(),
-                            definition.getStructureAliases(),
-                            definition.getStructureSetAliases(),
-                            definition.getTemplateAliases(),
-                            definition.getStructurePatches(),
                             group.forcedBiomeKeys(),
-                            group.scopeKey(),
-                            !group.replaceVanilla(),
-                            Set.of()
+                            group.scopeKey()
                     );
                     dedupeMerges += mergeDeduplicatedRequest(deduplicated, request);
                     scopedRequests++;
@@ -421,8 +436,7 @@ public class ServerConfigurator {
                             + ", dimension=" + dimension.getLoadKey()
                             + ", scope=" + group.source()
                             + ", forcedBiomes=" + group.forcedBiomeKeys().size()
-                            + ", replaceVanilla=" + group.replaceVanilla()
-                            + ", alongsideMode=" + (!group.replaceVanilla())
+                            + ", replace=" + group.replaceVanilla()
                             + ", required=" + group.required());
                 }
             }
@@ -507,9 +521,9 @@ public class ServerConfigurator {
                     continue;
                 }
 
-                boolean replaceVanilla = binding.getReplaceVanillaOverride() == null
-                        ? definition.isReplaceVanilla()
-                        : binding.getReplaceVanillaOverride();
+                boolean replaceVanilla = binding.getReplaceOverride() == null
+                        ? definition.isReplace()
+                        : binding.getReplaceOverride();
                 boolean required = binding.getRequiredOverride() == null
                         ? definition.isRequired()
                         : binding.getRequiredOverride();
@@ -551,9 +565,9 @@ public class ServerConfigurator {
                     continue;
                 }
 
-                boolean replaceVanilla = binding.getReplaceVanillaOverride() == null
-                        ? definition.isReplaceVanilla()
-                        : binding.getReplaceVanillaOverride();
+                boolean replaceVanilla = binding.getReplaceOverride() == null
+                        ? definition.isReplace()
+                        : binding.getReplaceOverride();
                 boolean required = binding.getRequiredOverride() == null
                         ? definition.isRequired()
                         : binding.getRequiredOverride();

@@ -140,37 +140,28 @@ public class MantleCarvingComponent extends IrisMantleComponent {
                     continue;
                 }
 
-                IrisCaveProfile dominantProfile = null;
-                double dominantKernelWeight = Double.NEGATIVE_INFINITY;
+                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
                 for (int profileIndex = 0; profileIndex < profileCount; profileIndex++) {
                     IrisCaveProfile profile = kernelProfiles[profileIndex];
                     double kernelWeight = kernelProfileWeights[profileIndex];
-                    if (kernelWeight > dominantKernelWeight) {
-                        dominantProfile = profile;
-                        dominantKernelWeight = kernelWeight;
-                    } else if (kernelWeight == dominantKernelWeight
-                            && profileSortKey(profile) < profileSortKey(dominantProfile)) {
-                        dominantProfile = profile;
-                    }
                     kernelProfiles[profileIndex] = null;
                     kernelProfileWeights[profileIndex] = 0D;
-                }
 
-                if (dominantProfile == null) {
-                    continue;
-                }
+                    double columnWeight = clampWeight(kernelWeight / totalKernelWeight);
+                    if (columnWeight < MIN_WEIGHT) {
+                        continue;
+                    }
 
-                int columnIndex = PowerOfTwoCoordinates.packLocal16(localX, localZ);
-                double dominantWeight = clampWeight(dominantKernelWeight / totalKernelWeight);
-                double[] weights = columnProfileWeights.get(dominantProfile);
-                if (weights == null) {
-                    weights = new double[CHUNK_AREA];
-                    columnProfileWeights.put(dominantProfile, weights);
-                } else if (!activeProfiles.containsKey(dominantProfile)) {
-                    Arrays.fill(weights, 0D);
+                    double[] weights = columnProfileWeights.get(profile);
+                    if (weights == null) {
+                        weights = new double[CHUNK_AREA];
+                        columnProfileWeights.put(profile, weights);
+                    } else if (!activeProfiles.containsKey(profile)) {
+                        Arrays.fill(weights, 0D);
+                    }
+                    activeProfiles.put(profile, Boolean.TRUE);
+                    weights[columnIndex] = columnWeight;
                 }
-                activeProfiles.put(dominantProfile, Boolean.TRUE);
-                weights[columnIndex] = dominantWeight;
             }
         }
 
@@ -440,7 +431,7 @@ public class MantleCarvingComponent extends IrisMantleComponent {
                     continue;
                 }
                 if (cachedChunkHeights != null) {
-                    surfaceHeights[columnIndex] = (int) Math.round(cachedChunkHeights[columnIndex]);
+                    surfaceHeights[columnIndex] = (int) Math.round(cachedChunkHeights[(localZ << 4) + localX]);
                     continue;
                 }
                 surfaceHeights[columnIndex] = getEngineMantle().getEngine().getHeight(worldX, worldZ);

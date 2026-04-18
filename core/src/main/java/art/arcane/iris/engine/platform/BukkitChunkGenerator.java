@@ -380,6 +380,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                             INMS.get().placeStructures(c);
                             setChunkReplacementPhase(phaseRef, effectiveListener, "chunk-load-callback", x, z);
                             engine.getWorldManager().onChunkLoad(c, true);
+                            world.refreshChunk(c.getX(), c.getZ());
                         } finally {
                             Iris.tickets.removeTicket(c);
                         }
@@ -464,6 +465,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                     CompletableFuture.runAsync(() -> {
                         setChunkReplacementPhase(phaseRef, effectiveListener, "chunk-load-callback", x, z);
                         engine.getWorldManager().onChunkLoad(c, true);
+                        world.refreshChunk(c.getX(), c.getZ());
                     }, syncExecutor).get();
                 } finally {
                     Iris.tickets.removeTicket(c);

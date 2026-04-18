@@ -103,7 +103,7 @@ public class CommandStudio implements DirectorExecutor {
     public void download(
             @Param(name = "pack", description = "The pack to download", defaultValue = "overworld", aliases = "project")
             String pack,
-            @Param(name = "branch", description = "The branch to download from", defaultValue = "master")
+            @Param(name = "branch", description = "The branch to download from", defaultValue = "stable")
             String branch,
             //@Param(name = "trim", description = "Whether or not to download a trimmed version (do not enable when editing)", defaultValue = "false")
             //boolean trim,

@@ -18,8 +18,8 @@ public class IrisExternalDatapackBinding {
     @Desc("Enable or disable this scoped binding")
     private boolean enabled = true;
 
-    @Desc("Override replaceVanilla behavior for this scoped binding (null keeps dimension default)")
-    private Boolean replaceVanillaOverride = null;
+    @Desc("Override replace behavior for this scoped binding (null keeps dimension default)")
+    private Boolean replaceOverride = null;
 
     @Desc("Include child biomes recursively when collecting scoped biome boundaries")
     private boolean includeChildren = true;
