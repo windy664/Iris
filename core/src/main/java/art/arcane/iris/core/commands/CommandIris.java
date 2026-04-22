@@ -101,6 +101,7 @@ public class CommandIris implements DirectorExecutor {
     private CommandEdit edit;
     private CommandDeveloper developer;
     private CommandPack pack;
+    private CommandFind find;
     public static boolean worldCreation = false;
     private static final AtomicReference<Thread> mainWorld = new AtomicReference<>();
     String WorldEngine;

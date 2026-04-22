@@ -33,6 +33,7 @@ public class IslandObjectPlacer implements IObjectPlacer {
 
     private final MantleWriter wrapped;
     private final FloatingIslandSample[] samples;
+    private final boolean[] overhangAllowed;
     private final int minX;
     private final int minZ;
     private final int chunkMaxIslandTopY;
@@ -57,6 +58,38 @@ public class IslandObjectPlacer implements IObjectPlacer {
             }
         }
         this.chunkMaxIslandTopY = maxY;
+        this.overhangAllowed = buildOverhangMask(samples);
+    }
+
+    private static boolean[] buildOverhangMask(FloatingIslandSample[] samples) {
+        boolean[] mask = new boolean[256];
+        for (int zf = 0; zf < 16; zf++) {
+            for (int xf = 0; xf < 16; xf++) {
+                int idx = (zf << 4) | xf;
+                if (samples[idx] != null) {
+                    mask[idx] = true;
+                    continue;
+                }
+                boolean touchedEdge = false;
+                boolean found = false;
+                for (int dz = -OVERHANG_RADIUS; dz <= OVERHANG_RADIUS && !found; dz++) {
+                    int nzf = zf + dz;
+                    for (int dx = -OVERHANG_RADIUS; dx <= OVERHANG_RADIUS; dx++) {
+                        int nxf = xf + dx;
+                        if (nxf < 0 || nxf >= 16 || nzf < 0 || nzf >= 16) {
+                            touchedEdge = true;
+                            continue;
+                        }
+                        if (samples[(nzf << 4) | nxf] != null) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                mask[idx] = found || touchedEdge;
+            }
+        }
+        return mask;
     }
 
     public int getWritesAttempted() {
@@ -73,38 +106,29 @@ public class IslandObjectPlacer implements IObjectPlacer {
 
     private boolean shouldSkipAirColumn(int x, int y, int z) {
         writesAttempted++;
-        if (sampleAt(x, z) != null) {
+        int xf = x - minX;
+        int zf = z - minZ;
+        if (xf >= 0 && xf < 16 && zf >= 0 && zf < 16) {
+            int idx = (zf << 4) | xf;
+            if (samples[idx] != null) {
+                return false;
+            }
+            if (y <= anchorTopY) {
+                writesDroppedBelow++;
+                return true;
+            }
+            if (!overhangAllowed[idx]) {
+                writesDroppedOverhang++;
+                return true;
+            }
             return false;
         }
         if (y <= anchorTopY) {
             writesDroppedBelow++;
             return true;
         }
-        if (!hasIslandNeighborWithin(x, z, OVERHANG_RADIUS)) {
-            writesDroppedOverhang++;
-            return true;
-        }
-        return false;
-    }
-
-    private boolean hasIslandNeighborWithin(int x, int z, int radius) {
-        int xf = x - minX;
-        int zf = z - minZ;
-        boolean touchedChunkEdge = false;
-        for (int dx = -radius; dx <= radius; dx++) {
-            int nxf = xf + dx;
-            for (int dz = -radius; dz <= radius; dz++) {
-                int nzf = zf + dz;
-                if (nxf < 0 || nxf >= 16 || nzf < 0 || nzf >= 16) {
-                    touchedChunkEdge = true;
-                    continue;
-                }
-                if (samples[(nzf << 4) | nxf] != null) {
-                    return true;
-                }
-            }
-        }
-        return touchedChunkEdge;
+        writesDroppedOverhang++;
+        return true;
     }
 
     private @Nullable FloatingIslandSample sampleAt(int x, int z) {

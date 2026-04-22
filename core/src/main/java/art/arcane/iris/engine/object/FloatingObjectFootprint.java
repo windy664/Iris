@@ -24,13 +24,9 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.util.BlockVector;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,16 +40,16 @@ public class FloatingObjectFootprint {
     private final int centerZ;
     private final int tallestKx;
     private final int tallestKz;
-    private final Set<Long> footprintXZ;
+    private final long[] footprintXZ;
 
-    private FloatingObjectFootprint(int lowestSolidKeyY, int centerX, int centerY, int centerZ, int tallestKx, int tallestKz, Set<Long> footprintXZ) {
+    private FloatingObjectFootprint(int lowestSolidKeyY, int centerX, int centerY, int centerZ, int tallestKx, int tallestKz, long[] footprintXZ) {
         this.lowestSolidKeyY = lowestSolidKeyY;
         this.centerX = centerX;
         this.centerY = centerY;
         this.centerZ = centerZ;
         this.tallestKx = tallestKx;
         this.tallestKz = tallestKz;
-        this.footprintXZ = Collections.unmodifiableSet(footprintXZ);
+        this.footprintXZ = footprintXZ;
     }
 
     public static FloatingObjectFootprint compute(IrisObject obj) {
@@ -65,7 +61,6 @@ public class FloatingObjectFootprint {
         int cx = obj.getCenter().getBlockX();
         int cy = obj.getCenter().getBlockY();
         int cz = obj.getCenter().getBlockZ();
-        Set<Long> xzSet = new HashSet<>();
         Map<Long, int[]> columnStats = new HashMap<>();
 
         obj.getBlocks().forEach((BlockVector key, BlockData bd) -> {
@@ -76,7 +71,6 @@ public class FloatingObjectFootprint {
             int ky = key.getBlockY();
             int kz = key.getBlockZ();
             long packed = ((long) kx << 32) | (kz & 0xFFFFFFFFL);
-            xzSet.add(packed);
             int[] stats = columnStats.get(packed);
             if (stats == null) {
                 stats = new int[]{ky, 1};
@@ -89,6 +83,12 @@ public class FloatingObjectFootprint {
             }
         });
 
+        long[] footprintArray = new long[columnStats.size()];
+        int idx = 0;
+        for (Long packed : columnStats.keySet()) {
+            footprintArray[idx++] = packed;
+        }
+
         long tallestPacked = resolveTallestColumn(columnStats);
         int lowestSolidKeyY = columnStats.isEmpty()
                 ? cy
@@ -98,7 +98,7 @@ public class FloatingObjectFootprint {
         if (DIAGNOSTIC_LOG) {
             logFootprintDiagnostic(cacheKey, obj, cx, cy, cz, lowestSolidKeyY, tallestKx, tallestKz, columnStats);
         }
-        return new FloatingObjectFootprint(lowestSolidKeyY, cx, cy, cz, tallestKx, tallestKz, xzSet);
+        return new FloatingObjectFootprint(lowestSolidKeyY, cx, cy, cz, tallestKx, tallestKz, footprintArray);
     }
 
     private static void logFootprintDiagnostic(String cacheKey, IrisObject obj, int cx, int cy, int cz, int anchorY, int tallestKx, int tallestKz, Map<Long, int[]> columnStats) {
@@ -204,10 +204,6 @@ public class FloatingObjectFootprint {
         return bestPacked;
     }
 
-    public boolean columnInFootprint(int objKeyX, int objKeyZ) {
-        return footprintXZ.contains(((long) objKeyX << 32) | (objKeyZ & 0xFFFFFFFFL));
-    }
-
     public int lowestSolidRelCenterY() {
         return lowestSolidKeyY - centerY;
     }
@@ -236,7 +232,7 @@ public class FloatingObjectFootprint {
         return tallestKz;
     }
 
-    public Set<Long> footprintXZ() {
+    public long[] footprintXZ() {
         return footprintXZ;
     }
 }
