@@ -27,7 +27,9 @@ import art.arcane.volmlib.util.math.Spiraler;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 
 @Builder
 @Data
@@ -117,8 +119,48 @@ public class PregenTask {
         }));
     }
 
+    @FunctionalInterface
+    public interface InterleavedChunkConsumer {
+        boolean on(int regionX, int regionZ, int chunkX, int chunkZ, boolean firstChunkInRegion, boolean lastChunkInRegion);
+    }
+
     public void iterateAllChunks(Spiraled s) {
         iterateRegions(((rX, rZ) -> iterateChunks(rX, rZ, s)));
+    }
+
+    public void iterateAllChunksInterleaved(InterleavedChunkConsumer consumer) {
+        List<int[]> regions = new ArrayList<>();
+        iterateRegions((rX, rZ) -> regions.add(new int[]{rX, rZ}));
+
+        List<List<int[]>> regionChunks = new ArrayList<>();
+        for (int[] region : regions) {
+            List<int[]> chunks = new ArrayList<>();
+            iterateChunks(region[0], region[1], (cx, cz) -> chunks.add(new int[]{region[0], region[1], cx, cz}));
+            if (!chunks.isEmpty()) {
+                regionChunks.add(chunks);
+            }
+        }
+
+        int[] indices = new int[regionChunks.size()];
+        boolean anyRemaining = true;
+        while (anyRemaining) {
+            anyRemaining = false;
+            for (int r = 0; r < regionChunks.size(); r++) {
+                List<int[]> chunks = regionChunks.get(r);
+                int idx = indices[r];
+                if (idx >= chunks.size()) {
+                    continue;
+                }
+                anyRemaining = true;
+                int[] entry = chunks.get(idx);
+                boolean first = idx == 0;
+                boolean last = idx == chunks.size() - 1;
+                indices[r]++;
+                if (!consumer.on(entry[0], entry[1], entry[2], entry[3], first, last)) {
+                    return;
+                }
+            }
+        }
     }
 
     private class Bounds {

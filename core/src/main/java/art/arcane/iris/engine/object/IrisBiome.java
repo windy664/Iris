@@ -48,6 +48,7 @@ import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 
 import java.awt.*;
+import java.util.EnumMap;
 
 @Accessors(chain = true)
 @NoArgsConstructor
@@ -77,6 +78,8 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     private final transient AtomicCache<KList<CNG>> layerSeaHeightGenerators = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> surfaceOreCache = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> undergroundOreCache = new AtomicCache<>();
+    private final transient AtomicCache<EnumMap<IrisDecorationPart, IrisDecorator[]>> decoratorBuckets = new AtomicCache<>();
+    private static final IrisDecorator[] EMPTY_BUCKET = new IrisDecorator[0];
     @MinNumber(2)
     @Required
     @Desc("This is the human readable name for this biome. This can and should be different than the file name. This is not used for loading biomes in other objects.")
@@ -791,7 +794,23 @@ public class IrisBiome extends IrisRegistrant implements IRare {
         return "biomes";
     }
 
-    @Override
+    public IrisDecorator[] getDecoratorBucket(IrisDecorationPart part) {
+        return decoratorBuckets.aquire(this::buildDecoratorBuckets).getOrDefault(part, EMPTY_BUCKET);
+    }
+
+    private EnumMap<IrisDecorationPart, IrisDecorator[]> buildDecoratorBuckets() {
+        EnumMap<IrisDecorationPart, KList<IrisDecorator>> staging = new EnumMap<>(IrisDecorationPart.class);
+        for (IrisDecorator d : decorators) {
+            staging.computeIfAbsent(d.getPartOf(), k -> new KList<>()).add(d);
+        }
+        EnumMap<IrisDecorationPart, IrisDecorator[]> result = new EnumMap<>(IrisDecorationPart.class);
+        for (IrisDecorationPart part : IrisDecorationPart.values()) {
+            KList<IrisDecorator> list = staging.get(part);
+            result.put(part, list == null ? EMPTY_BUCKET : list.toArray(EMPTY_BUCKET));
+        }
+        return result;
+    }
+
     public String getTypeName() {
         return "Biome";
     }

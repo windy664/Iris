@@ -328,7 +328,14 @@ public final class WorldRuntimeControlService {
         int[] scanOrder = new int[maxY - minY + 1];
         int index = 0;
 
-        for (int y = maxY; y >= minY; y--) {
+        int runtimeSurface = world.getHighestBlockYAt((int) source.getX(), (int) source.getZ());
+        int startY = Math.min(maxY, runtimeSurface + 1);
+
+        for (int y = startY; y >= minY; y--) {
+            scanOrder[index++] = y;
+        }
+
+        for (int y = startY + 1; y <= maxY; y++) {
             scanOrder[index++] = y;
         }
 

@@ -59,8 +59,10 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
     private static final AtomicLong decorateNoChange = new AtomicLong();
     private static final AtomicLong decorateFloorNull = new AtomicLong();
     private static final java.util.concurrent.ConcurrentHashMap<String, AtomicLong> floorMatHisto = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final AtomicLong decCandidatesNull = new AtomicLong();
     private static final AtomicLong lastReportMs = new AtomicLong(0L);
     private static final AtomicLong reportCycle = new AtomicLong(0L);
+    private static final Runnable INC_DEC_CANDIDATES_NULL = () -> decCandidatesNull.incrementAndGet();
     private final RNG rng;
     private final EngineDecorator seaSurfaceDecorator;
 
@@ -84,7 +86,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 + " decPlaced=" + decoratePlaced.get()
                 + " decNoChange=" + decorateNoChange.get()
                 + " decFloorNull=" + decorateFloorNull.get()
-                + " decCandidatesNull=" + FloatingDecorator.decCandidatesNull.get()
+                + " decCandidatesNull=" + decCandidatesNull.get()
                 + " decSkipNonAir=" + decorateSkippedNotAir.get()
                 + " decSkipNoInherit=" + decorateSkippedNoInherit.get()
                 + " decPhaseCols=" + decoratePhaseColumns.get()
@@ -126,7 +128,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
         decorateNoChange.set(0);
         decorateFloorNull.set(0);
         floorMatHisto.clear();
-        FloatingDecorator.decCandidatesNull.set(0);
+        decCandidatesNull.set(0);
         MantleFloatingObjectComponent.resetObjectCounters();
     }
 
@@ -285,7 +287,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                         }
                         try {
                             RNG colRng = rng.nextParallelRNG((int) FloatingIslandSample.columnSeed(baseSeed, wx, wz));
-                            int placed = FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng);
+                            int placed = FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng, INC_DEC_CANDIDATES_NULL);
                             if (placed > 0) {
                                 decoratePlaced.addAndGet(placed);
                             } else {

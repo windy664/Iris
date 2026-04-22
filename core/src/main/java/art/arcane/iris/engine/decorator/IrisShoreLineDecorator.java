@@ -22,59 +22,72 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
-import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
+import art.arcane.iris.util.project.stream.ProceduralStream;
+import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.block.data.BlockData;
 
 public class IrisShoreLineDecorator extends IrisEngineDecorator {
+    private final RNG partRNG;
+
     public IrisShoreLineDecorator(Engine engine) {
         super(engine, "Shore Line", IrisDecorationPart.SHORE_LINE);
+        this.partRNG = new RNG(DecoratorCore.partSeed(getSeed(), IrisDecorationPart.SHORE_LINE));
     }
 
     @BlockCoordinates
     @Override
-    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1, Hunk<BlockData> data, IrisBiome biome, int height, int max) {
+    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1,
+                         Hunk<BlockData> data, IrisBiome biome, int height, int max) {
+        if (height != getDimension().getFluidHeight()) {
+            return;
+        }
 
-        if (height == getDimension().getFluidHeight()) {
-            if (Math.round(getComplex().getHeightStream().get(realX1, realZ)) < getComplex().getFluidHeight() ||
-                    Math.round(getComplex().getHeightStream().get(realX_1, realZ)) < getComplex().getFluidHeight() ||
-                    Math.round(getComplex().getHeightStream().get(realX, realZ1)) < getComplex().getFluidHeight() ||
-                    Math.round(getComplex().getHeightStream().get(realX, realZ_1)) < getComplex().getFluidHeight()
-            ) {
-                RNG rng = getRNG(realX, realZ);
-                IrisDecorator decorator = getDecorator(rng, biome, realX, realZ);
+        double complexFluidHeight = getComplex().getFluidHeight();
+        ProceduralStream<Double> heightStream = getComplex().getHeightStream();
+        if (Math.round(heightStream.get(realX1, realZ)) >= complexFluidHeight
+                && Math.round(heightStream.get(realX_1, realZ)) >= complexFluidHeight
+                && Math.round(heightStream.get(realX, realZ1)) >= complexFluidHeight
+                && Math.round(heightStream.get(realX, realZ_1)) >= complexFluidHeight) {
+            return;
+        }
 
-                if (decorator != null) {
-                    if (!decorator.isForcePlace() && !decorator.getSlopeCondition().isDefault()
-                            && !decorator.getSlopeCondition().isValid(getComplex().getSlopeStream().get(realX, realZ))) {
-                        return;
-                    }
+        RNG rng = getRNG(realX, realZ);
+        IrisDecorator decorator = DecoratorCore.pickDecorator(biome, getPart(), partRNG, rng, getData(), realX, realZ);
 
-                    if (!decorator.isStacking()) {
-                        data.set(x, height + 1, z, decorator.getBlockData100(biome, rng, realX, height, realZ, getData()));
-                    } else {
-                        int stack = decorator.getHeight(rng, realX, realZ, getData());
-                        if (decorator.isScaleStack()) {
-                            int maxStack = max - height;
-                            stack = (int) Math.ceil((double) maxStack * ((double) stack / 100));
-                        } else stack = Math.min(max - height, stack);
+        if (decorator == null) {
+            return;
+        }
 
-                        if (stack == 1) {
-                            data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
-                            return;
-                        }
+        if (!decorator.isForcePlace() && !decorator.getSlopeCondition().isDefault()
+                && !decorator.getSlopeCondition().isValid(getComplex().getSlopeStream().get(realX, realZ))) {
+            return;
+        }
 
-                        for (int i = 0; i < stack; i++) {
-                            int h = height + i;
-                            double threshold = ((double) i) / (stack - 1);
-                            data.set(x, h + 1, z, threshold >= decorator.getTopThreshold() ?
-                                    decorator.getBlockDataForTop(biome, rng, realX, h, realZ, getData()) :
-                                    decorator.getBlockData100(biome, rng, realX, h, realZ, getData()));
-                        }
-                    }
-                }
-            }
+        if (!decorator.isStacking()) {
+            data.set(x, height + 1, z, decorator.getBlockData100(biome, rng, realX, height, realZ, getData()));
+            return;
+        }
+
+        int stack = decorator.getHeight(rng, realX, realZ, getData());
+        if (decorator.isScaleStack()) {
+            stack = (int) Math.ceil((double) (max - height) * ((double) stack / 100));
+        } else {
+            stack = Math.min(max - height, stack);
+        }
+
+        if (stack == 1) {
+            data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
+            return;
+        }
+
+        for (int i = 0; i < stack; i++) {
+            int h = height + i;
+            double threshold = ((double) i) / (stack - 1);
+            data.set(x, h + 1, z, threshold >= decorator.getTopThreshold()
+                    ? decorator.getBlockDataForTop(biome, rng, realX, h, realZ, getData())
+                    : decorator.getBlockData100(biome, rng, realX, h, realZ, getData()));
         }
     }
 }

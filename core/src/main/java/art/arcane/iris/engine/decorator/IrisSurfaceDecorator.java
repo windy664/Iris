@@ -18,29 +18,27 @@
 
 package art.arcane.iris.engine.decorator;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.InferredType;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
-import art.arcane.iris.util.common.data.B;
-import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
+import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.volmlib.util.math.RNG;
-import org.bukkit.Material;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.type.PointedDripstone;
 
 public class IrisSurfaceDecorator extends IrisEngineDecorator {
+    private final RNG partRNG;
+
     public IrisSurfaceDecorator(Engine engine) {
         super(engine, "Surface", IrisDecorationPart.NONE);
+        this.partRNG = new RNG(DecoratorCore.partSeed(getSeed(), IrisDecorationPart.NONE));
     }
 
     protected IrisSurfaceDecorator(Engine engine, String name) {
         super(engine, name, IrisDecorationPart.NONE);
+        this.partRNG = new RNG(DecoratorCore.partSeed(getSeed(), IrisDecorationPart.NONE));
     }
 
     protected boolean isSlopeValid(IrisDecorator decorator, int realX, int realZ) {
@@ -52,133 +50,33 @@ public class IrisSurfaceDecorator extends IrisEngineDecorator {
 
     @BlockCoordinates
     @Override
-    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1, Hunk<BlockData> data, IrisBiome biome, int height, int max) {
-        if (biome.getInferredType().equals(InferredType.SHORE) && height < getDimension().getFluidHeight()) {
+    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1,
+                         Hunk<BlockData> data, IrisBiome biome, int height, int max) {
+        int fluidHeight = getDimension().getFluidHeight();
+        if (biome.getInferredType().equals(InferredType.SHORE) && height < fluidHeight) {
             return;
         }
 
-        BlockData bd, bdx;
-        RNG rng = getRNG(realX, realZ);
-        IrisDecorator decorator = getDecorator(rng, biome, realX, realZ);
-        bdx = data.get(x, height, z);
-        boolean underwater = height < getDimension().getFluidHeight() && biome.getInferredType() != InferredType.CAVE;
+        boolean underwater = height < fluidHeight && biome.getInferredType() != InferredType.CAVE;
         boolean caveSkipFluid = biome.getInferredType() == InferredType.CAVE;
+        RNG rng = getRNG(realX, realZ);
+        IrisDecorator decorator = DecoratorCore.pickDecorator(biome, getPart(), partRNG, rng, getData(), realX, realZ);
 
-        if (decorator != null) {
-            if (!isSlopeValid(decorator, realX, realZ)) {
-                return;
-            }
-
-            if (!decorator.isStacking()) {
-                bd = decorator.getBlockData100(biome, rng, realX, height, realZ, getData());
-
-                if (!underwater) {
-                    if (!canGoOn(bd, bdx) && (!decorator.isForcePlace() && decorator.getForceBlock() == null)) {
-                        return;
-                    }
-                }
-
-                if (decorator.getForceBlock() != null) {
-                    if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
-                        return;
-                    }
-                    data.set(x, height, z, fixFaces(decorator.getForceBlock().getBlockData(getData()), data, x, z, realX, height, realZ));
-                } else if (!decorator.isForcePlace()) {
-                    if (decorator.getWhitelist() != null && decorator.getWhitelist().stream().noneMatch(d -> d.getBlockData(getData()).equals(bdx))) {
-                        return;
-                    }
-                    if (decorator.getBlacklist() != null && decorator.getBlacklist().stream().anyMatch(d -> d.getBlockData(getData()).equals(bdx))) {
-                        return;
-                    }
-                }
-
-                if (bd instanceof Bisected) {
-                    bd = bd.clone();
-                    ((Bisected) bd).setHalf(Bisected.Half.TOP);
-                    try {
-                        if (!caveSkipFluid || !B.isFluid(data.get(x, height + 2, z))) {
-                            data.set(x, height + 2, z, bd);
-                        }
-                    } catch (Throwable e) {
-                        Iris.reportError(e);
-                    }
-                    bd = bd.clone();
-                    ((Bisected) bd).setHalf(Bisected.Half.BOTTOM);
-                }
-
-                if (B.isAir(data.get(x, height + 1, z))) {
-                    data.set(x, height + 1, z, fixFaces(bd, data, x, z, realX, height + 1, realZ));
-                }
-            } else {
-                if (height < getDimension().getFluidHeight()) {
-                    max = getDimension().getFluidHeight();
-                }
-
-                int stack = decorator.getHeight(rng, realX, realZ, getData());
-
-                if (decorator.isScaleStack()) {
-                    stack = Math.min((int) Math.ceil((double) max * ((double) stack / 100)), decorator.getAbsoluteMaxStack());
-                } else {
-                    stack = Math.min(max, stack);
-                }
-
-                if (stack == 1) {
-                    if (caveSkipFluid && B.isFluid(data.get(x, height, z))) {
-                        return;
-                    }
-                    data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
-                    return;
-                }
-
-                for (int i = 0; i < stack; i++) {
-                    int h = height + i;
-                    double threshold = ((double) i) / (stack - 1);
-                    bd = threshold >= decorator.getTopThreshold() ?
-                            decorator.getBlockDataForTop(biome, rng, realX, h, realZ, getData()) :
-                            decorator.getBlockData100(biome, rng, realX, h, realZ, getData());
-
-                    if (bd == null) {
-                        break;
-                    }
-
-                    if (i == 0 && !underwater && !canGoOn(bd, bdx)) {
-                        break;
-                    }
-
-                    if (underwater && height + 1 + i > getDimension().getFluidHeight()) {
-                        break;
-                    }
-
-                    if (caveSkipFluid && B.isFluid(data.get(x, height + 1 + i, z))) {
-                        break;
-                    }
-
-                    if (bd instanceof PointedDripstone) {
-                        PointedDripstone.Thickness th = PointedDripstone.Thickness.BASE;
-
-                        if (stack == 2) {
-                            th = PointedDripstone.Thickness.FRUSTUM;
-
-                            if (i == stack - 1) {
-                                th = PointedDripstone.Thickness.TIP;
-                            }
-                        } else {
-                            if (i == stack - 1) {
-                                th = PointedDripstone.Thickness.TIP;
-                            } else if (i == stack - 2) {
-                                th = PointedDripstone.Thickness.FRUSTUM;
-                            }
-                        }
-
-
-                        bd = Material.POINTED_DRIPSTONE.createBlockData();
-                        ((PointedDripstone) bd).setThickness(th);
-                        ((PointedDripstone) bd).setVerticalDirection(BlockFace.UP);
-                    }
-
-                    data.set(x, height + 1 + i, z, bd);
-                }
-            }
+        if (decorator == null || !isSlopeValid(decorator, realX, realZ)) {
+            return;
         }
+
+        if (decorator.isStacking()) {
+            DecoratorCore.PlaceOpts opts = DecoratorCore.SCRATCH_OPTS.get();
+            opts.reset();
+            opts.underwater = underwater;
+            opts.fluidHeight = fluidHeight;
+            opts.caveSkipFluid = caveSkipFluid;
+            DecoratorCore.placeStackUp(decorator, x, z, realX, realZ, height, max, data, rng, getData(), opts);
+            return;
+        }
+
+        DecoratorCore.placeSurfaceSingle(decorator, x, z, realX, height, realZ,
+                data, rng, getData(), underwater, caveSkipFluid, getEngine().getMantle());
     }
 }

@@ -43,6 +43,8 @@ public class IrisDecorator {
     private final transient AtomicCache<CNG> heightGenerator = new AtomicCache<>();
     private final transient AtomicCache<KList<BlockData>> blockData = new AtomicCache<>();
     private final transient AtomicCache<KList<BlockData>> blockDataTops = new AtomicCache<>();
+    private final transient AtomicCache<BlockData[]> blockDataArray = new AtomicCache<>();
+    private final transient AtomicCache<BlockData[]> blockDataTopsArray = new AtomicCache<>();
     @Desc("The varience dispersion is used when multiple blocks are put in the palette. Scatter scrambles them, Wispy shows streak-looking varience")
     private IrisGeneratorStyle variance = NoiseStyle.STATIC.style();
     @Desc("Forcefully place this decorant anywhere it is supposed to go even if it should not go on a specific surface block. For example, you could force tallgrass to place on top of stone by using this.")
@@ -134,24 +136,23 @@ public class IrisDecorator {
         return palette;
     }
 
-    public BlockData getBlockData(IrisBiome b, RNG rng, double x, double z, IrisData data) {
+    public boolean passesChanceGate(RNG rng, double x, double z, IrisData data) {
         if (getBlockData(data).isEmpty()) {
-            Iris.warn("Empty Block Data for " + b.getName());
-            return null;
+            return false;
         }
-
         double xx = x / style.getZoom();
         double zz = z / style.getZoom();
+        return getGenerator(rng, data).fitDouble(0D, 1D, xx, zz) <= chance;
+    }
 
-        if (getGenerator(rng, data).fitDouble(0D, 1D, xx, zz) <= chance) {
-            if (getBlockData(data).size() == 1) {
-                return getBlockData(data).get(0);
-            }
-
-            return getVarianceGenerator(rng, data).fit(getBlockData(data), z, x); //X and Z must be switched
+    public BlockData getBlockData(IrisBiome b, RNG rng, double x, double z, IrisData data) {
+        if (!passesChanceGate(rng, x, z, data)) {
+            return null;
         }
-
-        return null;
+        if (getBlockData(data).size() == 1) {
+            return getBlockData(data).get(0);
+        }
+        return getVarianceGenerator(rng, data).fit(getBlockData(data), z, x);
     }
 
     public BlockData getBlockData100(IrisBiome b, RNG rng, double x, double y, double z, IrisData data) {
@@ -228,6 +229,42 @@ public class IrisDecorator {
 
             return blockDataTops;
         });
+    }
+
+    public BlockData[] getBlockDataArray(IrisData data) {
+        return blockDataArray.aquire(() -> {
+            KList<BlockData> list = getBlockData(data);
+            return list.toArray(new BlockData[0]);
+        });
+    }
+
+    public BlockData[] getBlockDataTopsArray(IrisData data) {
+        return blockDataTopsArray.aquire(() -> {
+            KList<BlockData> list = getBlockDataTops(data);
+            return list.toArray(new BlockData[0]);
+        });
+    }
+
+    public BlockData pickBlockData(RNG rng, IrisData data, double x, double z) {
+        BlockData[] arr = getBlockDataArray(data);
+        if (arr.length == 0) {
+            return null;
+        }
+        if (arr.length == 1) {
+            return arr[0];
+        }
+        return arr[Math.abs((int) getVarianceGenerator(rng, data).fit(0, arr.length - 1, z, x))];
+    }
+
+    public BlockData pickBlockDataTop(RNG rng, IrisData data, double x, double z) {
+        BlockData[] arr = getBlockDataTopsArray(data);
+        if (arr.length == 0) {
+            return pickBlockData(rng, data, x, z);
+        }
+        if (arr.length == 1) {
+            return arr[0];
+        }
+        return arr[Math.abs((int) getVarianceGenerator(rng, data).fit(0, arr.length - 1, z, x))];
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")

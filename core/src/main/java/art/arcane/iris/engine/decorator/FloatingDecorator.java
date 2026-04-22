@@ -18,18 +18,13 @@
 
 package art.arcane.iris.engine.decorator;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
 import art.arcane.iris.util.project.hunk.Hunk;
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
-import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /*
  * Floating island decoration path. Bypasses all canGoOn, slope, whitelist, and blacklist
@@ -37,98 +32,24 @@ import java.util.concurrent.atomic.AtomicLong;
  * construction, so those material-compatibility checks are never meaningful here.
  */
 public class FloatingDecorator {
-    public static final AtomicLong decCandidatesNull = new AtomicLong();
-
-    private static final long SEED_SALT = 29356788L;
-    private static final long PART_SALT = 10439677L;
 
     public static int decorateColumn(Engine engine, IrisBiome target, IrisDecorationPart part,
                                      int xf, int zf, int realX, int realZ,
-                                     int height, int max, Hunk<BlockData> data, RNG rng) {
-        long gSeed = engine.getSeedManager().getDecorator() + SEED_SALT - (part.ordinal() * PART_SALT);
-        RNG gRNG = new RNG(gSeed);
-        KList<IrisDecorator> candidates = new KList<>();
+                                     int height, int max, Hunk<BlockData> data, RNG rng,
+                                     Runnable candidatesNullCallback) {
+        RNG gRNG = new RNG(DecoratorCore.partSeed(engine.getSeedManager().getDecorator(), part));
+        IrisDecorator decorator = DecoratorCore.pickDecorator(target, part, gRNG, rng, engine.getData(), realX, realZ);
 
-        for (IrisDecorator d : target.getDecorators()) {
-            try {
-                if (d.getPartOf().equals(part) && d.getBlockData(target, gRNG, realX, realZ, engine.getData()) != null) {
-                    candidates.add(d);
-                }
-            } catch (Throwable e) {
-                Iris.reportError(e);
-            }
-        }
-
-        if (candidates.isEmpty()) {
-            decCandidatesNull.incrementAndGet();
+        if (decorator == null) {
+            candidatesNullCallback.run();
             return 0;
         }
-
-        IrisDecorator decorator = candidates.get(rng.nextInt(candidates.size()));
 
         if (!decorator.isStacking()) {
-            return placeSimple(decorator, target, xf, zf, realX, realZ, height, max, data, rng, engine);
-        } else {
-            return placeStacked(decorator, target, xf, zf, realX, realZ, height, max, data, rng, engine);
-        }
-    }
-
-    private static int placeSimple(IrisDecorator decorator, IrisBiome target,
-                                   int xf, int zf, int realX, int realZ,
-                                   int height, int max, Hunk<BlockData> data, RNG rng, Engine engine) {
-        BlockData bd = decorator.getBlockData100(target, rng, realX, height, realZ, engine.getData());
-        if (bd == null) {
-            return 0;
+            DecoratorCore.placeFloatingSimple(decorator, xf, zf, realX, realZ, height, max, data, rng, engine.getData());
+            return max > 1 ? 1 : 0;
         }
 
-        if (bd instanceof Bisected) {
-            BlockData top = bd.clone();
-            ((Bisected) top).setHalf(Bisected.Half.TOP);
-            try {
-                if (max > 2) {
-                    data.set(xf, height + 2, zf, top);
-                }
-            } catch (Throwable e) {
-                Iris.reportError(e);
-            }
-            bd = bd.clone();
-            ((Bisected) bd).setHalf(Bisected.Half.BOTTOM);
-        }
-
-        if (max > 1) {
-            data.set(xf, height + 1, zf, bd);
-            return 1;
-        }
-        return 0;
-    }
-
-    private static int placeStacked(IrisDecorator decorator, IrisBiome target,
-                                    int xf, int zf, int realX, int realZ,
-                                    int height, int max, Hunk<BlockData> data, RNG rng, Engine engine) {
-        int stack = decorator.getHeight(rng, realX, realZ, engine.getData());
-
-        if (decorator.isScaleStack()) {
-            stack = Math.min((int) Math.ceil((double) max * ((double) stack / 100)), decorator.getAbsoluteMaxStack());
-        } else {
-            stack = Math.min(max, stack);
-        }
-
-        int placed = 0;
-        for (int i = 0; i < stack; i++) {
-            int h = height + 1 + i;
-            if (h >= height + max) {
-                break;
-            }
-            double threshold = stack == 1 ? 0.0 : ((double) i) / (stack - 1);
-            BlockData bd = threshold >= decorator.getTopThreshold()
-                    ? decorator.getBlockDataForTop(target, rng, realX, height + i, realZ, engine.getData())
-                    : decorator.getBlockData100(target, rng, realX, height + i, realZ, engine.getData());
-            if (bd == null) {
-                break;
-            }
-            data.set(xf, h, zf, bd);
-            placed++;
-        }
-        return placed;
+        return DecoratorCore.placeFloatingStacked(decorator, xf, zf, realX, realZ, height, max, data, rng, engine.getData());
     }
 }

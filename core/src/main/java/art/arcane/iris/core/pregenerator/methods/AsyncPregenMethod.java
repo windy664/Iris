@@ -355,13 +355,13 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
     static int computePaperLikeRecommendedCap(int workerThreads) {
         int normalizedWorkers = Math.max(1, workerThreads);
-        int recommendedCap = normalizedWorkers * 4;
+        int recommendedCap = normalizedWorkers * 2;
         if (recommendedCap < 8) {
             return 8;
         }
 
-        if (recommendedCap > 128) {
-            return 128;
+        if (recommendedCap > 96) {
+            return 96;
         }
 
         return recommendedCap;

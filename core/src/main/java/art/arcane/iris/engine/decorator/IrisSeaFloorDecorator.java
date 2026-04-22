@@ -22,56 +22,63 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
-import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
+import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.block.data.BlockData;
 
 public class IrisSeaFloorDecorator extends IrisEngineDecorator {
+    private final RNG partRNG;
+
     public IrisSeaFloorDecorator(Engine engine) {
         super(engine, "Sea Floor", IrisDecorationPart.SEA_FLOOR);
+        this.partRNG = new RNG(DecoratorCore.partSeed(getSeed(), IrisDecorationPart.SEA_FLOOR));
     }
 
     @BlockCoordinates
     @Override
-    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1, Hunk<BlockData> data, IrisBiome biome, int height, int max) {
+    public void decorate(int x, int z, int realX, int realX1, int realX_1, int realZ, int realZ1, int realZ_1,
+                         Hunk<BlockData> data, IrisBiome biome, int height, int max) {
         RNG rng = getRNG(realX, realZ);
-        IrisDecorator decorator = getDecorator(rng, biome, realX, realZ);
+        IrisDecorator decorator = DecoratorCore.pickDecorator(biome, getPart(), partRNG, rng, getData(), realX, realZ);
 
-        if (decorator != null) {
-            if (!decorator.isStacking()) {
-                if (!decorator.isForcePlace() && !decorator.getSlopeCondition().isDefault()
-                        && !decorator.getSlopeCondition().isValid(getComplex().getSlopeStream().get(realX, realZ))) {
-                    return;
-                }
-                if (height >= 0 || height < getEngine().getHeight()) {
-                    data.set(x, height, z, decorator.getBlockData100(biome, rng, realX, height, realZ, getData()));
-                }
-            } else {
-                int stack = decorator.getHeight(rng, realX, realZ, getData());
-                if (decorator.isScaleStack()) {
-                    int maxStack = max - height;
-                    stack = (int) Math.ceil((double) maxStack * ((double) stack / 100));
-                } else stack = Math.min(stack, max - height);
-
-                if (stack == 1) {
-                    data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
-                    return;
-                }
-
-                for (int i = 0; i < stack; i++) {
-                    int h = height + i;
-                    if (h > max || h > getEngine().getHeight()) {
-                        continue;
-                    }
-
-                    double threshold = ((double) i) / (stack - 1);
-                    data.set(x, h, z, threshold >= decorator.getTopThreshold() ?
-                            decorator.getBlockDataForTop(biome, rng, realX, h, realZ, getData()) :
-                            decorator.getBlockData100(biome, rng, realX, h, realZ, getData()));
-                }
-            }
+        if (decorator == null) {
+            return;
         }
 
+        if (!decorator.isStacking()) {
+            if (!decorator.isForcePlace() && !decorator.getSlopeCondition().isDefault()
+                    && !decorator.getSlopeCondition().isValid(getComplex().getSlopeStream().get(realX, realZ))) {
+                return;
+            }
+            if (height >= 0 || height < getEngine().getHeight()) {
+                data.set(x, height, z, decorator.getBlockData100(biome, rng, realX, height, realZ, getData()));
+            }
+            return;
+        }
+
+        int stack = decorator.getHeight(rng, realX, realZ, getData());
+        if (decorator.isScaleStack()) {
+            stack = (int) Math.ceil((double) (max - height) * ((double) stack / 100));
+        } else {
+            stack = Math.min(stack, max - height);
+        }
+
+        if (stack == 1) {
+            data.set(x, height, z, decorator.getBlockDataForTop(biome, rng, realX, height, realZ, getData()));
+            return;
+        }
+
+        int engineHeight = getEngine().getHeight();
+        for (int i = 0; i < stack; i++) {
+            int h = height + i;
+            if (h > max || h > engineHeight) {
+                continue;
+            }
+            double threshold = ((double) i) / (stack - 1);
+            data.set(x, h, z, threshold >= decorator.getTopThreshold()
+                    ? decorator.getBlockDataForTop(biome, rng, realX, h, realZ, getData())
+                    : decorator.getBlockData100(biome, rng, realX, h, realZ, getData()));
+        }
     }
 }
