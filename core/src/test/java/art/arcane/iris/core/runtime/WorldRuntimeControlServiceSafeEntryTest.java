@@ -1,11 +1,16 @@
 package art.arcane.iris.core.runtime;
 
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -41,19 +46,21 @@ public class WorldRuntimeControlServiceSafeEntryTest {
     }
 
     @Test
-    public void scansFromRuntimeSurfaceBeforeFallingThroughRemainingWorldHeight() {
+    public void resolvesSafeEntryImmediatelyWhenColumnIsAllWater() {
         World world = mock(World.class);
+        Block stub = mock(Block.class, Mockito.RETURNS_DEEP_STUBS);
+        doReturn(-64).when(world).getMinHeight();
+        doReturn(320).when(world).getMaxHeight();
+        doReturn(true).when(world).isChunkLoaded(0, 0);
+        doReturn(62).when(world).getHighestBlockYAt(0, 0);
+        doReturn(62).when(world).getHighestBlockYAt(0, 0, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+        doReturn(stub).when(world).getBlockAt(anyInt(), anyInt(), anyInt());
 
-        doReturn(0).when(world).getMinHeight();
-        doReturn(256).when(world).getMaxHeight();
-        doReturn(179).when(world).getHighestBlockYAt(0, 0);
+        Location source = new Location(world, 0.5D, 62D, 0.5D);
+        Location result = WorldRuntimeControlService.findTopSafeLocation(world, source);
 
-        int[] scanOrder = WorldRuntimeControlService.buildSafeLocationScanOrder(world, new Location(world, 0.5D, 96D, 0.5D));
-
-        assertEquals(180, scanOrder[0]);
-        assertEquals(179, scanOrder[1]);
-        assertEquals(1, scanOrder[179]);
-        assertEquals(181, scanOrder[180]);
-        assertEquals(254, scanOrder[scanOrder.length - 1]);
+        assertNotNull("Safe entry must resolve to a non-null location even for water-only columns", result);
+        assertEquals(63, result.getBlockY());
     }
+
 }

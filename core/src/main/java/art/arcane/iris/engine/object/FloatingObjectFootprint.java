@@ -35,20 +35,26 @@ public class FloatingObjectFootprint {
     private static final boolean DIAGNOSTIC_LOG = Boolean.parseBoolean(System.getProperty("iris.floating.footprintLog", "true"));
 
     private final int lowestSolidKeyY;
+    private final int highestSolidKeyY;
     private final int centerX;
     private final int centerY;
     private final int centerZ;
     private final int tallestKx;
     private final int tallestKz;
+    private final int tallestKxBottom;
+    private final int tallestKzBottom;
     private final long[] footprintXZ;
 
-    private FloatingObjectFootprint(int lowestSolidKeyY, int centerX, int centerY, int centerZ, int tallestKx, int tallestKz, long[] footprintXZ) {
+    private FloatingObjectFootprint(int lowestSolidKeyY, int highestSolidKeyY, int centerX, int centerY, int centerZ, int tallestKx, int tallestKz, int tallestKxBottom, int tallestKzBottom, long[] footprintXZ) {
         this.lowestSolidKeyY = lowestSolidKeyY;
+        this.highestSolidKeyY = highestSolidKeyY;
         this.centerX = centerX;
         this.centerY = centerY;
         this.centerZ = centerZ;
         this.tallestKx = tallestKx;
         this.tallestKz = tallestKz;
+        this.tallestKxBottom = tallestKxBottom;
+        this.tallestKzBottom = tallestKzBottom;
         this.footprintXZ = footprintXZ;
     }
 
@@ -62,6 +68,10 @@ public class FloatingObjectFootprint {
         int cy = obj.getCenter().getBlockY();
         int cz = obj.getCenter().getBlockZ();
         Map<Long, int[]> columnStats = new HashMap<>();
+
+        int[] globalHighestY = {Integer.MIN_VALUE};
+        int[] globalHighestKx = {0};
+        int[] globalHighestKz = {0};
 
         obj.getBlocks().forEach((BlockVector key, BlockData bd) -> {
             if (!B.isSolid(bd)) {
@@ -81,6 +91,11 @@ public class FloatingObjectFootprint {
                 }
                 stats[1]++;
             }
+            if (ky > globalHighestY[0]) {
+                globalHighestY[0] = ky;
+                globalHighestKx[0] = kx;
+                globalHighestKz[0] = kz;
+            }
         });
 
         long[] footprintArray = new long[columnStats.size()];
@@ -90,15 +105,16 @@ public class FloatingObjectFootprint {
         }
 
         long tallestPacked = resolveTallestColumn(columnStats);
-        int lowestSolidKeyY = columnStats.isEmpty()
-                ? cy
-                : columnStats.get(tallestPacked)[0];
+        int lowestSolidKeyY = columnStats.isEmpty() ? cy : columnStats.get(tallestPacked)[0];
+        int highestSolidKeyY = columnStats.isEmpty() ? cy : globalHighestY[0];
         int tallestKx = columnStats.isEmpty() ? 0 : (int) (tallestPacked >> 32);
         int tallestKz = columnStats.isEmpty() ? 0 : (int) (tallestPacked & 0xFFFFFFFFL);
+        int tallestKxBottom = columnStats.isEmpty() ? 0 : globalHighestKx[0];
+        int tallestKzBottom = columnStats.isEmpty() ? 0 : globalHighestKz[0];
         if (DIAGNOSTIC_LOG) {
             logFootprintDiagnostic(cacheKey, obj, cx, cy, cz, lowestSolidKeyY, tallestKx, tallestKz, columnStats);
         }
-        return new FloatingObjectFootprint(lowestSolidKeyY, cx, cy, cz, tallestKx, tallestKz, footprintArray);
+        return new FloatingObjectFootprint(lowestSolidKeyY, highestSolidKeyY, cx, cy, cz, tallestKx, tallestKz, tallestKxBottom, tallestKzBottom, footprintArray);
     }
 
     private static void logFootprintDiagnostic(String cacheKey, IrisObject obj, int cx, int cy, int cz, int anchorY, int tallestKx, int tallestKz, Map<Long, int[]> columnStats) {
@@ -230,6 +246,18 @@ public class FloatingObjectFootprint {
 
     public int getTallestKz() {
         return tallestKz;
+    }
+
+    public int getHighestSolidKeyY() {
+        return highestSolidKeyY;
+    }
+
+    public int getTallestKxBottom() {
+        return tallestKxBottom;
+    }
+
+    public int getTallestKzBottom() {
+        return tallestKzBottom;
     }
 
     public long[] footprintXZ() {

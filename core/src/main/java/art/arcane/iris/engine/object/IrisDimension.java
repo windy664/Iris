@@ -236,6 +236,9 @@ public class IrisDimension extends IrisRegistrant {
     @ArrayType(min = 1, type = IrisDepositGenerator.class)
     @Desc("Define global deposit generators")
     private KList<IrisDepositGenerator> deposits = new KList<>();
+    @ArrayType(min = 1, type = IrisDepositVariant.class)
+    @Desc("Dimension-wide deposit ore remap rules. Each entry declares a vertical band and a source->replacement block id map. Applied after biome and region rules; first matching dimension rule wins.")
+    private KList<IrisDepositVariant> depositVariants = new KList<>();
     @ArrayType(min = 1, type = IrisShapedGeneratorStyle.class)
     @Desc("Overlay additional noise on top of the interoplated terrain.")
     private KList<IrisShapedGeneratorStyle> overlayNoise = new KList<>();

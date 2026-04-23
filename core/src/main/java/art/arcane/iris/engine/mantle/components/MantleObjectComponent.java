@@ -392,8 +392,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
             }
             int xx = rng.i(x, x + 15);
             int zz = rng.i(z, z + 15);
-            int surfaceObjectExclusionDepth = resolveSurfaceObjectExclusionDepth(surfaceObjectExclusionBaseDepth, v);
-            int surfaceObjectExclusionRadius = resolveSurfaceObjectExclusionRadius(v);
+            int surfaceObjectExclusionDepth = resolveSurfaceObjectExclusionDepth(surfaceObjectExclusionBaseDepth, v, objectPlacement);
+            int surfaceObjectExclusionRadius = resolveSurfaceObjectExclusionRadius(v, objectPlacement);
             boolean overCave = surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius);
             int id = rng.i(0, Integer.MAX_VALUE);
             IrisObjectPlacement effectivePlacement = resolveEffectivePlacement(objectPlacement, v);
@@ -1038,23 +1038,30 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return Math.max(0, caveProfile.getSurfaceObjectExclusionDepth());
     }
 
-    private int resolveSurfaceObjectExclusionDepth(int baseDepth, IrisObject object) {
+    private int resolveSurfaceObjectExclusionDepth(int baseDepth, IrisObject object, IrisObjectPlacement placement) {
         if (object == null) {
             return baseDepth;
         }
 
-        int horizontalReach = resolveSurfaceObjectExclusionRadius(object) + 2;
+        int horizontalReach = resolveSurfaceObjectExclusionRadius(object, placement) + 2;
         int verticalReach = Math.max(4, Math.min(16, Math.floorDiv(Math.max(1, object.getH()), 2)));
         return Math.max(baseDepth, Math.max(horizontalReach, verticalReach));
     }
 
-    private int resolveSurfaceObjectExclusionRadius(IrisObject object) {
+    static int computeSurfaceExclusionRadius(int maxDimension, int absTranslateX, int absTranslateZ) {
+        return Math.max(1, Math.floorDiv(Math.max(1, maxDimension), 2) + absTranslateX + absTranslateZ + 1);
+    }
+
+    private int resolveSurfaceObjectExclusionRadius(IrisObject object, IrisObjectPlacement placement) {
         if (object == null) {
             return 1;
         }
 
         int maxDimension = Math.max(object.getW(), object.getD());
-        return Math.max(1, Math.min(8, Math.floorDiv(Math.max(1, maxDimension), 2)));
+        IrisObjectTranslate t = placement != null ? placement.getTranslate() : null;
+        int absX = t != null ? Math.abs(t.getX()) : 0;
+        int absZ = t != null ? Math.abs(t.getZ()) : 0;
+        return computeSurfaceExclusionRadius(maxDimension, absX, absZ);
     }
 
     private int resolveAnchorSearchAttempts(IrisCaveProfile caveProfile) {

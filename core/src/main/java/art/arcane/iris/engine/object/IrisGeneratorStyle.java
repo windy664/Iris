@@ -171,7 +171,7 @@ public class IrisGeneratorStyle {
         }
 
         if (cng == null) {
-            cng = style.create(rng).bake();
+            cng = (style != null ? style : NoiseStyle.FLAT).create(rng).bake();
         }
 
         cng = cng.scale(1D / zoom).pow(exponent).bake();
@@ -205,7 +205,7 @@ public class IrisGeneratorStyle {
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isFlat() {
-        return style.equals(NoiseStyle.FLAT);
+        return style == null || style.equals(NoiseStyle.FLAT);
     }
 
     public double getMaxFractureDistance() {

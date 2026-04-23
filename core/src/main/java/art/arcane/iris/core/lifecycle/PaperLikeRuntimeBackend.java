@@ -47,14 +47,14 @@ final class PaperLikeRuntimeBackend implements WorldLifecycleBackend {
             if (capabilities.paperLikeFlavor() == CapabilitySnapshot.PaperLikeFlavor.CURRENT_INFO_AND_DATA) {
                 Object dimensionKey = WorldLifecycleSupport.createDimensionKey(stemKey);
                 Object loadedWorldData = capabilities.paperWorldDataMethod().invoke(null, capabilities.minecraftServer(), dimensionKey, request.worldName());
-                Object worldLoadingInfo = capabilities.worldLoadingInfoConstructor().newInstance(request.environment(), stemKey, dimensionKey, true);
+                Object worldLoadingInfo = capabilities.worldLoadingInfoConstructor().newInstance(request.environment(), stemKey, dimensionKey, !request.studio());
                 Object worldLoadingInfoAndData = capabilities.worldLoadingInfoAndDataConstructor().newInstance(worldLoadingInfo, loadedWorldData);
                 Object worldDataAndGenSettings = WorldLifecycleSupport.createCurrentWorldDataAndSettings(capabilities, request.worldName());
                 capabilities.createLevelMethod().invoke(capabilities.minecraftServer(), levelStem, worldLoadingInfoAndData, worldDataAndGenSettings);
             } else {
                 legacyStorageAccess = WorldLifecycleSupport.createLegacyStorageAccess(capabilities, request.worldName());
                 Object primaryLevelData = WorldLifecycleSupport.createLegacyPrimaryLevelData(capabilities, legacyStorageAccess, request.worldName());
-                Object worldLoadingInfo = capabilities.worldLoadingInfoConstructor().newInstance(0, request.worldName(), request.environment().name().toLowerCase(Locale.ROOT), stemKey, true);
+                Object worldLoadingInfo = capabilities.worldLoadingInfoConstructor().newInstance(0, request.worldName(), request.environment().name().toLowerCase(Locale.ROOT), stemKey, !request.studio());
                 capabilities.createLevelMethod().invoke(capabilities.minecraftServer(), levelStem, worldLoadingInfo, legacyStorageAccess, primaryLevelData);
             }
 

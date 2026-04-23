@@ -92,6 +92,7 @@ public final class FloatingIslandSample {
     public final int topIdx;
     public final int solidCount;
     public final boolean[] solidMask;
+    private transient int cachedBottomIdx = -2;
 
     private FloatingIslandSample(IrisFloatingChildBiomes entry, int islandBaseY, int thickness, int topIdx, int solidCount, boolean[] solidMask) {
         this.entry = entry;
@@ -102,8 +103,25 @@ public final class FloatingIslandSample {
         this.solidMask = solidMask;
     }
 
+    static FloatingIslandSample constructForTest(int islandBaseY, int thickness, int topIdx, int solidCount, boolean[] solidMask) {
+        return new FloatingIslandSample(null, islandBaseY, thickness, topIdx, solidCount, solidMask);
+    }
+
     public int topY() {
         return islandBaseY + topIdx;
+    }
+
+    public int bottomY() {
+        if (cachedBottomIdx == -2) {
+            cachedBottomIdx = -1;
+            for (int i = 0; i < solidMask.length; i++) {
+                if (solidMask[i]) {
+                    cachedBottomIdx = i;
+                    break;
+                }
+            }
+        }
+        return cachedBottomIdx == -1 ? -1 : islandBaseY + cachedBottomIdx;
     }
 
     public static long columnSeed(long baseSeed, int wx, int wz) {
@@ -258,6 +276,11 @@ public final class FloatingIslandSample {
             }
         }
 
+        if (!useCarve) {
+            solidCount = solidifyUncarvedInterior(solidMask);
+            highestSolidIdx = highestSolidIndex(solidMask);
+        }
+
         if (solidCount == 0 || highestSolidIdx < 0) {
             return reject(REJECT_NO_SOLID);
         }
@@ -266,6 +289,36 @@ public final class FloatingIslandSample {
 
         LAST_REJECT.get()[0] = REJECT_NONE;
         return new FloatingIslandSample(entry, botY, thickness, topIdx, solidCount, solidMask);
+    }
+
+    static int solidifyUncarvedInterior(boolean[] solidMask) {
+        int firstSolid = -1;
+        int lastSolid = -1;
+        for (int i = 0; i < solidMask.length; i++) {
+            if (!solidMask[i]) {
+                continue;
+            }
+            if (firstSolid < 0) {
+                firstSolid = i;
+            }
+            lastSolid = i;
+        }
+        if (firstSolid < 0) {
+            return 0;
+        }
+        for (int i = firstSolid; i <= lastSolid; i++) {
+            solidMask[i] = true;
+        }
+        return lastSolid - firstSolid + 1;
+    }
+
+    private static int highestSolidIndex(boolean[] solidMask) {
+        for (int i = solidMask.length - 1; i >= 0; i--) {
+            if (solidMask[i]) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int computeTopHeight(IrisFloatingChildBiomes entry, IrisBiome target, Engine engine, long baseSeed, int wx, int wz, IrisData data) {

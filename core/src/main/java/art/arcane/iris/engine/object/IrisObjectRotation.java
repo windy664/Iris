@@ -59,6 +59,22 @@ public class IrisObjectRotation {
     @Desc("The z axis rotation")
     private IrisAxisRotationClamp zAxis = new IrisAxisRotationClamp();
 
+    public static IrisObjectRotation xFlip180() {
+        IrisObjectRotation rt = new IrisObjectRotation();
+        IrisAxisRotationClamp rtx = new IrisAxisRotationClamp();
+        IrisAxisRotationClamp rty = new IrisAxisRotationClamp();
+        IrisAxisRotationClamp rtz = new IrisAxisRotationClamp();
+        rt.setEnabled(true);
+        rt.setXAxis(rtx);
+        rt.setYAxis(rty);
+        rt.setZAxis(rtz);
+        rtx.setEnabled(true);
+        rtx.minMax(180);
+        rty.setEnabled(false);
+        rtz.setEnabled(false);
+        return rt;
+    }
+
     public static IrisObjectRotation of(double x, double y, double z) {
         IrisObjectRotation rt = new IrisObjectRotation();
         IrisAxisRotationClamp rtx = new IrisAxisRotationClamp();

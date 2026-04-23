@@ -176,6 +176,9 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     @ArrayType(min = 1, type = IrisDepositGenerator.class)
     @Desc("Define biome deposit generators that add onto the existing regional and global deposit generators")
     private KList<IrisDepositGenerator> deposits = new KList<>();
+    @ArrayType(min = 1, type = IrisDepositVariant.class)
+    @Desc("Deposit ore remap rules scoped to this biome. Each entry declares a vertical band and a source->replacement block id map. Applied before regional and dimension rules; first matching biome rule wins.")
+    private KList<IrisDepositVariant> depositVariants = new KList<>();
     private transient InferredType inferredType;
     @Desc("Collection of ores to be generated")
     @ArrayType(type = IrisOreGenerator.class, min = 1)

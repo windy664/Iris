@@ -14,11 +14,9 @@ import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.GameRule;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Tag;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.world.TimeSkipEvent;
 import org.bukkit.plugin.PluginManager;
@@ -227,21 +225,19 @@ public final class WorldRuntimeControlService {
 
         int chunkX = source.getBlockX() >> 4;
         int chunkZ = source.getBlockZ() >> 4;
-        return requestChunkAsync(world, chunkX, chunkZ, true).thenCompose(chunk -> {
-            CompletableFuture<Location> future = new CompletableFuture<>();
-            boolean scheduled = J.runRegion(world, chunkX, chunkZ, () -> {
-                try {
-                    future.complete(findTopSafeLocation(world, source));
-                } catch (Throwable e) {
-                    future.completeExceptionally(e);
-                }
-            });
-            if (!scheduled) {
-                return CompletableFuture.failedFuture(new IllegalStateException("Failed to schedule safe-entry surface resolve for " + world.getName() + "@" + chunkX + "," + chunkZ + "."));
+        CompletableFuture<Location> future = new CompletableFuture<>();
+        boolean scheduled = J.runRegion(world, chunkX, chunkZ, () -> {
+            try {
+                future.complete(findTopSafeLocation(world, source));
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
             }
-
-            return future;
         });
+        if (!scheduled) {
+            future.completeExceptionally(new IllegalStateException(
+                    "Failed to schedule safe-entry resolve for " + world.getName() + "@" + chunkX + "," + chunkZ + "."));
+        }
+        return future;
     }
 
     public CompletableFuture<Boolean> teleport(Player player, Location location) {
@@ -312,67 +308,15 @@ public final class WorldRuntimeControlService {
         int z = source.getBlockZ();
         float yaw = source.getYaw();
         float pitch = source.getPitch();
-
-        for (int y : buildSafeLocationScanOrder(world, source)) {
-            if (isSafeStandingLocation(world, x, y, z)) {
-                return new Location(world, x + 0.5D, y, z + 0.5D, yaw, pitch);
-            }
-        }
-
-        return null;
-    }
-
-    static int[] buildSafeLocationScanOrder(World world, Location source) {
         int minY = world.getMinHeight() + 1;
         int maxY = world.getMaxHeight() - 2;
-        int[] scanOrder = new int[maxY - minY + 1];
-        int index = 0;
-
-        int runtimeSurface = world.getHighestBlockYAt((int) source.getX(), (int) source.getZ());
-        int startY = Math.min(maxY, runtimeSurface + 1);
-
-        for (int y = startY; y >= minY; y--) {
-            scanOrder[index++] = y;
+        if (world.isChunkLoaded(x >> 4, z >> 4)) {
+            int raw = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+            int y = Math.max(minY, Math.min(maxY, raw + 1));
+            return new Location(world, x + 0.5D, y, z + 0.5D, yaw, pitch);
         }
-
-        for (int y = startY + 1; y <= maxY; y++) {
-            scanOrder[index++] = y;
-        }
-
-        return scanOrder;
-    }
-
-    private static boolean isSafeStandingLocation(World world, int x, int y, int z) {
-        if (y <= world.getMinHeight() || y >= world.getMaxHeight() - 1) {
-            return false;
-        }
-
-        Block below = world.getBlockAt(x, y - 1, z);
-        Block feet = world.getBlockAt(x, y, z);
-        Block head = world.getBlockAt(x, y + 1, z);
-        Material belowType = below.getType();
-        if (!belowType.isSolid()) {
-            return false;
-        }
-        if (Tag.LEAVES.isTagged(belowType)) {
-            return false;
-        }
-        if (belowType == Material.LAVA
-                || belowType == Material.MAGMA_BLOCK
-                || belowType == Material.FIRE
-                || belowType == Material.SOUL_FIRE
-                || belowType == Material.CAMPFIRE
-                || belowType == Material.SOUL_CAMPFIRE) {
-            return false;
-        }
-        if (feet.getType().isSolid() || head.getType().isSolid()) {
-            return false;
-        }
-        if (feet.isLiquid() || head.isLiquid()) {
-            return false;
-        }
-
-        return true;
+        int y = Math.max(minY, Math.min(maxY, source.getBlockY()));
+        return new Location(world, x + 0.5D, y, z + 0.5D, yaw, pitch);
     }
 
     @SuppressWarnings("unchecked")

@@ -57,6 +57,14 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
     public static final AtomicLong writesAttemptedTotal = new AtomicLong();
     public static final AtomicLong writesDroppedBelowTotal = new AtomicLong();
     public static final AtomicLong writesDroppedOverhangTotal = new AtomicLong();
+    public static final AtomicLong objectsInvertedAttempted = new AtomicLong();
+    public static final AtomicLong objectsInvertedPlaced = new AtomicLong();
+    public static final AtomicLong objectsInvertedSkippedNoFlat = new AtomicLong();
+    public static final AtomicLong objectsInvertedFallbackNoInterior = new AtomicLong();
+    public static final AtomicLong objectsInvertedSkippedShrink = new AtomicLong();
+    public static final AtomicLong objectsInvertedSkippedNullObj = new AtomicLong();
+    public static final AtomicLong writesDroppedAboveBottomTotal = new AtomicLong();
+    public static final AtomicLong writesDroppedBottomOverhangTotal = new AtomicLong();
     private static final int TERRAIN_MISMATCH_WARNING_CAP = 200;
     private static final AtomicLong heavyClipWarnings = new AtomicLong();
     private static final int HEAVY_CLIP_WARNING_CAP = 30;
@@ -83,6 +91,14 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
         writesDroppedOverhangTotal.set(0);
         heavyClipWarnings.set(0);
         anchorYHisto.clear();
+        objectsInvertedAttempted.set(0);
+        objectsInvertedPlaced.set(0);
+        objectsInvertedSkippedNoFlat.set(0);
+        objectsInvertedFallbackNoInterior.set(0);
+        objectsInvertedSkippedShrink.set(0);
+        objectsInvertedSkippedNullObj.set(0);
+        writesDroppedAboveBottomTotal.set(0);
+        writesDroppedBottomOverhangTotal.set(0);
     }
 
     private static void recordWriteStats(IrisObject obj, int wx, int wz, int pickTopY, IslandObjectPlacer islandPlacer) {
@@ -105,6 +121,11 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                         + " written=" + (attempted - dropped));
             }
         }
+    }
+
+    private static void recordInvertedWriteStats(IslandObjectPlacer islandPlacer) {
+        writesDroppedAboveBottomTotal.addAndGet(islandPlacer.getWritesDroppedAboveBottom());
+        writesDroppedBottomOverhangTotal.addAndGet(islandPlacer.getWritesDroppedBottomOverhang());
     }
 
     private static void verifyTerrainBelowObject(IrisObject obj, int wx, int wz, int pickTopY, FloatingIslandSample sample) {
@@ -189,12 +210,13 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                 }
             }
 
-            KList<IrisObjectPlacement> surface = entry.isInheritObjects() && target != null ? target.getSurfaceObjects() : null;
+            KList<IrisObjectPlacement> surface = target != null ? entry.resolveTopObjects(target) : null;
             KList<IrisObjectPlacement> extras = entry.getExtraObjects();
             boolean hasSurface = surface != null && !surface.isEmpty();
             boolean hasExtras = extras != null && !extras.isEmpty();
+            KList<Integer> interior = null;
             if (hasSurface || hasExtras) {
-                KList<Integer> interior = interiorColumns(samples, columns);
+                interior = interiorColumns(samples, columns);
                 if (hasSurface) {
                     for (IrisObjectPlacement placement : surface) {
                         tryPlaceAnchoredChunk(writer, complex, chunkRng, data, placement, samples, columns, interior, minX, minZ, entry);
@@ -204,6 +226,15 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                     for (IrisObjectPlacement placement : extras) {
                         tryPlaceAnchoredChunk(writer, complex, chunkRng, data, placement, samples, columns, interior, minX, minZ, entry);
                     }
+                }
+            }
+            KList<IrisObjectPlacement> bottom = target != null ? entry.resolveBottomObjects(target) : null;
+            if (bottom != null && !bottom.isEmpty()) {
+                if (interior == null) {
+                    interior = interiorColumns(samples, columns);
+                }
+                for (IrisObjectPlacement placement : bottom) {
+                    tryPlaceInvertedChunk(writer, complex, chunkRng, data, placement, samples, columns, interior, minX, minZ, entry);
                 }
             }
         }
@@ -352,6 +383,129 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
         }
     }
 
+    @ChunkCoordinates
+    private void tryPlaceInvertedChunk(MantleWriter writer, IrisComplex complex, RNG rng, IrisData data, IrisObjectPlacement placement, FloatingIslandSample[] samples, KList<Integer> columns, KList<Integer> interior, int minX, int minZ, IrisFloatingChildBiomes entry) {
+        if (placement == null || columns.isEmpty()) {
+            return;
+        }
+        int density = placement.getDensity(rng, minX, minZ, data);
+        double perAttempt = placement.getChance();
+
+        for (int i = 0; i < density; i++) {
+            objectsInvertedAttempted.incrementAndGet();
+            if (!rng.chance(perAttempt + rng.d(-0.005, 0.005))) {
+                continue;
+            }
+
+            IrisObject raw = placement.getObject(complex, rng);
+            if (raw == null) {
+                objectsInvertedSkippedNullObj.incrementAndGet();
+                continue;
+            }
+            IrisObject obj0 = placement.getScale().get(rng, raw);
+            if (obj0 == null) {
+                objectsInvertedSkippedShrink.incrementAndGet();
+                continue;
+            }
+            if (entry != null && entry.hasObjectShrink()) {
+                obj0 = entry.getShrinkScale().get(rng, obj0);
+                if (obj0 == null) {
+                    objectsInvertedSkippedShrink.incrementAndGet();
+                    continue;
+                }
+            }
+            final IrisObject obj = obj0;
+
+            FloatingObjectFootprint fp = FloatingObjectFootprint.compute(obj);
+
+            KList<Integer> pool = interior.isEmpty() ? columns : interior;
+            if (interior.isEmpty()) {
+                objectsInvertedFallbackNoInterior.incrementAndGet();
+            }
+
+            int pickedKey = pool.get(rng.i(0, pool.size() - 1));
+            int pickedXf = pickedKey & 15;
+            int pickedZf = pickedKey >> 4;
+            FloatingIslandSample pickedSample = samples[(pickedZf << 4) | pickedXf];
+            if (pickedSample == null) {
+                objectsInvertedSkippedNoFlat.incrementAndGet();
+                continue;
+            }
+            int pickBottomY = pickedSample.bottomY();
+            if (pickBottomY < 0) {
+                objectsInvertedSkippedNoFlat.incrementAndGet();
+                continue;
+            }
+
+            if (!isFootprintFlatBottom(fp, pickedXf, pickedZf, pickBottomY, samples, 2)) {
+                if (!isFootprintFlatBottom(fp, pickedXf, pickedZf, pickBottomY, samples, 4)) {
+                    objectsInvertedSkippedNoFlat.incrementAndGet();
+                    continue;
+                }
+            }
+
+            int wx = minX + pickedXf - fp.getTallestKxBottom();
+            int wz = minZ + pickedZf - fp.getTallestKzBottom();
+
+            IrisObjectPlacement inverted = placement.toPlacement(obj.getLoadKey());
+            inverted.setMode(translateStiltModeForFloating(inverted.getMode()));
+            inverted.setTranslate(new IrisObjectTranslate());
+            inverted.setRotation(IrisObjectRotation.xFlip180());
+            inverted.setForcePlace(true);
+            inverted.setBottom(false);
+
+            int yv = pickBottomY - 1 + fp.getHighestSolidKeyY();
+
+            IslandObjectPlacer islandPlacer = new IslandObjectPlacer(writer, samples, minX, minZ, pickBottomY, IslandObjectPlacer.AnchorFace.BOTTOM);
+            int id = rng.i(0, Integer.MAX_VALUE);
+
+            try {
+                obj.place(wx, yv, wz, islandPlacer, inverted, rng, (b, bd) -> {
+                    String marker = placementMarker(obj, id);
+                    if (marker != null) {
+                        writer.setData(b.getX(), b.getY(), b.getZ(), marker);
+                    }
+                }, null, data);
+                objectsInvertedPlaced.incrementAndGet();
+                recordInvertedWriteStats(islandPlacer);
+            } catch (Throwable e) {
+                Iris.reportError(e);
+            }
+        }
+    }
+
+    private static boolean isFootprintFlatBottom(FloatingObjectFootprint fp, int pickedXf, int pickedZf, int pickBottomY, FloatingIslandSample[] samples, int tolerance) {
+        int tallestKxBottom = fp.getTallestKxBottom();
+        int tallestKzBottom = fp.getTallestKzBottom();
+        int checked = 0;
+        boolean touchedChunkEdge = false;
+        long[] cells = fp.footprintXZ();
+        for (int i = 0, n = cells.length; i < n; i++) {
+            long encoded = cells[i];
+            int kx = (int) (encoded >> 32);
+            int kz = (int) (encoded & 0xFFFFFFFFL);
+            int colXf = pickedXf + (kx - tallestKxBottom);
+            int colZf = pickedZf + (kz - tallestKzBottom);
+            if (colXf < 0 || colXf >= 16 || colZf < 0 || colZf >= 16) {
+                touchedChunkEdge = true;
+                continue;
+            }
+            FloatingIslandSample s = samples[(colZf << 4) | colXf];
+            if (s == null) {
+                return false;
+            }
+            int by = s.bottomY();
+            if (by < 0 || Math.abs(by - pickBottomY) > tolerance) {
+                return false;
+            }
+            checked++;
+        }
+        if (checked >= MIN_FOOTPRINT_CELLS_CHECKED) {
+            return true;
+        }
+        return touchedChunkEdge;
+    }
+
     private static boolean isFootprintFlat(FloatingObjectFootprint fp, int pickedXf, int pickedZf, int pickTopY, FloatingIslandSample[] samples, int tolerance) {
         int tallestKx = fp.getTallestKx();
         int tallestKz = fp.getTallestKz();
@@ -449,14 +603,15 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                 for (IrisFloatingChildBiomes entry : entries) {
                     collectPlacementKeys(entry.getFloatingObjects(), objectKeys);
                     collectPlacementKeys(entry.getExtraObjects(), objectKeys);
-                    if (entry.isInheritObjects()) {
-                        try {
-                            IrisBiome target = entry.getRealBiome(biome, data);
-                            if (target != null) {
-                                collectPlacementKeys(target.getSurfaceObjects(), objectKeys);
-                            }
-                        } catch (Throwable ignored) {
+                    collectPlacementKeys(entry.getTopObjectOverrides(), objectKeys);
+                    collectPlacementKeys(entry.getBottomObjectOverrides(), objectKeys);
+                    try {
+                        IrisBiome target = entry.getRealBiome(biome, data);
+                        if (target != null) {
+                            collectPlacementKeys(entry.resolveTopObjects(target), objectKeys);
+                            collectPlacementKeys(entry.resolveBottomObjects(target), objectKeys);
                         }
+                    } catch (Throwable ignored) {
                     }
                 }
             }

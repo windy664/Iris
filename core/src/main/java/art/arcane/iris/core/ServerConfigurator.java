@@ -42,7 +42,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -170,6 +177,70 @@ public class ServerConfigurator {
         }
 
         return fullInstall && verifyDataPacksPost(IrisSettings.get().getAutoConfiguration().isAutoRestartOnCustomBiomeInstall());
+    }
+
+    public static boolean installDataPacksIfChanged(boolean fullInstall) {
+        File packsDir = Iris.instance.getDataFolder("packs");
+        String current = computePackFingerprint(packsDir);
+        File cacheFile = new File(Iris.instance.getDataFolder("cache"), "datapack-fingerprint");
+        String cached = "";
+        if (cacheFile.exists()) {
+            try {
+                cached = Files.readString(cacheFile.toPath(), StandardCharsets.UTF_8).trim();
+            } catch (IOException e) {
+                cached = "";
+            }
+        }
+        if (!current.isEmpty() && current.equals(cached)) {
+            Iris.verbose("Data packs unchanged, skipping install.");
+            return false;
+        }
+        boolean result = installDataPacks(fullInstall);
+        try {
+            cacheFile.getParentFile().mkdirs();
+            Files.writeString(cacheFile.toPath(), current, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            Iris.warn("Failed to write datapack fingerprint cache: " + e.getMessage());
+        }
+        return result;
+    }
+
+    public static String computePackFingerprint(File packsDir) {
+        if (packsDir == null || !packsDir.isDirectory()) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            List<String> entries = new ArrayList<>();
+            collectFingerprintEntries(packsDir, packsDir.getAbsolutePath(), entries);
+            Collections.sort(entries);
+            for (String entry : entries) {
+                digest.update(entry.getBytes(StandardCharsets.UTF_8));
+            }
+            byte[] hash = digest.digest();
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private static void collectFingerprintEntries(File dir, String rootPath, List<String> entries) {
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File file : files) {
+            if (file.isDirectory()) {
+                collectFingerprintEntries(file, rootPath, entries);
+            } else {
+                String relative = file.getAbsolutePath().substring(rootPath.length());
+                entries.add(relative + "|" + file.length() + "|" + file.lastModified());
+            }
+        }
     }
 
     private static boolean shouldDeferInstallUntilWorldsReady() {

@@ -101,6 +101,12 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 + " writeDropBelow=" + MantleFloatingObjectComponent.writesDroppedBelowTotal.get()
                 + " writeDropOverhang=" + MantleFloatingObjectComponent.writesDroppedOverhangTotal.get()
                 + " terrainMismatch=" + MantleFloatingObjectComponent.terrainMismatchWarnings.get()
+                + " objInvAttempt=" + MantleFloatingObjectComponent.objectsInvertedAttempted.get()
+                + " objInvPlaced=" + MantleFloatingObjectComponent.objectsInvertedPlaced.get()
+                + " objInvNoFlat=" + MantleFloatingObjectComponent.objectsInvertedSkippedNoFlat.get()
+                + " objInvFallbackNoInterior=" + MantleFloatingObjectComponent.objectsInvertedFallbackNoInterior.get()
+                + " writesAboveBottom=" + MantleFloatingObjectComponent.writesDroppedAboveBottomTotal.get()
+                + " writesBottomOverhang=" + MantleFloatingObjectComponent.writesDroppedBottomOverhangTotal.get()
                 + " anchorY:" + (topAnchorY.length() == 0 ? " <none>" : topAnchorY.toString())
                 + " topFloors:" + (topFloors.length() == 0 ? " <none>" : topFloors.toString()));
     }

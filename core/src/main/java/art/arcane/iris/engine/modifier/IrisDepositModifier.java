@@ -117,6 +117,8 @@ public class IrisDepositModifier extends EngineAssignedModifier<BlockData> {
             if (y > k.getMaxHeight() || y < k.getMinHeight() || y > height - 2)
                 continue;
 
+            IrisDimension dimension = getDimension();
+
             for (BlockVector j : clump.getBlocks().keys()) {
                 int nx = j.getBlockX() + x;
                 int ny = j.getBlockY() + y;
@@ -130,9 +132,63 @@ public class IrisDepositModifier extends EngineAssignedModifier<BlockData> {
                 }
 
                 if (chunk.get(nx, ny, nz, MatterCavern.class) == null) {
-                    data.set(nx, ny, nz, B.toDeepSlateOre(data.get(nx, ny, nz), clump.getBlocks().get(j)));
+                    BlockData ore = clump.getBlocks().get(j);
+                    BlockData remapped = resolveDepositVariant(cx, cz, nx, ny, nz, ore, dimension, context);
+                    BlockData finalBlock = remapped != null
+                            ? remapped
+                            : B.toDeepSlateOre(data.get(nx, ny, nz), ore);
+                    data.set(nx, ny, nz, finalBlock);
                 }
             }
         }
+    }
+
+    private BlockData resolveDepositVariant(int cx, int cz, int nx, int ny, int nz, BlockData ore, IrisDimension dimension, ChunkContext context) {
+        int worldX = (cx << 4) + nx;
+        int worldZ = (cz << 4) + nz;
+
+        IrisBiome biome = getEngine().getBiome(worldX, ny, worldZ);
+        if (biome != null) {
+            BlockData match = matchDepositVariant(biome.getDepositVariants(), ore, ny);
+            if (match != null) {
+                return match;
+            }
+        }
+
+        IrisRegion region = context.getRegion().get(nx, nz);
+        if (region != null) {
+            BlockData match = matchDepositVariant(region.getDepositVariants(), ore, ny);
+            if (match != null) {
+                return match;
+            }
+        }
+
+        if (dimension != null) {
+            BlockData match = matchDepositVariant(dimension.getDepositVariants(), ore, ny);
+            if (match != null) {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private BlockData matchDepositVariant(java.util.List<IrisDepositVariant> variants, BlockData ore, int y) {
+        if (variants == null || variants.isEmpty()) {
+            return null;
+        }
+
+        for (IrisDepositVariant variant : variants) {
+            if (y < variant.getMinHeight() || y > variant.getMaxHeight()) {
+                continue;
+            }
+
+            BlockData swapped = variant.remapOrNull(ore, getData());
+            if (swapped != null) {
+                return swapped;
+            }
+        }
+
+        return null;
     }
 }

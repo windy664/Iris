@@ -149,7 +149,9 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         try {
             INMS.get().inject(world.getSeed(), engine, world);
             Iris.info("Injected Iris Biome Source into " + world.getName());
-            J.s(() -> updateSpawnLocation(world), 1);
+            if (!studio) {
+                J.s(() -> updateSpawnLocation(world), 1);
+            }
         } catch (Throwable e) {
             Iris.reportError(e);
             Iris.error("Failed to inject biome source into " + world.getName());

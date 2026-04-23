@@ -211,6 +211,45 @@ public class IrisFloatingChildBiomes implements IRare {
     @Desc("Visualization color for this floating child in Iris Studio.")
     private String color = null;
 
+    @Desc("Controls how topObjectOverrides are combined with the inherited surface objects from the target biome. INHERIT_ONLY (default) = behaves identically to before this field was added. MERGE = appends overrides after inherited objects. REPLACE = uses only overrides, ignoring all inherited objects.")
+    private OverrideMode topObjectMode = OverrideMode.INHERIT_ONLY;
+
+    @Desc("Controls how bottomObjectOverrides are combined. INHERIT_ONLY (default) = no bottom objects placed (there is no inherited bottom set). MERGE = same as REPLACE for bottom (no inherited source). REPLACE = uses bottomObjectOverrides list only.")
+    private OverrideMode bottomObjectMode = OverrideMode.INHERIT_ONLY;
+
+    @ArrayType(min = 1, type = IrisObjectPlacement.class)
+    @Desc("Object placements that override or supplement the inherited surface objects on the island TOP. Behaviour depends on topObjectMode. INHERIT_ONLY = this list is ignored. MERGE = appended after inherited. REPLACE = used instead of inherited.")
+    private KList<IrisObjectPlacement> topObjectOverrides = new KList<>();
+
+    @ArrayType(min = 1, type = IrisObjectPlacement.class)
+    @Desc("Object placements anchored to the island BOTTOM face. Each entry is auto-inverted 180 degrees around the X axis and placed flush against the lowest solid face of the island, so objects appear to hang upside-down from the underside. WARNING: directional blocks (stairs, doors, slabs) will not render correctly when flipped — use non-directional content (logs, leaves, stone, mycelium, ice, glass) for bottom placements.")
+    private KList<IrisObjectPlacement> bottomObjectOverrides = new KList<>();
+
+    public KList<IrisObjectPlacement> resolveTopObjects(IrisBiome target) {
+        KList<IrisObjectPlacement> surfaceObjects = (inheritObjects && target != null) ? target.getSurfaceObjects() : new KList<>();
+        return resolveTopObjectsFromSurface(surfaceObjects);
+    }
+
+    KList<IrisObjectPlacement> resolveTopObjectsFromSurface(KList<IrisObjectPlacement> surfaceObjects) {
+        return switch (topObjectMode) {
+            case REPLACE -> new KList<>(topObjectOverrides);
+            case MERGE -> {
+                KList<IrisObjectPlacement> merged = new KList<>();
+                merged.addAll(surfaceObjects);
+                merged.addAll(topObjectOverrides);
+                yield merged;
+            }
+            case INHERIT_ONLY -> surfaceObjects;
+        };
+    }
+
+    public KList<IrisObjectPlacement> resolveBottomObjects(IrisBiome target) {
+        return switch (bottomObjectMode) {
+            case INHERIT_ONLY -> new KList<>();
+            case MERGE, REPLACE -> bottomObjectOverrides;
+        };
+    }
+
     public boolean hasObjectShrink() {
         return objectShrinkFactor > 0 && objectShrinkFactor < 1.0;
     }

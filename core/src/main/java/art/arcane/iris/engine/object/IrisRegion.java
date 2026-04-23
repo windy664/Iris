@@ -141,6 +141,9 @@ public class IrisRegion extends IrisRegistrant implements IRare {
     @ArrayType(min = 1, type = IrisDepositGenerator.class)
     @Desc("Define regional deposit generators that add onto the global deposit generators")
     private KList<IrisDepositGenerator> deposits = new KList<>();
+    @ArrayType(min = 1, type = IrisDepositVariant.class)
+    @Desc("Deposit ore remap rules scoped to this region. Each entry declares a vertical band and a source->replacement block id map. Applied after biome rules but before dimension rules; first matching region rule wins.")
+    private KList<IrisDepositVariant> depositVariants = new KList<>();
     @Desc("The style of rivers")
     private IrisGeneratorStyle riverStyle = NoiseStyle.VASCULAR_THIN.style().zoomed(7.77);
     @Desc("The style of lakes")

@@ -118,14 +118,16 @@ public final class StudioOpenCoordinator {
                 throw new IllegalStateException("Studio entry anchor could not be resolved.");
             }
 
-            long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(120L);
-            updateStage(request, "request_entry_chunk", 0.84D);
-            requestEntryChunk(world, entryAnchor, deadline);
-
-            updateStage(request, "resolve_safe_entry", 0.90D);
-            Location safeEntry = resolveSafeEntry(world, entryAnchor, deadline);
+            updateStage(request, "resolve_safe_entry", 0.84D);
+            Location safeEntry;
+            try {
+                safeEntry = WorldRuntimeControlService.get().resolveSafeEntry(world, entryAnchor)
+                        .get(5L, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                throw new IllegalStateException("Studio entry point resolution timed out — region thread may be stalled.");
+            }
             if (safeEntry == null) {
-                throw new IllegalStateException("Studio safe entry resolution timed out.");
+                throw new IllegalStateException("Studio entry point could not be resolved for world \"" + request.worldName() + "\".");
             }
 
             if (request.playerName() != null && !request.playerName().isBlank()) {
@@ -135,8 +137,7 @@ public final class StudioOpenCoordinator {
                     throw new IllegalStateException("Player \"" + request.playerName() + "\" is not online.");
                 }
 
-                long remaining = Math.max(1000L, deadline - System.currentTimeMillis());
-                Boolean teleported = WorldRuntimeControlService.get().teleport(player, safeEntry).get(remaining, TimeUnit.MILLISECONDS);
+                Boolean teleported = WorldRuntimeControlService.get().teleport(player, safeEntry).get(10L, TimeUnit.SECONDS);
                 if (!Boolean.TRUE.equals(teleported)) {
                     throw new IllegalStateException("Studio teleport did not complete successfully.");
                 }
@@ -166,18 +167,6 @@ public final class StudioOpenCoordinator {
             }
             future.completeExceptionally(e);
         }
-    }
-
-    private void requestEntryChunk(World world, Location entryAnchor, long deadline) throws Exception {
-        int chunkX = entryAnchor.getBlockX() >> 4;
-        int chunkZ = entryAnchor.getBlockZ() >> 4;
-        long remaining = Math.max(1000L, deadline - System.currentTimeMillis());
-        waitForEntryChunk(world, chunkX, chunkZ, deadline, null).get(remaining, TimeUnit.MILLISECONDS);
-    }
-
-    private Location resolveSafeEntry(World world, Location entryAnchor, long deadline) throws Exception {
-        long remaining = Math.max(1000L, deadline - System.currentTimeMillis());
-        return waitForSafeEntry(world, entryAnchor, deadline, null).get(remaining, TimeUnit.MILLISECONDS);
     }
 
     private StudioCloseResult closeWorld(
@@ -361,58 +350,6 @@ public final class StudioOpenCoordinator {
         };
     }
 
-    private CompletableFuture<Void> waitForEntryChunk(World world, int chunkX, int chunkZ, long deadline, Throwable lastFailure) {
-        long now = System.currentTimeMillis();
-        if (now >= deadline) {
-            return CompletableFuture.failedFuture(timeoutFailure("Studio entry chunk request timed out.", lastFailure));
-        }
-
-        long attemptTimeout = Math.min(Math.max(1000L, deadline - now), 3000L);
-        CompletableFuture<org.bukkit.Chunk> request = withAttemptTimeout(
-                WorldRuntimeControlService.get().requestChunkAsync(world, chunkX, chunkZ, true),
-                attemptTimeout,
-                "Studio entry chunk request attempt timed out."
-        );
-        return request.handle((chunk, throwable) -> {
-            if (throwable == null && world.isChunkLoaded(chunkX, chunkZ)) {
-                return CompletableFuture.<Void>completedFuture(null);
-            }
-
-            Throwable nextFailure = throwable == null ? lastFailure : unwrapFailure(throwable);
-            if (System.currentTimeMillis() >= deadline) {
-                return CompletableFuture.<Void>failedFuture(timeoutFailure("Studio entry chunk request timed out.", nextFailure));
-            }
-
-            return delayFuture(1000L).thenCompose(ignored -> waitForEntryChunk(world, chunkX, chunkZ, deadline, nextFailure));
-        }).thenCompose(next -> next);
-    }
-
-    private CompletableFuture<Location> waitForSafeEntry(World world, Location entryAnchor, long deadline, Throwable lastFailure) {
-        long now = System.currentTimeMillis();
-        if (now >= deadline) {
-            return CompletableFuture.failedFuture(timeoutFailure("Studio safe-entry resolution timed out.", lastFailure));
-        }
-
-        long attemptTimeout = Math.min(Math.max(1000L, deadline - now), 3000L);
-        CompletableFuture<Location> resolve = withAttemptTimeout(
-                WorldRuntimeControlService.get().resolveSafeEntry(world, entryAnchor),
-                attemptTimeout,
-                "Studio safe-entry resolution attempt timed out."
-        );
-        return resolve.handle((location, throwable) -> {
-            if (throwable == null && location != null) {
-                return CompletableFuture.completedFuture(location);
-            }
-
-            Throwable nextFailure = throwable == null ? lastFailure : unwrapFailure(throwable);
-            if (System.currentTimeMillis() >= deadline) {
-                return CompletableFuture.<Location>failedFuture(timeoutFailure("Studio safe-entry resolution timed out.", nextFailure));
-            }
-
-            return delayFuture(250L).thenCompose(ignored -> waitForSafeEntry(world, entryAnchor, deadline, nextFailure));
-        }).thenCompose(next -> next);
-    }
-
     private CompletableFuture<Void> waitForWorldFamilyUnload(String worldName, long deadline) {
         if (worldName == null || !isWorldFamilyLoaded(worldName) || System.currentTimeMillis() >= deadline) {
             return CompletableFuture.completedFuture(null);
@@ -442,32 +379,6 @@ public final class StudioOpenCoordinator {
         long safeDelay = Math.max(0L, delayMillis);
         return CompletableFuture.runAsync(() -> {
         }, CompletableFuture.delayedExecutor(safeDelay, TimeUnit.MILLISECONDS));
-    }
-
-    private <T> CompletableFuture<T> withAttemptTimeout(CompletableFuture<T> source, long timeoutMillis, String message) {
-        CompletableFuture<T> future = new CompletableFuture<>();
-        source.whenComplete((value, throwable) -> {
-            if (throwable != null) {
-                future.completeExceptionally(unwrapFailure(throwable));
-                return;
-            }
-
-            future.complete(value);
-        });
-        delayFuture(timeoutMillis).whenComplete((ignored, throwable) -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(new TimeoutException(message));
-            }
-        });
-        return future;
-    }
-
-    private IllegalStateException timeoutFailure(String message, Throwable lastFailure) {
-        if (lastFailure == null) {
-            return new IllegalStateException(message);
-        }
-
-        return new IllegalStateException(message, lastFailure);
     }
 
     private Throwable unwrapFailure(Throwable throwable) {

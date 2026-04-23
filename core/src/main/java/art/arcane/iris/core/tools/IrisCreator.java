@@ -40,7 +40,6 @@ import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.exceptions.IrisException;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
-import art.arcane.volmlib.util.io.IO;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -143,16 +142,6 @@ public class IrisCreator {
         }
 
         reportStudioProgress(0.02D, "resolve_dimension");
-
-        if (studio()) {
-            World existing = Bukkit.getWorld(name());
-            if (existing == null) {
-                IO.delete(new File(Bukkit.getWorldContainer(), name()));
-                IO.delete(new File(Bukkit.getWorldContainer(), name() + "_nether"));
-                IO.delete(new File(Bukkit.getWorldContainer(), name() + "_the_end"));
-            }
-        }
-
         reportStudioProgress(0.08D, "resolve_dimension");
         IrisDimension d = IrisToolbelt.getDimension(dimension());
 
@@ -185,7 +174,7 @@ public class IrisCreator {
         if (!studio()) {
             IrisWorlds.get().put(name(), dimension());
         }
-        ServerConfigurator.installDataPacks(!studio());
+        ServerConfigurator.installDataPacksIfChanged(!studio());
         reportStudioProgress(0.40D, "install_datapacks");
 
         PlatformChunkGenerator access = (PlatformChunkGenerator) wc.generator();
