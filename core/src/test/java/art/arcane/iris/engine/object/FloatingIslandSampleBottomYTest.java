@@ -1,5 +1,8 @@
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.util.project.noise.CNG;
+import art.arcane.iris.util.project.noise.NoiseGenerator;
+import art.arcane.volmlib.util.math.RNG;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -15,7 +18,9 @@ public class FloatingIslandSampleBottomYTest {
             }
         }
         for (boolean b : solidMask) {
-            if (b) solidCount++;
+            if (b) {
+                solidCount++;
+            }
         }
         return FloatingIslandSample.constructForTest(islandBaseY, solidMask.length, topIdx, solidCount, solidMask);
     }
@@ -71,5 +76,85 @@ public class FloatingIslandSampleBottomYTest {
         assertEquals(false, mask[0]);
         assertEquals(false, mask[1]);
         assertEquals(false, mask[2]);
+    }
+
+    @Test
+    public void roundedEdgeHeight_zeroFade_removesEdgeWall() {
+        assertEquals(0, FloatingIslandSample.roundedEdgeHeight(18, 0.0));
+    }
+
+    @Test
+    public void roundedEdgeDepth_zeroFade_removesMinimumTailAtEdge() {
+        assertEquals(0, FloatingIslandSample.roundedEdgeDepth(10, 20, 1.0, 0.0));
+    }
+
+    @Test
+    public void roundedEdgeDepth_fullFade_keepsConfiguredDepth() {
+        assertEquals(15, FloatingIslandSample.roundedEdgeDepth(10, 20, 0.5, 1.0));
+    }
+
+    @Test
+    public void carveSolidInterior_preservesOuterShell() {
+        boolean[] mask = {false, true, true, true, true, false};
+        CNG carve = new CNG(new RNG(1), new NoiseGenerator() {
+            @Override
+            public double noise(double x) {
+                return 1.0;
+            }
+
+            @Override
+            public double noise(double x, double z) {
+                return 1.0;
+            }
+
+            @Override
+            public double noise(double x, double y, double z) {
+                return 1.0;
+            }
+        }, 1.0, 1);
+
+        int count = FloatingIslandSample.carveSolidInterior(mask, 100, 0, 0, carve, 0.5);
+
+        assertEquals(2, count);
+        assertEquals(false, mask[0]);
+        assertEquals(true, mask[1]);
+        assertEquals(false, mask[2]);
+        assertEquals(false, mask[3]);
+        assertEquals(true, mask[4]);
+        assertEquals(false, mask[5]);
+    }
+
+    @Test
+    public void hasFootprintNeighborSupport_rejectsSingleIsolatedColumn() {
+        CNG footprint = new CNG(new RNG(2)) {
+            @Override
+            public double noise(double x, double z) {
+                return x == 0 && z == 0 ? 1.0 : 0.0;
+            }
+
+            @Override
+            public double noise(double x, double y, double z) {
+                return noise(x, z);
+            }
+        };
+
+        assertEquals(false, FloatingIslandSample.hasFootprintNeighborSupport(footprint, 0, 0, 0.0));
+    }
+
+    @Test
+    public void hasFootprintNeighborSupport_acceptsCardinalNeighbor() {
+        CNG footprint = new CNG(new RNG(3)) {
+            @Override
+            public double noise(double x, double z) {
+                return (x == 0 && z == 0) || (x == 1 && z == 0) ? 1.0 : 0.0;
+            }
+
+            @Override
+            public double noise(double x, double y, double z) {
+                return noise(x, z);
+            }
+        };
+
+        assertEquals(true, FloatingIslandSample.hasFootprintNeighborSupport(footprint, 0, 0, 0.0));
     }
 }

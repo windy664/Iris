@@ -162,6 +162,13 @@ public class IrisFloatingChildBiomes implements IRare {
     @Desc("Power curve applied to the bottom noise before mapping to depth. >1 = most columns shallow with occasional deeper spikes (sparse roots). <1 = most columns deep with occasional shallow spots (dense curtains). 1.0 = linear.")
     private double bottomExponent = 1.0;
 
+    @Desc("Controls the material palette near the island underside. DEPTH keeps the old top-down depth behavior. MIRROR_TOP uses the target biome's shallow/top palette from the underside upward. CUSTOM uses bottomPalette near the underside while keeping the target biome palette near the top.")
+    private FloatingBottomPaletteMode bottomPaletteMode = FloatingBottomPaletteMode.DEPTH;
+
+    @ArrayType(min = 1, type = IrisBiomePaletteLayer.class)
+    @Desc("Custom palette layers used near the underside when bottomPaletteMode=CUSTOM. The layer format is the same as normal biome layers.")
+    private KList<IrisBiomePaletteLayer> bottomPalette = new KList<>();
+
     @MinNumber(1)
     @MaxNumber(512)
     @Desc("Hard cap on the total Y-extent (top minus bottom) of a single island column. Safety limit.")

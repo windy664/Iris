@@ -18,21 +18,16 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.util.common.data.B;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.util.BlockVector;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class FloatingObjectFootprint {
     private static final ConcurrentHashMap<String, FloatingObjectFootprint> CACHE = new ConcurrentHashMap<>();
-    private static final boolean DIAGNOSTIC_LOG = Boolean.parseBoolean(System.getProperty("iris.floating.footprintLog", "true"));
 
     private final int lowestSolidKeyY;
     private final int highestSolidKeyY;
@@ -111,96 +106,7 @@ public class FloatingObjectFootprint {
         int tallestKz = columnStats.isEmpty() ? 0 : (int) (tallestPacked & 0xFFFFFFFFL);
         int tallestKxBottom = columnStats.isEmpty() ? 0 : globalHighestKx[0];
         int tallestKzBottom = columnStats.isEmpty() ? 0 : globalHighestKz[0];
-        if (DIAGNOSTIC_LOG) {
-            logFootprintDiagnostic(cacheKey, obj, cx, cy, cz, lowestSolidKeyY, tallestKx, tallestKz, columnStats);
-        }
         return new FloatingObjectFootprint(lowestSolidKeyY, highestSolidKeyY, cx, cy, cz, tallestKx, tallestKz, tallestKxBottom, tallestKzBottom, footprintArray);
-    }
-
-    private static void logFootprintDiagnostic(String cacheKey, IrisObject obj, int cx, int cy, int cz, int anchorY, int tallestKx, int tallestKz, Map<Long, int[]> columnStats) {
-        if (columnStats.isEmpty()) {
-            Iris.info("[FloatingFootprint] key=" + cacheKey + " center=(" + cx + "," + cy + "," + cz + ") anchor=" + anchorY + " columns=0 (EMPTY)");
-            return;
-        }
-
-        int tallestCount = 0;
-        int tallestLow = Integer.MAX_VALUE;
-        int floorLow = Integer.MAX_VALUE;
-        int ceilingLow = Integer.MIN_VALUE;
-        int minKx = Integer.MAX_VALUE, maxKx = Integer.MIN_VALUE;
-        int minKz = Integer.MAX_VALUE, maxKz = Integer.MIN_VALUE;
-        TreeMap<Integer, Integer> lowYHisto = new TreeMap<>();
-        for (Map.Entry<Long, int[]> e : columnStats.entrySet()) {
-            long packed = e.getKey();
-            int kx = (int) (packed >> 32);
-            int kz = (int) (packed & 0xFFFFFFFFL);
-            if (kx < minKx) minKx = kx;
-            if (kx > maxKx) maxKx = kx;
-            if (kz < minKz) minKz = kz;
-            if (kz > maxKz) maxKz = kz;
-            int[] s = e.getValue();
-            int count = s[1];
-            int low = s[0];
-            if (count > tallestCount || (count == tallestCount && low < tallestLow)) {
-                tallestCount = count;
-                tallestLow = low;
-            }
-            if (low < floorLow) floorLow = low;
-            if (low > ceilingLow) ceilingLow = low;
-            lowYHisto.merge(low, 1, Integer::sum);
-        }
-
-        int straysBelowAnchor = 0;
-        for (int[] s : columnStats.values()) {
-            if (s[0] < anchorY) straysBelowAnchor++;
-        }
-
-        List<Map.Entry<Long, int[]>> sorted = new ArrayList<>(columnStats.entrySet());
-        sorted.sort((a, b) -> {
-            int cmp = Integer.compare(b.getValue()[1], a.getValue()[1]);
-            if (cmp != 0) return cmp;
-            return Integer.compare(a.getValue()[0], b.getValue()[0]);
-        });
-        StringBuilder topN = new StringBuilder();
-        int showN = Math.min(4, sorted.size());
-        for (int i = 0; i < showN; i++) {
-            Map.Entry<Long, int[]> e = sorted.get(i);
-            int kx = (int) (e.getKey() >> 32);
-            int kz = (int) (e.getKey() & 0xFFFFFFFFL);
-            int[] s = e.getValue();
-            if (i > 0) topN.append(",");
-            topN.append("(").append(kx).append(",").append(kz).append(")c=").append(s[1]).append(":y=").append(s[0]);
-        }
-
-        StringBuilder histo = new StringBuilder();
-        int histoEntries = 0;
-        for (Map.Entry<Integer, Integer> e : lowYHisto.entrySet()) {
-            if (histoEntries++ > 0) histo.append(",");
-            histo.append(e.getKey()).append("=").append(e.getValue());
-            if (histoEntries >= 6) {
-                if (lowYHisto.size() > 6) histo.append(",...+").append(lowYHisto.size() - 6);
-                break;
-            }
-        }
-
-        String keyStyle = (minKx >= 0 && minKz >= 0) ? "RAW" : "SIGNED";
-
-        Iris.info("[FloatingFootprint] key=" + cacheKey
-                + " dims=" + obj.getW() + "x" + obj.getH() + "x" + obj.getD()
-                + " center=(" + cx + "," + cy + "," + cz + ")"
-                + " keyStyle=" + keyStyle
-                + " kxRange=[" + minKx + "," + maxKx + "]"
-                + " kzRange=[" + minKz + "," + maxKz + "]"
-                + " cols=" + columnStats.size()
-                + " anchor=" + anchorY
-                + " relAnchor=" + (anchorY - cy)
-                + " tallestKxKz=(" + tallestKx + "," + tallestKz + ")"
-                + " floorLow=" + floorLow
-                + " ceilingLow=" + ceilingLow
-                + " tallest=count" + tallestCount + ":y" + tallestLow
-                + " straysBelow=" + straysBelowAnchor
-                + " topCols=[" + topN + "]"
-                + " lowYHisto={" + histo + "}");
     }
 
     private static long resolveTallestColumn(Map<Long, int[]> columnStats) {

@@ -52,6 +52,31 @@ public class IslandObjectPlacerAnchorFaceTest {
     }
 
     @Test
+    public void bottomFace_canWriteObjectBlock_allowsBelowAnchorWithoutCounting() {
+        FloatingIslandSample[] samples = new FloatingIslandSample[256];
+        samples[0] = sampleWithBottomAt(100, 0);
+
+        IslandObjectPlacer placer = new IslandObjectPlacer(null, samples, 0, 0, 100, IslandObjectPlacer.AnchorFace.BOTTOM);
+
+        assertEquals(true, placer.canWriteObjectBlock(0, 99, 0));
+        assertEquals(0, placer.getWritesAttempted());
+        assertEquals(0, placer.getWritesDroppedAboveBottom());
+    }
+
+    @Test
+    public void bottomFace_canWriteObjectBlock_blocksAnchorAndAboveWithoutCounting() {
+        FloatingIslandSample[] samples = new FloatingIslandSample[256];
+        samples[0] = sampleWithBottomAt(100, 0);
+
+        IslandObjectPlacer placer = new IslandObjectPlacer(null, samples, 0, 0, 100, IslandObjectPlacer.AnchorFace.BOTTOM);
+
+        assertEquals(false, placer.canWriteObjectBlock(0, 100, 0));
+        assertEquals(false, placer.canWriteObjectBlock(0, 101, 0));
+        assertEquals(0, placer.getWritesAttempted());
+        assertEquals(0, placer.getWritesDroppedAboveBottom());
+    }
+
+    @Test
     public void topFace_existingConstructor_dropsBelowAnchor_noRegression() {
         FloatingIslandSample[] samples = new FloatingIslandSample[256];
         samples[0] = sampleWithBottomAt(100, 0);

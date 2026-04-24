@@ -18,25 +18,29 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.decorator.FloatingDecorator;
 import art.arcane.iris.engine.decorator.IrisSeaSurfaceDecorator;
-import static art.arcane.iris.engine.mantle.EngineMantle.AIR;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
 import art.arcane.iris.engine.framework.EngineDecorator;
 import art.arcane.iris.engine.mantle.components.MantleFloatingObjectComponent;
+import art.arcane.iris.engine.object.FloatingBottomPaletteMode;
 import art.arcane.iris.engine.object.FloatingIslandSample;
 import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.iris.engine.object.IrisBiomePaletteLayer;
 import art.arcane.iris.engine.object.IrisBiomeCustom;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisFloatingChildBiomes;
+import art.arcane.iris.engine.object.IrisSlopeClip;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.iris.util.project.hunk.Hunk;
+import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.MatterBiomeInject;
@@ -45,110 +49,125 @@ import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 
-import java.util.concurrent.atomic.AtomicLong;
+import static art.arcane.iris.engine.mantle.EngineMantle.AIR;
 
 public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<BlockData> {
     public static final long FLOATING_BASE_SEED_SALT = 0x5EED_F107_00F1B10CL;
-    private static final AtomicLong columnsChecked = new AtomicLong();
-    private static final AtomicLong samplesAccepted = new AtomicLong();
-    private static final AtomicLong decorateInvocations = new AtomicLong();
-    private static final AtomicLong decorateSkippedNotAir = new AtomicLong();
-    private static final AtomicLong decorateSkippedNoInherit = new AtomicLong();
-    private static final AtomicLong decoratePhaseColumns = new AtomicLong();
-    private static final AtomicLong decoratePlaced = new AtomicLong();
-    private static final AtomicLong decorateNoChange = new AtomicLong();
-    private static final AtomicLong decorateFloorNull = new AtomicLong();
-    private static final java.util.concurrent.ConcurrentHashMap<String, AtomicLong> floorMatHisto = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final AtomicLong decCandidatesNull = new AtomicLong();
-    private static final AtomicLong lastReportMs = new AtomicLong(0L);
-    private static final AtomicLong reportCycle = new AtomicLong(0L);
-    private static final Runnable INC_DEC_CANDIDATES_NULL = () -> decCandidatesNull.incrementAndGet();
+    private static final Runnable NOOP_DECORATION_MISS = () -> {
+    };
     private final RNG rng;
     private final EngineDecorator seaSurfaceDecorator;
 
-    public static void reportFloatingStats() {
-        StringBuilder topFloors = new StringBuilder();
-        floorMatHisto.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue().get(), a.getValue().get()))
-                .limit(5)
-                .forEach(e -> topFloors.append(' ').append(e.getKey()).append('=').append(e.getValue().get()));
-
-        StringBuilder topAnchorY = new StringBuilder();
-        MantleFloatingObjectComponent.anchorYHisto.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue().get(), a.getValue().get()))
-                .limit(5)
-                .forEach(e -> topAnchorY.append(' ').append(e.getKey()).append('=').append(e.getValue().get()));
-
-        art.arcane.iris.Iris.info("[floating-debug]"
-                + " columns=" + columnsChecked.get()
-                + " samples=" + samplesAccepted.get()
-                + " decInvoke=" + decorateInvocations.get()
-                + " decPlaced=" + decoratePlaced.get()
-                + " decNoChange=" + decorateNoChange.get()
-                + " decFloorNull=" + decorateFloorNull.get()
-                + " decCandidatesNull=" + decCandidatesNull.get()
-                + " decSkipNonAir=" + decorateSkippedNotAir.get()
-                + " decSkipNoInherit=" + decorateSkippedNoInherit.get()
-                + " decPhaseCols=" + decoratePhaseColumns.get()
-                + " objAttempt=" + MantleFloatingObjectComponent.objectsAttempted.get()
-                + " objPlaced=" + MantleFloatingObjectComponent.objectsPlaced.get()
-                + " objNoFlat=" + MantleFloatingObjectComponent.objectsSkippedNoFlat.get()
-                + " objNoInterior=" + MantleFloatingObjectComponent.objectsSkippedNoInterior.get()
-                + " objRelax=" + MantleFloatingObjectComponent.objectsRelaxed.get()
-                + " objShrinkDrop=" + MantleFloatingObjectComponent.objectsSkippedShrink.get()
-                + " objNullObj=" + MantleFloatingObjectComponent.objectsSkippedNullObj.get()
-                + " writeAttempt=" + MantleFloatingObjectComponent.writesAttemptedTotal.get()
-                + " writeDropBelow=" + MantleFloatingObjectComponent.writesDroppedBelowTotal.get()
-                + " writeDropOverhang=" + MantleFloatingObjectComponent.writesDroppedOverhangTotal.get()
-                + " terrainMismatch=" + MantleFloatingObjectComponent.terrainMismatchWarnings.get()
-                + " objInvAttempt=" + MantleFloatingObjectComponent.objectsInvertedAttempted.get()
-                + " objInvPlaced=" + MantleFloatingObjectComponent.objectsInvertedPlaced.get()
-                + " objInvNoFlat=" + MantleFloatingObjectComponent.objectsInvertedSkippedNoFlat.get()
-                + " objInvFallbackNoInterior=" + MantleFloatingObjectComponent.objectsInvertedFallbackNoInterior.get()
-                + " writesAboveBottom=" + MantleFloatingObjectComponent.writesDroppedAboveBottomTotal.get()
-                + " writesBottomOverhang=" + MantleFloatingObjectComponent.writesDroppedBottomOverhangTotal.get()
-                + " anchorY:" + (topAnchorY.length() == 0 ? " <none>" : topAnchorY.toString())
-                + " topFloors:" + (topFloors.length() == 0 ? " <none>" : topFloors.toString()));
+    private static KList<BlockData> generateBottomPaletteLayers(IrisFloatingChildBiomes entry, IrisDimension dimension, double wx, double wz, RNG random, int paletteDepth, IrisData data, IrisComplex complex) {
+        if (entry == null || entry.getBottomPaletteMode() != FloatingBottomPaletteMode.CUSTOM || entry.getBottomPalette() == null || entry.getBottomPalette().isEmpty()) {
+            return null;
+        }
+        return generatePaletteLayers(dimension, entry.getBottomPalette(), wx, wz, random.nextParallelRNG(0xB0770B), paletteDepth, data, complex);
     }
 
-    private static void maybeReport() {
-        long now = System.currentTimeMillis();
-        long last = lastReportMs.get();
-        if (now - last >= 10000L && lastReportMs.compareAndSet(last, now)) {
-            reportFloatingStats();
-            if (reportCycle.incrementAndGet() >= 30) {
-                reportCycle.set(0);
-                resetAllCounters();
+    private static KList<BlockData> generatePaletteLayers(IrisDimension dimension, KList<IrisBiomePaletteLayer> layers, double wx, double wz, RNG random, int maxDepth, IrisData data, IrisComplex complex) {
+        KList<BlockData> generated = new KList<>();
+        if (layers == null || layers.isEmpty() || maxDepth <= 0) {
+            return generated;
+        }
+
+        int generatorSeed = 7235;
+        for (int i = 0; i < layers.size(); i++) {
+            IrisBiomePaletteLayer layer = layers.get(i);
+            CNG heightGenerator = layer.getHeightGenerator(random.nextParallelRNG((generatorSeed++) * generatorSeed * generatorSeed * generatorSeed), data);
+            if (heightGenerator == null) {
+                continue;
+            }
+            double layerDepth = heightGenerator.fit(layer.getMinHeight(), layer.getMaxHeight(), wx / layer.getZoom(), wz / layer.getZoom());
+            IrisSlopeClip slopeClip = layer.getSlopeCondition();
+
+            if (slopeClip != null && !slopeClip.isDefault() && complex != null && !slopeClip.isValid(complex.getSlopeStream().get(wx, wz))) {
+                layerDepth = 0;
+            }
+
+            if (layerDepth <= 0) {
+                continue;
+            }
+
+            for (int j = 0; j < layerDepth; j++) {
+                if (generated.size() >= maxDepth) {
+                    break;
+                }
+
+                try {
+                    generated.add(layer.get(random.nextParallelRNG(i + j), (wx + j) / layer.getZoom(), j, (wz - j) / layer.getZoom(), data));
+                } catch (Throwable e) {
+                    Iris.reportError(e);
+                    e.printStackTrace();
+                }
+            }
+
+            if (generated.size() >= maxDepth) {
+                break;
+            }
+
+            if (dimension != null && dimension.isExplodeBiomePalettes()) {
+                BlockData barrier = B.get("minecraft:barrier");
+                for (int j = 0; j < dimension.getExplodeBiomePaletteSize(); j++) {
+                    generated.add(barrier);
+
+                    if (generated.size() >= maxDepth) {
+                        break;
+                    }
+                }
             }
         }
+
+        return generated;
     }
 
-    private static void resetAllCounters() {
-        columnsChecked.set(0);
-        samplesAccepted.set(0);
-        decorateInvocations.set(0);
-        decorateSkippedNotAir.set(0);
-        decorateSkippedNoInherit.set(0);
-        decoratePhaseColumns.set(0);
-        decoratePlaced.set(0);
-        decorateNoChange.set(0);
-        decorateFloorNull.set(0);
-        floorMatHisto.clear();
-        decCandidatesNull.set(0);
-        MantleFloatingObjectComponent.resetObjectCounters();
+    private static boolean usesBottomPalette(IrisFloatingChildBiomes entry) {
+        FloatingBottomPaletteMode mode = entry == null || entry.getBottomPaletteMode() == null ? FloatingBottomPaletteMode.DEPTH : entry.getBottomPaletteMode();
+        return mode != FloatingBottomPaletteMode.DEPTH;
     }
 
-    private static void recordFloorMat(String matKey) {
-        if (floorMatHisto.size() < 32) {
-            floorMatHisto.computeIfAbsent(matKey, k -> new AtomicLong()).incrementAndGet();
-        } else {
-            AtomicLong existing = floorMatHisto.get(matKey);
-            if (existing != null) {
-                existing.incrementAndGet();
-            } else {
-                floorMatHisto.computeIfAbsent("other", k -> new AtomicLong()).incrementAndGet();
-            }
+    private static int[] bottomDepths(FloatingIslandSample sample, int chunkHeight) {
+        int[] bottomDepths = new int[sample.solidMask.length];
+        for (int i = 0; i < bottomDepths.length; i++) {
+            bottomDepths[i] = -1;
         }
+
+        int depth = 0;
+        int max = Math.min(sample.topIdx, sample.solidMask.length - 1);
+        for (int k = 0; k <= max; k++) {
+            if (!sample.solidMask[k]) {
+                continue;
+            }
+            int y = sample.islandBaseY + k;
+            if (y < 0 || y >= chunkHeight) {
+                continue;
+            }
+            bottomDepths[k] = depth++;
+        }
+
+        return bottomDepths;
+    }
+
+    private static BlockData selectPaletteBlock(IrisFloatingChildBiomes entry, KList<BlockData> topBlocks, KList<BlockData> bottomBlocks, int topDepth, int bottomDepth, BlockData fallbackSolid) {
+        FloatingBottomPaletteMode mode = entry == null || entry.getBottomPaletteMode() == null ? FloatingBottomPaletteMode.DEPTH : entry.getBottomPaletteMode();
+        if (mode == FloatingBottomPaletteMode.MIRROR_TOP) {
+            return paletteBlock(topBlocks, Math.min(topDepth, bottomDepth), fallbackSolid);
+        }
+        if (mode == FloatingBottomPaletteMode.CUSTOM && bottomDepth < topDepth) {
+            if (bottomBlocks != null && !bottomBlocks.isEmpty()) {
+                return paletteBlock(bottomBlocks, bottomDepth, fallbackSolid);
+            }
+            return paletteBlock(topBlocks, bottomDepth, fallbackSolid);
+        }
+        return paletteBlock(topBlocks, topDepth, fallbackSolid);
+    }
+
+    private static BlockData paletteBlock(KList<BlockData> blocks, int depth, BlockData fallbackSolid) {
+        if (blocks == null || blocks.isEmpty()) {
+            return fallbackSolid;
+        }
+        BlockData block = blocks.hasIndex(depth) ? blocks.get(depth) : blocks.getLast();
+        return block == null ? fallbackSolid : block;
     }
 
     public IrisFloatingChildBiomeModifier(Engine engine) {
@@ -174,13 +193,10 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 if (parent == null || parent.getFloatingChildBiomes() == null || parent.getFloatingChildBiomes().isEmpty()) {
                     continue;
                 }
-                columnsChecked.incrementAndGet();
-
                 FloatingIslandSample sample = FloatingIslandSample.sampleMemoized(parent, wx, wz, chunkHeight, baseSeed, data, getEngine());
                 if (sample == null) {
                     continue;
                 }
-                samplesAccepted.incrementAndGet();
 
                 IrisFloatingChildBiomes entry = sample.entry;
                 IrisBiome target = entry.getRealBiome(parent, data);
@@ -191,8 +207,10 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 if (blocks == null || blocks.isEmpty()) {
                     blocks = parent.generateLayers(dimension, wx, wz, layerRng, paletteDepth, paletteDepth, data, complex);
                 }
+                KList<BlockData> bottomBlocks = generateBottomPaletteLayers(entry, dimension, wx, wz, layerRng, paletteDepth, data, complex);
                 BlockData fallbackSolid = B.get("minecraft:stone");
 
+                int[] bottomDepths = usesBottomPalette(entry) ? bottomDepths(sample, chunkHeight) : null;
                 int depth = 0;
                 for (int k = sample.topIdx; k >= 0; k--) {
                     if (!sample.solidMask[k]) {
@@ -202,13 +220,8 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                     if (y < 0 || y >= chunkHeight) {
                         continue;
                     }
-                    BlockData block = null;
-                    if (blocks != null && !blocks.isEmpty()) {
-                        block = blocks.hasIndex(depth) ? blocks.get(depth) : blocks.getLast();
-                    }
-                    if (block == null) {
-                        block = fallbackSolid;
-                    }
+                    int bottomDepth = bottomDepths == null || bottomDepths[k] < 0 ? depth : bottomDepths[k];
+                    BlockData block = selectPaletteBlock(entry, blocks, bottomBlocks, depth, bottomDepth, fallbackSolid);
                     if (block != null) {
                         output.set(xf, y, zf, block);
                     }
@@ -270,12 +283,10 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 if (sample == null) {
                     continue;
                 }
-                decoratePhaseColumns.incrementAndGet();
                 IrisFloatingChildBiomes entry = sample.entry;
                 IrisBiome target = entry.getRealBiome(parent, data);
 
                 if (!entry.isInheritDecorators() || target == null) {
-                    decorateSkippedNoInherit.incrementAndGet();
                     continue;
                 }
 
@@ -284,26 +295,12 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 if (topY + 1 < chunkHeight) {
                     BlockData above = output.get(xf, topY + 1, zf);
                     if (above == null || B.isAir(above)) {
-                        decorateInvocations.incrementAndGet();
-                        BlockData floor = topY >= 0 && topY < chunkHeight ? output.get(xf, topY, zf) : null;
-                        if (floor == null) {
-                            decorateFloorNull.incrementAndGet();
-                        } else {
-                            recordFloorMat(floor.getMaterial().getKey().getKey());
-                        }
                         try {
                             RNG colRng = rng.nextParallelRNG((int) FloatingIslandSample.columnSeed(baseSeed, wx, wz));
-                            int placed = FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng, INC_DEC_CANDIDATES_NULL);
-                            if (placed > 0) {
-                                decoratePlaced.addAndGet(placed);
-                            } else {
-                                decorateNoChange.incrementAndGet();
-                            }
+                            FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng, NOOP_DECORATION_MISS);
                         } catch (Throwable e) {
                             art.arcane.iris.Iris.reportError(e);
                         }
-                    } else {
-                        decorateSkippedNotAir.incrementAndGet();
                     }
                 }
 
@@ -340,7 +337,6 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Block
                 }
             }
         }
-        maybeReport();
     }
 
     private void writeIslandSkyBiome(IrisBiome target, int wx, int wz, FloatingIslandSample sample, int chunkHeight) {

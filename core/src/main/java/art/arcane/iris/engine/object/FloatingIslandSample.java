@@ -38,6 +38,7 @@ public final class FloatingIslandSample {
     public static final int REJECT_COUNT = 7;
     public static final int REJECT_CLUSTER = REJECT_NO_SEED;
 
+    private static final double EDGE_ROUNDING_BAND = 0.28;
     private static final ThreadLocal<int[]> LAST_REJECT = ThreadLocal.withInitial(() -> new int[1]);
     private static final ThreadLocal<double[]> LAST_DENSITY = ThreadLocal.withInitial(() -> new double[2]);
     private static final ThreadLocal<HashMap<Long, FloatingIslandSample>> CHUNK_MEMO = ThreadLocal.withInitial(HashMap::new);
@@ -169,6 +170,9 @@ public final class FloatingIslandSample {
         if (signed <= signedCut) {
             return reject(REJECT_NO_SEED);
         }
+        if (!hasFootprintNeighborSupport(footprintCng, wx, wz, signedCut)) {
+            return reject(REJECT_NO_SEED);
+        }
 
         CNG altitudeCng = entry.getAltitudeCng(baseSeed, data);
         if (altitudeCng == null) {
@@ -182,13 +186,10 @@ public final class FloatingIslandSample {
         int maxAlt = Math.max(minAlt, entry.getMaxHeightAboveSurface() - worldMin);
         int baseY = minAlt + (int) Math.round(altClamped * (maxAlt - minAlt));
 
+        double edgeFade = edgeFade(signed, signedCut);
         IrisBiome target = entry.getRealBiome(parent, data);
-        int topH = computeTopHeight(entry, target, engine, baseSeed, wx, wz, data);
+        int topH = roundedEdgeHeight(computeTopHeight(entry, target, engine, baseSeed, wx, wz, data), edgeFade);
         int topY = baseY + topH;
-
-        double edge = (signed - signedCut) / 0.15;
-        double edgeClamped = Math.max(0, Math.min(1, edge));
-        double edgeFade = edgeClamped * edgeClamped * (3.0 - 2.0 * edgeClamped);
 
         CNG bottomCng = entry.getBottomCng(baseSeed, data);
         if (bottomCng == null) {
@@ -200,7 +201,7 @@ public final class FloatingIslandSample {
         double bottomShaped = Math.pow(bottomClamped, Math.max(0.1, entry.getBottomExponent()));
         int minDepth = Math.max(0, entry.getBottomDepthMin());
         int maxDepth = Math.max(minDepth, entry.getBottomDepthMax());
-        int depth = minDepth + (int) Math.round(bottomShaped * (maxDepth - minDepth) * edgeFade);
+        int depth = roundedEdgeDepth(minDepth, maxDepth, bottomShaped, edgeFade);
         int botY = baseY - depth;
 
         Integer minAbsoluteY = entry.getMinAbsoluteY();
@@ -242,8 +243,6 @@ public final class FloatingIslandSample {
         double carveThreshold = entry.getCarveThreshold();
         boolean useWarp = wallWarp != null && warpAmp > 0;
         boolean useCarve = carve != null && carveThreshold < 1.0;
-        int solidCount = 0;
-        int highestSolidIdx = -1;
 
         for (int k = 0; k < thickness; k++) {
             int wy = botY + k;
@@ -262,24 +261,14 @@ public final class FloatingIslandSample {
             if (layerSigned <= signedCut) {
                 continue;
             }
-            if (useCarve) {
-                double cn = carve.noise(wx, wy, wz);
-                double cnClamped = Math.max(0, Math.min(1, cn));
-                if (cnClamped > carveThreshold) {
-                    continue;
-                }
-            }
             solidMask[k] = true;
-            solidCount++;
-            if (k > highestSolidIdx) {
-                highestSolidIdx = k;
-            }
         }
 
-        if (!useCarve) {
-            solidCount = solidifyUncarvedInterior(solidMask);
-            highestSolidIdx = highestSolidIndex(solidMask);
+        int solidCount = solidifyUncarvedInterior(solidMask);
+        if (useCarve) {
+            solidCount = carveSolidInterior(solidMask, botY, wx, wz, carve, carveThreshold);
         }
+        int highestSolidIdx = highestSolidIndex(solidMask);
 
         if (solidCount == 0 || highestSolidIdx < 0) {
             return reject(REJECT_NO_SOLID);
@@ -289,6 +278,80 @@ public final class FloatingIslandSample {
 
         LAST_REJECT.get()[0] = REJECT_NONE;
         return new FloatingIslandSample(entry, botY, thickness, topIdx, solidCount, solidMask);
+    }
+
+    static double edgeFade(double signed, double signedCut) {
+        double edge = (signed - signedCut) / EDGE_ROUNDING_BAND;
+        double edgeClamped = Math.max(0, Math.min(1, edge));
+        return edgeClamped * edgeClamped * (3.0 - 2.0 * edgeClamped);
+    }
+
+    static int roundedEdgeHeight(int topHeight, double edgeFade) {
+        return Math.max(0, (int) Math.round(Math.max(0, topHeight) * Math.max(0, Math.min(1, edgeFade))));
+    }
+
+    static int roundedEdgeDepth(int minDepth, int maxDepth, double bottomShaped, double edgeFade) {
+        int min = Math.max(0, minDepth);
+        int max = Math.max(min, maxDepth);
+        double shaped = Math.max(0, Math.min(1, bottomShaped));
+        double fade = Math.max(0, Math.min(1, edgeFade));
+        double fullDepth = min + shaped * (max - min);
+        return (int) Math.round(fullDepth * fade);
+    }
+
+    static int carveSolidInterior(boolean[] solidMask, int botY, int wx, int wz, CNG carve, double carveThreshold) {
+        int firstSolid = -1;
+        int lastSolid = -1;
+        for (int i = 0; i < solidMask.length; i++) {
+            if (!solidMask[i]) {
+                continue;
+            }
+            if (firstSolid < 0) {
+                firstSolid = i;
+            }
+            lastSolid = i;
+        }
+        if (firstSolid < 0) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = firstSolid; i <= lastSolid; i++) {
+            if (i != firstSolid && i != lastSolid) {
+                double carveNoise = carve.noise(wx, botY + i, wz);
+                double carveClamped = Math.max(0, Math.min(1, carveNoise));
+                if (carveClamped > carveThreshold) {
+                    solidMask[i] = false;
+                    continue;
+                }
+            }
+            if (solidMask[i]) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    static boolean hasFootprintNeighborSupport(CNG footprintCng, int wx, int wz, double signedCut) {
+        int cardinal = 0;
+        int diagonal = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                double footprintValue = footprintCng.noise(wx + dx, wz + dz);
+                double signed = (Math.max(0, Math.min(1, footprintValue)) * 2.0) - 1.0;
+                if (signed <= signedCut) {
+                    continue;
+                }
+                if (Math.abs(dx) + Math.abs(dz) == 1) {
+                    cardinal++;
+                } else {
+                    diagonal++;
+                }
+            }
+        }
+        return cardinal > 0 || diagonal >= 2;
     }
 
     static int solidifyUncarvedInterior(boolean[] solidMask) {

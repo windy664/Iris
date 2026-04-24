@@ -7,7 +7,7 @@ The master branch is for the latest version of minecraft.
 # Building
 
 Building Iris is fairly simple, though you will need to setup a few things if your system has never been used for java
-development.
+development.[README.md](README.md)
 
 Consider supporting our development by buying Iris on spigot! We work hard to make Iris the best it can be for everyone.
 

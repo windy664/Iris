@@ -75,6 +75,22 @@ public class IrisObjectRotation {
         return rt;
     }
 
+    public static IrisObjectRotation xFlip180RandomY() {
+        IrisObjectRotation rt = xFlip180();
+        rt.setYAxis(new IrisAxisRotationClamp(true, false, 0, 0, 90));
+        return rt;
+    }
+
+    public static IrisObjectRotation xFlip180WithY(double y) {
+        IrisObjectRotation rt = xFlip180();
+        IrisAxisRotationClamp rty = new IrisAxisRotationClamp();
+        rty.setEnabled(true);
+        rty.setInterval(90);
+        rty.minMax(y);
+        rt.setYAxis(rty);
+        return rt;
+    }
+
     public static IrisObjectRotation of(double x, double y, double z) {
         IrisObjectRotation rt = new IrisObjectRotation();
         IrisAxisRotationClamp rtx = new IrisAxisRotationClamp();

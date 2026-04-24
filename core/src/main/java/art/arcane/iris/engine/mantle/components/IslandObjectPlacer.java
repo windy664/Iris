@@ -126,7 +126,13 @@ public class IslandObjectPlacer implements IObjectPlacer {
     }
 
     private boolean shouldSkipAirColumn(int x, int y, int z) {
-        writesAttempted++;
+        return shouldSkipAirColumn(x, y, z, true);
+    }
+
+    private boolean shouldSkipAirColumn(int x, int y, int z, boolean countWrite) {
+        if (countWrite) {
+            writesAttempted++;
+        }
         int xf = x - minX;
         int zf = z - minZ;
         if (xf >= 0 && xf < 16 && zf >= 0 && zf < 16) {
@@ -136,27 +142,37 @@ public class IslandObjectPlacer implements IObjectPlacer {
                     return false;
                 }
                 if (y >= anchorY) {
-                    writesDroppedAboveBottom++;
+                    if (countWrite) {
+                        writesDroppedAboveBottom++;
+                    }
                     return true;
                 }
                 return false;
             }
             if (face == AnchorFace.TOP) {
                 if (y <= anchorY) {
-                    writesDroppedBelow++;
+                    if (countWrite) {
+                        writesDroppedBelow++;
+                    }
                     return true;
                 }
                 if (!overhangAllowed[idx]) {
-                    writesDroppedOverhang++;
+                    if (countWrite) {
+                        writesDroppedOverhang++;
+                    }
                     return true;
                 }
             } else {
                 if (y >= anchorY) {
-                    writesDroppedBottomOverhang++;
+                    if (countWrite) {
+                        writesDroppedBottomOverhang++;
+                    }
                     return true;
                 }
                 if (!overhangAllowed[idx]) {
-                    writesDroppedBottomOverhang++;
+                    if (countWrite) {
+                        writesDroppedBottomOverhang++;
+                    }
                     return true;
                 }
             }
@@ -164,17 +180,27 @@ public class IslandObjectPlacer implements IObjectPlacer {
         }
         if (face == AnchorFace.TOP) {
             if (y <= anchorY) {
-                writesDroppedBelow++;
+                if (countWrite) {
+                    writesDroppedBelow++;
+                }
                 return true;
             }
         } else {
             if (y >= anchorY) {
-                writesDroppedBottomOverhang++;
+                if (countWrite) {
+                    writesDroppedBottomOverhang++;
+                }
                 return true;
             }
         }
-        writesDroppedOverhang++;
+        if (countWrite) {
+            writesDroppedOverhang++;
+        }
         return true;
+    }
+
+    public boolean canWriteObjectBlock(int x, int y, int z) {
+        return !shouldSkipAirColumn(x, y, z, false);
     }
 
     private @Nullable FloatingIslandSample sampleAt(int x, int z) {
