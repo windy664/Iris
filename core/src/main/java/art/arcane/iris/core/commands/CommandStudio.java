@@ -294,12 +294,6 @@ public class CommandStudio implements DirectorExecutor {
                 });
     }
 
-    @Director(description = "Get all structures in a radius of chunks", aliases = "dist", origin = DirectorOrigin.PLAYER)
-    public void distances(@Param(description = "The radius in chunks") int radius) {
-        sender().sendMessage(C.YELLOW + "Structure distance sampling for legacy structure data has been removed.");
-    }
-
-
     @Director(description = "Render a world map (External GUI)", aliases = "render")
     public void map(
             @Param(name = "world", description = "The world to open the generator for", contextual = true)
@@ -616,7 +610,7 @@ public class CommandStudio implements DirectorExecutor {
         }
     }
 
-    @Director(aliases = "find-objects", description = "Get information about nearby structures")
+    @Director(aliases = "find-objects", description = "Capture an IGenData chunk report for nearby chunks")
     public void objects() {
         if (!IrisToolbelt.isIrisWorld(player().getWorld())) {
             sender().sendMessage(C.RED + "You must be in an Iris world");

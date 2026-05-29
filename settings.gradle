@@ -70,3 +70,4 @@ if (useLocalVolmLib && localVolmLibDirectory != null) {
 
 include(':core', ':core:agent')
 include(':nms:v1_21_R7')
+include(':nms:v26_1_R1')

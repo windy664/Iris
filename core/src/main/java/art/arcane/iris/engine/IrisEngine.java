@@ -31,6 +31,7 @@ import art.arcane.iris.core.nms.container.BlockPos;
 import art.arcane.iris.core.nms.container.Pair;
 import art.arcane.iris.core.project.IrisProject;
 import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.core.structure.StructureIndexService;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.*;
@@ -147,6 +148,11 @@ public class IrisEngine implements Engine {
         _t0 = M.ms();
         getData().loadPrefetch(this);
         Iris.info("[IrisEngine timing] loadPrefetch=" + (M.ms() - _t0) + "ms");
+        try {
+            StructureIndexService.writeOnce(getData());
+        } catch (Throwable e) {
+            Iris.reportError(e);
+        }
         Iris.info("Initializing Engine: " + target.getWorld().name() + "/" + target.getDimension().getLoadKey() + " (" + target.getDimension().getDimensionHeight() + " height) Seed: " + getSeedManager().getSeed());
         failing = false;
         closed = false;

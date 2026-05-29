@@ -61,7 +61,6 @@ import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.flat.FlatLayerInfo;
 import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
 import net.minecraft.world.level.storage.LevelStorageSource;
-import net.minecraft.world.level.storage.ServerLevelData;
 import org.bukkit.*;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
@@ -389,6 +388,28 @@ public class NMSBinding implements INMSBinding {
             biomes.add(biome);
         }
         return biomes;
+    }
+
+    @Override
+    public KList<String> getStructureKeys() {
+        KList<String> keys = new KList<>();
+        try {
+            registry().lookupOrThrow(Registries.STRUCTURE).keySet().forEach(k -> keys.add(k.toString()));
+        } catch (Throwable e) {
+            Iris.reportError(e);
+        }
+        return keys;
+    }
+
+    @Override
+    public KList<String> getStructureSetKeys() {
+        KList<String> keys = new KList<>();
+        try {
+            registry().lookupOrThrow(Registries.STRUCTURE_SET).keySet().forEach(k -> keys.add(k.toString()));
+        } catch (Throwable e) {
+            Iris.reportError(e);
+        }
+        return keys;
     }
 
     @Override
@@ -731,9 +752,9 @@ public class NMSBinding implements INMSBinding {
             Iris.info("Injecting Bukkit");
             var buddy = new ByteBuddy();
             buddy.redefine(ServerLevel.class)
-                    .visit(Advice.to(ServerLevelAdvice.class).on(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(
-                            MinecraftServer.class, Executor.class, LevelStorageSource.LevelStorageAccess.class, ServerLevelData.class,
-                            ResourceKey.class, LevelStem.class, boolean.class, long.class, List.class, boolean.class))))
+                    .visit(Advice.to(ServerLevelAdvice.class).on(ElementMatchers.isConstructor()
+                            .and(ElementMatchers.takesArgument(0, MinecraftServer.class))
+                            .and(ElementMatchers.takesArgument(5, LevelStem.class))))
                     .make()
                     .load(ServerLevel.class.getClassLoader(), Agent.installed());
             for (Class<?> clazz : List.of(ChunkAccess.class, ProtoChunk.class)) {
@@ -807,8 +828,7 @@ public class NMSBinding implements INMSBinding {
         static void enter(
                 @Advice.Argument(0) MinecraftServer server,
                 @Advice.Argument(2) LevelStorageSource.LevelStorageAccess levelStorageAccess,
-                @Advice.Argument(value = 5, readOnly = false) LevelStem levelStem,
-                @Advice.Argument(3) ServerLevelData levelData
+                @Advice.Argument(value = 5, readOnly = false) LevelStem levelStem
         ) {
             if (levelStorageAccess == null)
                 return;
@@ -833,11 +853,21 @@ public class NMSBinding implements INMSBinding {
                                 .getClassLoader())
                         .getDeclaredMethod("get")
                         .invoke(null);
-                if (!(bindings instanceof INMSBinding binding)) {
+                if (bindings == null) {
                     throw new IllegalStateException("Iris failed to resolve an INMSBinding instance.");
                 }
 
-                Object resolvedStem = binding.createRuntimeLevelStem(server.registryAccess(), gen);
+                java.lang.reflect.Method stemMethod = null;
+                for (java.lang.reflect.Method candidate : bindings.getClass().getMethods()) {
+                    if (candidate.getName().equals("createRuntimeLevelStem") && candidate.getParameterCount() == 2) {
+                        stemMethod = candidate;
+                        break;
+                    }
+                }
+                if (stemMethod == null) {
+                    throw new IllegalStateException("Iris binding is missing createRuntimeLevelStem.");
+                }
+                Object resolvedStem = stemMethod.invoke(bindings, server.registryAccess(), gen);
                 if (!(resolvedStem instanceof LevelStem runtimeStem)) {
                     throw new IllegalStateException("Iris runtime LevelStem binding returned " + (resolvedStem == null ? "null" : resolvedStem.getClass().getName()) + ".");
                 }

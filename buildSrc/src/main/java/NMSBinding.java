@@ -139,7 +139,10 @@ public class NMSBinding implements Plugin<Project> {
         }
 
         String[] parts = trimmed.split("\\.");
-        return new int[]{Integer.parseInt(parts[1]), Integer.parseInt(parts[2])};
+        if ("1".equals(parts[0])) {
+            return new int[]{Integer.parseInt(parts[1]), Integer.parseInt(parts[2])};
+        }
+        return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
     }
 
     private static <T extends Named> T named(ObjectFactory objects, Class<T> type, String name) {

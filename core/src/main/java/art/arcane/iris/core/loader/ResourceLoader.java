@@ -114,7 +114,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
         o.put("url", "./.iris/schema/" + getFolderName() + "-schema.json");
         File a = new File(getManager().getDataFolder(), ".iris/schema/" + getFolderName() + "-schema.json");
         String schemaPath = a.getAbsolutePath();
-        if (!a.exists() && schemaBuildQueue.add(schemaPath)) {
+        if (schemaBuildQueue.add(schemaPath)) {
             schemaBuildExecutor.execute(() -> {
                 try {
                     IO.writeAll(a, new SchemaBuilder(objectClass, manager).construct().toString(4));

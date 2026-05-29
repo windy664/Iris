@@ -79,13 +79,24 @@ final class MinecraftVersion {
         }
 
         String[] parts = input.split("\\.");
-        if (parts.length < 2 || !"1".equals(parts[0])) {
+        if (parts.length < 2 || parts.length > 3) {
             return null;
+        }
+        for (String part : parts) {
+            if (part.isEmpty() || !part.chars().allMatch(Character::isDigit)) {
+                return null;
+            }
         }
 
         try {
-            int major = Integer.parseInt(parts[1]);
-            int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+            if ("1".equals(parts[0])) {
+                int major = Integer.parseInt(parts[1]);
+                int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+                return new MinecraftVersion(input, major, minor);
+            }
+
+            int major = Integer.parseInt(parts[0]);
+            int minor = Integer.parseInt(parts[1]);
             return new MinecraftVersion(input, major, minor);
         } catch (NumberFormatException ignored) {
             return null;

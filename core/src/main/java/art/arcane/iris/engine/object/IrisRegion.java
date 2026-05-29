@@ -92,6 +92,9 @@ public class IrisRegion extends IrisRegistrant implements IRare {
     @ArrayType(min = 1, type = IrisObjectPlacement.class)
     @Desc("Objects define what schematics (iob files) iris will place in this region")
     private KList<IrisObjectPlacement> objects = new KList<>();
+    @ArrayType(min = 1, type = IrisStructurePlacement.class)
+    @Desc("Structures define jigsaw or vanilla/datapack structures iris will place in this region")
+    private KList<IrisStructurePlacement> structures = new KList<>();
     @MinNumber(0)
     @Desc("The min shore height")
     private double shoreHeightMin = 1.2;

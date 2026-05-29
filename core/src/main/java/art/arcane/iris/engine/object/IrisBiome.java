@@ -166,6 +166,9 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     @ArrayType(min = 1, type = IrisObjectPlacement.class)
     @Desc("Objects define what schematics (iob files) iris will place in this biome")
     private KList<IrisObjectPlacement> objects = new KList<>();
+    @ArrayType(min = 1, type = IrisStructurePlacement.class)
+    @Desc("Structures define jigsaw or vanilla/datapack structures iris will place in this biome")
+    private KList<IrisStructurePlacement> structures = new KList<>();
     @ArrayType(min = 1, type = IrisFloatingChildBiomes.class)
     @Desc("Floating child biomes that procedurally generate above this biome's terrain. Each entry references a target biome whose layers, decorators, and objects drive the floating island's visual design, while the config here drives size, shape, altitude, rarity, and water level. Multiple entries are supported and selected by rarity per column unless mergeFloatingChildBiomes is enabled.")
     private KList<IrisFloatingChildBiomes> floatingChildBiomes = new KList<>();

@@ -33,6 +33,7 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineTarget;
 import art.arcane.iris.engine.framework.GenerationSessionException;
 import art.arcane.iris.engine.object.IrisDimension;
+import art.arcane.iris.engine.object.VanillaStructureMode;
 import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.iris.engine.object.StudioMode;
 import art.arcane.iris.engine.platform.studio.StudioGenerator;
@@ -816,7 +817,15 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
     @Override
     public boolean shouldGenerateStructures() {
-        return false;
+        try {
+            Engine e = this.engine;
+            if (e == null) {
+                return true;
+            }
+            return e.getDimension().getVanillaStructures().getMode() != VanillaStructureMode.ALL_OFF;
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     @Override

@@ -595,6 +595,16 @@ public class IrisObject extends IrisRegistrant {
         }
     }
 
+    public void setUnsignedTile(int x, int y, int z, TileData tile) {
+        Vector3i v = getSigned(x, y, z);
+
+        if (tile == null) {
+            states.remove(v);
+        } else {
+            states.put(v, tile);
+        }
+    }
+
     public void setUnsigned(int x, int y, int z, Block block, boolean legacy) {
         Vector3i v = getSigned(x, y, z);
 

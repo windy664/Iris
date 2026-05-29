@@ -89,6 +89,14 @@ public interface INMSBinding {
 
     KList<Biome> getBiomes();
 
+    default KList<String> getStructureKeys() {
+        return new KList<>();
+    }
+
+    default KList<String> getStructureSetKeys() {
+        return new KList<>();
+    }
+
     boolean isBukkit();
 
     int getBiomeId(Biome biome);

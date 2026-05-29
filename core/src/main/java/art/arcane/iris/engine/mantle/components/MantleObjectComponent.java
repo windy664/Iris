@@ -27,6 +27,8 @@ import art.arcane.iris.engine.mantle.ComponentFlag;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.mantle.IrisMantleComponent;
 import art.arcane.iris.engine.mantle.MantleWriter;
+import art.arcane.iris.core.loader.IrisData;
+import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -46,6 +48,7 @@ import art.arcane.iris.util.project.noise.NoiseType;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.bukkit.util.BlockVector;
+import org.bukkit.block.data.BlockData;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -111,7 +114,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     + " carvedAtCenter=" + carvedBlocks
                     + " biomeCarvingObjects=" + caveBiome.getCarvingObjects().size()
                     + " regionCarvingObjects=" + region.getCarvingObjects().size()
-                    + " sameBiome=" + (caveBiome == surfaceBiome || caveBiome.getLoadKey().equals(surfaceBiome.getLoadKey())));
+                    + " sameBiome=" + (caveBiome == surfaceBiome || java.util.Objects.equals(caveBiome.getLoadKey(), surfaceBiome.getLoadKey())));
         }
         if (traceRegen) {
             Iris.info("Regen object layer start: chunk=" + x + "," + z
@@ -590,7 +593,9 @@ public class MantleObjectComponent extends IrisMantleComponent {
             AtomicBoolean wrotePlacementData = new AtomicBoolean(false);
 
             try {
-                int result = object.place(x, y, z, writer, effectivePlacement, rng, (b, data) -> {
+                int caveCeiling = findCaveCeiling(writer, x, y, z);
+                IObjectPlacer clampedPlacer = new CeilingClampedPlacer(writer, caveCeiling);
+                int result = object.place(x, y, z, clampedPlacer, effectivePlacement, rng, (b, data) -> {
                     wrotePlacementData.set(true);
                     String marker = placementMarker(object, id, "cave");
                     if (marker != null) {
@@ -899,6 +904,104 @@ public class MantleObjectComponent extends IrisMantleComponent {
             return -1;
         }
         return anchors.get(anchors.size() - 1);
+    }
+
+    private int findCaveCeiling(MantleWriter writer, int x, int anchorY, int z) {
+        Engine engine = getEngineMantle().getEngine();
+        int surfaceY = engine.getHeight(x, z);
+        int maxScan = Math.min(engine.getHeight() - 1, Math.max(0, surfaceY));
+        for (int sy = anchorY + 1; sy <= maxScan; sy++) {
+            if (!writer.isCarved(x, sy, z)) {
+                return sy;
+            }
+        }
+        return maxScan;
+    }
+
+    private static final class CeilingClampedPlacer implements IObjectPlacer {
+        private final IObjectPlacer delegate;
+        private final int maxY;
+
+        private CeilingClampedPlacer(IObjectPlacer delegate, int maxY) {
+            this.delegate = delegate;
+            this.maxY = maxY;
+        }
+
+        @Override
+        public int getHighest(int x, int z, IrisData data) {
+            return delegate.getHighest(x, z, data);
+        }
+
+        @Override
+        public int getHighest(int x, int z, IrisData data, boolean ignoreFluid) {
+            return delegate.getHighest(x, z, data, ignoreFluid);
+        }
+
+        @Override
+        public void set(int x, int y, int z, BlockData d) {
+            if (y >= maxY) {
+                return;
+            }
+            delegate.set(x, y, z, d);
+        }
+
+        @Override
+        public BlockData get(int x, int y, int z) {
+            return delegate.get(x, y, z);
+        }
+
+        @Override
+        public boolean isPreventingDecay() {
+            return delegate.isPreventingDecay();
+        }
+
+        @Override
+        public boolean isCarved(int x, int y, int z) {
+            return delegate.isCarved(x, y, z);
+        }
+
+        @Override
+        public boolean isSolid(int x, int y, int z) {
+            return delegate.isSolid(x, y, z);
+        }
+
+        @Override
+        public boolean isUnderwater(int x, int z) {
+            return delegate.isUnderwater(x, z);
+        }
+
+        @Override
+        public int getFluidHeight() {
+            return delegate.getFluidHeight();
+        }
+
+        @Override
+        public boolean isDebugSmartBore() {
+            return delegate.isDebugSmartBore();
+        }
+
+        @Override
+        public <T> void setData(int xx, int yy, int zz, T data) {
+            delegate.setData(xx, yy, zz, data);
+        }
+
+        @Override
+        public <T> T getData(int xx, int yy, int zz, Class<T> t) {
+            return delegate.getData(xx, yy, zz, t);
+        }
+
+        @Override
+        public void setTile(int xx, int yy, int zz, TileData tile) {
+            if (yy >= maxY) {
+                return;
+            }
+            delegate.setTile(xx, yy, zz, tile);
+        }
+
+        @Override
+        public Engine getEngine() {
+            return delegate.getEngine();
+        }
     }
 
     private int findCaveAnchorY(MantleWriter writer, RNG rng, int x, int z, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, KMap<Long, KList<Integer>> anchorCache) {

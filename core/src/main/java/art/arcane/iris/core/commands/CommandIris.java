@@ -97,6 +97,7 @@ public class CommandIris implements DirectorExecutor {
     private CommandPregen pregen;
     private CommandSettings settings;
     private CommandObject object;
+    private CommandStructure structure;
     private CommandWhat what;
     private CommandEdit edit;
     private CommandDeveloper developer;
@@ -592,11 +593,8 @@ public class CommandIris implements DirectorExecutor {
     }
 
     @Director(description = "Toggle debug")
-    public void debug(
-            @Param(name = "on", description = "Whether or not debug should be on", defaultValue = "other")
-            Boolean on
-    ) {
-        boolean to = on == null ? !IrisSettings.get().getGeneral().isDebug() : on;
+    public void debug() {
+        boolean to = !IrisSettings.get().getGeneral().isDebug();
         IrisSettings.get().getGeneral().setDebug(to);
         IrisSettings.get().forceSave();
         sender().sendMessage(C.GREEN + "Set debug to: " + to);

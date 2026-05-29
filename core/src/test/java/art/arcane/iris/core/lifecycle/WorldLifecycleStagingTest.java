@@ -31,6 +31,17 @@ public class WorldLifecycleStagingTest {
     }
 
     @Test
+    public void stagedStemGeneratorIsConsumedWhenLevelIdDiffersFromWorldName() {
+        ChunkGenerator generator = mock(ChunkGenerator.class);
+
+        WorldLifecycleStaging.stageStemGenerator("iris_world", generator);
+
+        assertSame(generator, WorldLifecycleStaging.consumeStemGenerator("world"));
+        assertNull(WorldLifecycleStaging.consumeStemGenerator("iris_world"));
+        assertNull(WorldLifecycleStaging.consumeStemGenerator("world"));
+    }
+
+    @Test
     public void clearAllRemovesGeneratorBiomeAndStemState() {
         ChunkGenerator generator = mock(ChunkGenerator.class);
         BiomeProvider biomeProvider = mock(BiomeProvider.class);

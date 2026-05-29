@@ -348,8 +348,10 @@ final class DecoratorCore {
                 r = EngineMantle.AIR;
             }
             if (r.isFaceSturdy(f.getOppositeFace(), BlockSupport.FULL)) {
-                found = true;
-                data.setFace(f, true);
+                if (data.getAllowedFaces().contains(f)) {
+                    found = true;
+                    data.setFace(f, true);
+                }
                 continue;
             }
 
@@ -361,12 +363,17 @@ final class DecoratorCore {
 
             r = hunk.get(xx, yy, zz);
             if (r.isFaceSturdy(f.getOppositeFace(), BlockSupport.FULL)) {
-                found = true;
-                data.setFace(f, true);
+                if (data.getAllowedFaces().contains(f)) {
+                    found = true;
+                    data.setFace(f, true);
+                }
             }
         }
         if (!found) {
-            data.setFace(BlockFace.DOWN, true);
+            BlockFace fallback = data.getAllowedFaces().contains(BlockFace.DOWN) ? BlockFace.DOWN : BlockFace.UP;
+            if (data.getAllowedFaces().contains(fallback)) {
+                data.setFace(fallback, true);
+            }
         }
         return data;
     }

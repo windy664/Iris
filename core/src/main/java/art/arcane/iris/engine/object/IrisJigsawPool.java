@@ -1,0 +1,63 @@
+/*
+ * Iris is a World Generator for Minecraft Bukkit Servers
+ * Copyright (c) 2022 Arcane Arts (Volmit Software)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package art.arcane.iris.engine.object;
+
+import art.arcane.iris.core.loader.IrisRegistrant;
+import art.arcane.iris.engine.object.annotations.ArrayType;
+import art.arcane.iris.engine.object.annotations.Desc;
+import art.arcane.iris.engine.object.annotations.RegistryListResource;
+import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.iris.util.common.plugin.VolmitSender;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+
+@Accessors(chain = true)
+@NoArgsConstructor
+@AllArgsConstructor
+@Desc("A jigsaw pool. A pool is a weighted set of pieces the assembler chooses from when a connector targets this pool.")
+@Data
+@EqualsAndHashCode(callSuper = false)
+public class IrisJigsawPool extends IrisRegistrant {
+    @ArrayType(type = IrisJigsawPieceEntry.class, min = 1)
+    @Desc("The weighted pieces in this pool.")
+    private KList<IrisJigsawPieceEntry> pieces = new KList<>();
+
+    @RegistryListResource(IrisJigsawPool.class)
+    @Desc("The pool to fall back to when the structure's max depth is reached. Use this for terminal pieces (caps, dead ends). Leave empty to simply stop expanding.")
+    private String fallback = "";
+
+    @Override
+    public String getFolderName() {
+        return "jigsaw-pools";
+    }
+
+    @Override
+    public String getTypeName() {
+        return "Jigsaw Pool";
+    }
+
+    @Override
+    public void scanForErrors(JSONObject p, VolmitSender sender) {
+
+    }
+}

@@ -39,7 +39,7 @@ plugins {
     alias(libs.plugins.kotlin.lombok)
 }
 
-def apiVersion = '1.21'
+def apiVersion = '26.1'
 def mainClass = 'art.arcane.iris.Iris'
 def lib = 'art.arcane.iris.util'
 String volmLibCoordinate = providers.gradleProperty('volmLibCoordinate')

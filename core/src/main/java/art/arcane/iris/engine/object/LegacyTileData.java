@@ -19,6 +19,8 @@ import org.bukkit.block.sign.Side;
 import org.bukkit.block.sign.SignSide;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EntityType;
+import org.bukkit.loot.LootTable;
+import org.bukkit.loot.Lootable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,7 +39,8 @@ public class LegacyTileData extends TileData {
     private static final Map<Integer, Pair<Builder, IOFunction<DataInputStream, Handler>>> legacy = Map.of(
             0, new Pair<>(SignHandler::fromBukkit, SignHandler::new),
             1, new Pair<>(SpawnerHandler::fromBukkit, SpawnerHandler::new),
-            2, new Pair<>(BannerHandler::fromBukkit, BannerHandler::new));
+            2, new Pair<>(BannerHandler::fromBukkit, BannerHandler::new),
+            3, new Pair<>(LootableHandler::fromBukkit, LootableHandler::new));
     private static final AtomicCache<Tag<Material>> SIGNS = new AtomicCache<>();
     private final int id;
     private final Handler handler;
@@ -335,6 +338,75 @@ public class LegacyTileData extends TileData {
             banner.setBaseColor(baseColor);
             banner.setPatterns(patterns);
             banner.update();
+        }
+    }
+
+    @ToString
+    @EqualsAndHashCode
+    @AllArgsConstructor
+    private static class LootableHandler implements Handler {
+        private final Material material;
+        private final NamespacedKey lootTable;
+        private final long seed;
+
+        private LootableHandler(DataInputStream in) throws IOException {
+            String materialKey = in.readUTF();
+            NamespacedKey resolvedMaterial = NamespacedKey.fromString(materialKey);
+            Material resolved = resolvedMaterial == null ? null : Registry.MATERIAL.get(resolvedMaterial);
+            if (resolved == null) {
+                resolved = Material.matchMaterial(materialKey);
+            }
+            material = resolved == null ? Material.CHEST : resolved;
+            String tableKey = in.readUTF();
+            lootTable = tableKey.isEmpty() ? null : NamespacedKey.fromString(tableKey);
+            seed = in.readLong();
+        }
+
+        private static LootableHandler fromBukkit(BlockState blockState, Material type) {
+            if (!(blockState instanceof Lootable lootable)) {
+                return null;
+            }
+            LootTable table = lootable.getLootTable();
+            if (table == null) {
+                return null;
+            }
+            NamespacedKey key = table.getKey();
+            if (key == null) {
+                return null;
+            }
+            return new LootableHandler(type, key, lootable.getSeed());
+        }
+
+        @Override
+        public Material getMaterial() {
+            return material;
+        }
+
+        @Override
+        public boolean isApplicable(BlockData data) {
+            return data.getMaterial() == material;
+        }
+
+        @Override
+        public void toBinary(DataOutputStream out) throws IOException {
+            NamespacedKey key = KeyedType.getKey(material);
+            out.writeUTF(key == null ? material.name() : key.toString());
+            out.writeUTF(lootTable == null ? "" : lootTable.toString());
+            out.writeLong(seed);
+        }
+
+        @Override
+        public void toBukkit(Block block) {
+            if (lootTable == null || !(block.getState() instanceof Lootable lootable)) {
+                return;
+            }
+            LootTable table = Bukkit.getLootTable(lootTable);
+            if (table == null) {
+                return;
+            }
+            lootable.setLootTable(table);
+            lootable.setSeed(seed);
+            ((BlockState) lootable).update(true, false);
         }
     }
 

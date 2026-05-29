@@ -255,6 +255,11 @@ public class IrisDimension extends IrisRegistrant {
     @Desc("Collection of ores to be generated")
     @ArrayType(type = IrisOreGenerator.class, min = 1)
     private KList<IrisOreGenerator> ores = new KList<>();
+    @Desc("Dimension-wide structure placements (jigsaw or vanilla/datapack), independent of biome/region placements")
+    @ArrayType(type = IrisStructurePlacement.class, min = 1)
+    private KList<IrisStructurePlacement> structures = new KList<>();
+    @Desc("Controls native vanilla & datapack structure generation for this dimension. Defaults to ALL_ON.")
+    private IrisVanillaStructureControl vanillaStructures = new IrisVanillaStructureControl();
     @MinNumber(0)
     @MaxNumber(318)
     @Desc("The Subterrain Fluid Layer Height")
@@ -585,7 +590,9 @@ public class IrisDimension extends IrisRegistrant {
                         {
                             "pack": {
                                 "description": "Iris Data Pack. This pack contains all installed Iris Packs' resources.",
-                                "pack_format": {}
+                                "pack_format": {},
+                                "min_format": {},
+                                "max_format": {}
                             }
                         }
                         """.replace("{}", INMS.get().getDataVersion().getPackFormat() + "");

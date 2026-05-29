@@ -31,6 +31,7 @@ import art.arcane.iris.engine.mantle.components.MantleCarvingComponent;
 import art.arcane.iris.engine.mantle.components.MantleFloatingObjectComponent;
 import art.arcane.iris.engine.mantle.components.MantleFluidBodyComponent;
 import art.arcane.iris.engine.mantle.components.MantleObjectComponent;
+import art.arcane.iris.engine.mantle.components.IrisStructureComponent;
 import art.arcane.iris.util.project.matter.IrisMatterSupport;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -84,6 +85,7 @@ public class IrisEngineMantle implements EngineMantle {
         object = new MantleObjectComponent(this);
         registerComponent(object);
         registerComponent(new MantleFloatingObjectComponent(this));
+        registerComponent(new IrisStructureComponent(this));
     }
 
     @Override

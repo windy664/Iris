@@ -2,10 +2,13 @@ package art.arcane.iris.core.nms.v1_21_R7;
 
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.MapCodec;
+import art.arcane.iris.Iris;
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.object.IrisVanillaStructureControl;
 import art.arcane.iris.util.common.reflect.WrappedField;
 import art.arcane.iris.util.common.reflect.WrappedReturningMethod;
 import net.minecraft.core.*;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
@@ -23,7 +26,19 @@ import net.minecraft.world.level.levelgen.*;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.minecraft.core.registries.Registries;
+import java.util.stream.Collectors;
+import art.arcane.iris.engine.framework.StructurePlacementGrid;
+import art.arcane.iris.engine.object.IrisStructurePlacement;
+import art.arcane.iris.engine.object.StructurePlacementRoute;
+import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.iris.engine.object.IrisRegion;
+import art.arcane.iris.engine.data.cache.Cache;
+import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
@@ -49,7 +64,10 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
 
     @Override
     public @Nullable Pair<BlockPos, Holder<Structure>> findNearestMapStructure(ServerLevel level, HolderSet<Structure> holders, BlockPos pos, int radius, boolean findUnexplored) {
-        return null;
+        if (!vanillaControl().active()) {
+            return null;
+        }
+        return delegate.findNearestMapStructure(level, holders, pos, radius, findUnexplored);
     }
 
     @Override
@@ -76,6 +94,14 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
 
     @Override
     public void createStructures(RegistryAccess registryAccess, ChunkGeneratorStructureState structureState, StructureManager structureManager, ChunkAccess access, StructureTemplateManager templateManager, ResourceKey<Level> levelKey) {
+        if (!vanillaControl().active()) {
+            return;
+        }
+        delegate.createStructures(registryAccess, structureState, structureManager, access, templateManager, levelKey);
+    }
+
+    private IrisVanillaStructureControl vanillaControl() {
+        return engine.getDimension().getVanillaStructures();
     }
 
     @Override
@@ -126,7 +152,119 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
     @Override
     public void applyBiomeDecoration(WorldGenLevel generatoraccessseed, ChunkAccess ichunkaccess, StructureManager structuremanager, boolean vanilla) {
         addVanillaDecorations(generatoraccessseed, ichunkaccess, structuremanager);
+        if (vanillaControl().active()) {
+            placeVanillaStructures(generatoraccessseed, ichunkaccess, structuremanager);
+        }
+        placeIrisNativeStructures(generatoraccessseed, ichunkaccess);
         delegate.applyBiomeDecoration(generatoraccessseed, ichunkaccess, structuremanager, false);
+    }
+
+    private void placeVanillaStructures(WorldGenLevel world, ChunkAccess chunk, StructureManager structureManager) {
+        if (!structureManager.shouldGenerateStructures()) {
+            return;
+        }
+        ChunkPos chunkPos = chunk.getPos();
+        SectionPos sectionPos = SectionPos.of(chunkPos, world.getMinSectionY());
+        BlockPos origin = sectionPos.origin();
+        Registry<Structure> registry = world.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        Map<Integer, List<Structure>> byStep = registry.stream().collect(Collectors.groupingBy(s -> s.step().ordinal()));
+        WorldgenRandom random = new WorldgenRandom(new XoroshiroRandomSource(RandomSupport.generateUniqueSeed()));
+        long decoSeed = random.setDecorationSeed(world.getSeed(), origin.getX(), origin.getZ());
+        BoundingBox area = writableArea(chunk);
+        int steps = GenerationStep.Decoration.values().length;
+        IrisVanillaStructureControl control = vanillaControl();
+        for (int step = 0; step < steps; step++) {
+            int index = 0;
+            for (Structure structure : byStep.getOrDefault(step, List.of())) {
+                Object id = registry.getKey(structure);
+                if (control.shouldGenerate(id == null ? null : id.toString())) {
+                    random.setFeatureSeed(decoSeed, index, step);
+                    try {
+                        structureManager.startsForStructure(sectionPos, structure)
+                                .forEach(start -> start.placeInChunk(world, structureManager, this, random, area, chunkPos));
+                    } catch (Throwable e) {
+                        Iris.reportError(e);
+                    }
+                }
+                index++;
+            }
+        }
+    }
+
+    private BoundingBox writableArea(ChunkAccess chunk) {
+        ChunkPos cp = chunk.getPos();
+        int i = cp.getMinBlockX();
+        int j = cp.getMinBlockZ();
+        int minY = getMinY() + 1;
+        int maxY = getMinY() + engine.getHeight() - 1;
+        return new BoundingBox(i, minY, j, i + 15, maxY, j + 15);
+    }
+
+    private void placeIrisNativeStructures(WorldGenLevel world, ChunkAccess chunk) {
+        if (!(world instanceof WorldGenRegion region)) {
+            return;
+        }
+        ChunkPos chunkPos = chunk.getPos();
+        int cx = chunkPos.getMinBlockX() >> 4;
+        int cz = chunkPos.getMinBlockZ() >> 4;
+        int bx = 8 + (cx << 4);
+        int bz = 8 + (cz << 4);
+        IrisBiome biome = engine.getComplex().getTrueBiomeStream().get(bx, bz);
+        IrisRegion ireg = engine.getComplex().getRegionStream().get(bx, bz);
+        KList<IrisStructurePlacement> placements = new KList<>();
+        if (biome != null) {
+            placements.addAll(biome.getStructures());
+        }
+        if (ireg != null) {
+            placements.addAll(ireg.getStructures());
+        }
+        placements.addAll(engine.getDimension().getStructures());
+        if (placements.isEmpty()) {
+            return;
+        }
+
+        long seed = world.getSeed();
+        RNG rng = new RNG(Cache.key(cx, cz) + seed);
+        ServerLevel level = region.getLevel();
+        Registry<Structure> registry = world.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        RandomState randomState = level.getChunkSource().randomState();
+        StructureTemplateManager templateManager = level.getStructureManager();
+        StructureManager structureManager = level.structureManager();
+        BiomeSource biomeSource = getBiomeSource();
+        ResourceKey<Level> levelKey = level.dimension();
+        int minY = getMinY() + 1;
+        int maxY = getMinY() + engine.getHeight() - 1;
+
+        for (IrisStructurePlacement placement : placements) {
+            if (placement.getRoute() != StructurePlacementRoute.NATIVE_AT_POINT || placement.getVanilla().isEmpty()) {
+                continue;
+            }
+            if (!StructurePlacementGrid.startsInChunk(placement, cx, cz, seed, rng)) {
+                continue;
+            }
+            String key = placement.getVanilla().get(rng.i(0, placement.getVanilla().size() - 1)).toLowerCase();
+            try {
+                String[] parts = key.split(":", 2);
+                Identifier id = parts.length > 1 ? Identifier.fromNamespaceAndPath(parts[0], parts[1]) : Identifier.fromNamespaceAndPath("minecraft", parts[0]);
+                Holder<Structure> holder = registry.getOrThrow(ResourceKey.create(Registries.STRUCTURE, id));
+                Structure structure = holder.value();
+                StructureStart start = structure.generate(holder, levelKey, world.registryAccess(), this, biomeSource, randomState, templateManager, seed, chunkPos, 0, level, b -> true);
+                if (start == null || !start.isValid()) {
+                    continue;
+                }
+                BoundingBox box = start.getBoundingBox();
+                WorldgenRandom placeRandom = new WorldgenRandom(new XoroshiroRandomSource(RandomSupport.generateUniqueSeed()));
+                for (int scx = box.minX() >> 4; scx <= box.maxX() >> 4; scx++) {
+                    for (int scz = box.minZ() >> 4; scz <= box.maxZ() >> 4; scz++) {
+                        ChunkPos target = new ChunkPos(scx, scz);
+                        BoundingBox chunkBox = new BoundingBox(target.getMinBlockX(), minY, target.getMinBlockZ(), target.getMaxBlockX(), maxY, target.getMaxBlockZ());
+                        start.placeInChunk(world, structureManager, this, placeRandom, chunkBox, target);
+                    }
+                }
+            } catch (Throwable e) {
+                Iris.reportError(e);
+            }
+        }
     }
 
     @Override

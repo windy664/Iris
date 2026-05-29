@@ -26,6 +26,7 @@ import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.core.nms.INMS;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.iris.util.common.data.B;
@@ -266,6 +267,44 @@ public class SchemaBuilder {
                     fancyType = "Block Type";
                     prop.put("$ref", "#/definitions/" + key);
                     description.add(SYMBOL_TYPE__N + "  Must be a valid Block Type (use ctrl+space for auto complete!)");
+
+                } else if (k.isAnnotationPresent(RegistryListVanillaStructure.class)) {
+                    String key = "enum-vanilla-structure";
+
+                    if (!definitions.containsKey(key)) {
+                        JSONObject j = new JSONObject();
+                        JSONArray ja = new JSONArray();
+
+                        for (String i : INMS.get().getStructureKeys()) {
+                            ja.put(i);
+                        }
+
+                        j.put("enum", ja);
+                        definitions.put(key, j);
+                    }
+
+                    fancyType = "Vanilla Structure";
+                    prop.put("$ref", "#/definitions/" + key);
+                    description.add(SYMBOL_TYPE__N + "  Must be a valid vanilla/datapack structure key (use ctrl+space for auto complete!)");
+
+                } else if (k.isAnnotationPresent(RegistryListVanillaStructureSet.class)) {
+                    String key = "enum-vanilla-structure-set";
+
+                    if (!definitions.containsKey(key)) {
+                        JSONObject j = new JSONObject();
+                        JSONArray ja = new JSONArray();
+
+                        for (String i : INMS.get().getStructureSetKeys()) {
+                            ja.put(i);
+                        }
+
+                        j.put("enum", ja);
+                        definitions.put(key, j);
+                    }
+
+                    fancyType = "Vanilla Structure Set";
+                    prop.put("$ref", "#/definitions/" + key);
+                    description.add(SYMBOL_TYPE__N + "  Must be a valid vanilla/datapack structure SET key (use ctrl+space for auto complete!)");
 
                 } else if (k.isAnnotationPresent(RegistryListItemType.class)) {
                     String key = "enum-item-type";

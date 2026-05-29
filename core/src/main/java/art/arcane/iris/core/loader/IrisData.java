@@ -70,6 +70,9 @@ public class IrisData implements ExclusionStrategy, TypeAdapterFactory {
     private ResourceLoader<IrisMatterObject> matterLoader;
     private ResourceLoader<IrisImage> imageLoader;
     private ResourceLoader<IrisMatterObject> matterObjectLoader;
+    private ResourceLoader<IrisStructure> structureLoader;
+    private ResourceLoader<IrisJigsawPool> jigsawPoolLoader;
+    private ResourceLoader<IrisJigsawPiece> jigsawPieceLoader;
     private KMap<String, KList<String>> possibleSnippets;
     private Gson gson;
     private Gson snippetLoader;
@@ -165,6 +168,18 @@ public class IrisData implements ExclusionStrategy, TypeAdapterFactory {
 
     public static IrisGenerator loadAnyGenerator(String key, @Nullable IrisData nearest) {
         return loadAny(IrisGenerator.class, key, nearest);
+    }
+
+    public static IrisStructure loadAnyStructure(String key, @Nullable IrisData nearest) {
+        return loadAny(IrisStructure.class, key, nearest);
+    }
+
+    public static IrisJigsawPool loadAnyJigsawPool(String key, @Nullable IrisData nearest) {
+        return loadAny(IrisJigsawPool.class, key, nearest);
+    }
+
+    public static IrisJigsawPiece loadAnyJigsawPiece(String key, @Nullable IrisData nearest) {
+        return loadAny(IrisJigsawPiece.class, key, nearest);
     }
 
     public static <T extends IrisRegistrant> T loadAny(Class<T> type, String key, @Nullable IrisData nearest) {
@@ -297,6 +312,9 @@ public class IrisData implements ExclusionStrategy, TypeAdapterFactory {
         this.objectLoader = registerLoader(IrisObject.class);
         this.imageLoader = registerLoader(IrisImage.class);
         this.matterObjectLoader = registerLoader(IrisMatterObject.class);
+        this.structureLoader = registerLoader(IrisStructure.class);
+        this.jigsawPoolLoader = registerLoader(IrisJigsawPool.class);
+        this.jigsawPieceLoader = registerLoader(IrisJigsawPiece.class);
         builder.registerTypeAdapterFactory(KeyedType::createTypeAdapter);
 
         gson = builder.create();
