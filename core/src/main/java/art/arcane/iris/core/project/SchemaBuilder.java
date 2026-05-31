@@ -716,10 +716,18 @@ public class SchemaBuilder {
         str.put("$ref", "#/definitions/" + key);
 
         if (!definitions.containsKey(key)) {
-            JSONObject j = new JSONObject();
+            JSONObject enumObj = new JSONObject();
             JSONArray snl = new JSONArray();
             data.getPossibleSnippets(snippet.value()).forEach(snl::put);
-            j.put("enum", snl);
+            enumObj.put("enum", snl);
+            JSONObject patternObj = new JSONObject();
+            patternObj.put("type", "string");
+            patternObj.put("pattern", "^snippet/" + snippet.value() + "/");
+            JSONArray snippetAlt = new JSONArray();
+            snippetAlt.put(enumObj);
+            snippetAlt.put(patternObj);
+            JSONObject j = new JSONObject();
+            j.put("anyOf", snippetAlt);
             definitions.put(key, j);
         }
 

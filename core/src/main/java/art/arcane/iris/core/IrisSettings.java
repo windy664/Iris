@@ -200,6 +200,16 @@ public class IrisSettings {
         public int objectLoaderCacheSize = 4_096;
         public int tectonicPlateSize = -1;
         public int mantleCleanupDelay = 200;
+        public int heightBoundsInterpolationGrid = 4;
+
+        public int getHeightBoundsInterpolationGrid() {
+            int grid = heightBoundsInterpolationGrid;
+            if (grid <= 1) {
+                return 1;
+            }
+
+            return Math.min(16, Integer.highestOneBit(grid));
+        }
 
         public int getTectonicPlateSize() {
             if (tectonicPlateSize > 0)

@@ -153,7 +153,6 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     @ArrayType(type = IrisBiomePaletteLayer.class)
     @Desc("This defines the layers of materials in this biome. Each layer has a palette and min/max height and some other properties. Usually a grassy/sandy layer then a dirt layer then a stone layer. Iris will fill in the remaining blocks below your layers with stone.")
     private KList<IrisBiomePaletteLayer> layers = new KList<IrisBiomePaletteLayer>().qadd(new IrisBiomePaletteLayer());
-    @Required
     @ArrayType(type = IrisBiomePaletteLayer.class)
     @Desc("This defines the layers of materials in this biome. Each layer has a palette and min/max height and some other properties. Usually a grassy/sandy layer then a dirt layer then a stone layer. Iris will fill in the remaining blocks below your layers with stone.")
     private KList<IrisBiomePaletteLayer> caveCeilingLayers = new KList<IrisBiomePaletteLayer>().qadd(new IrisBiomePaletteLayer());
@@ -174,7 +173,6 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     private KList<IrisFloatingChildBiomes> floatingChildBiomes = new KList<>();
     @Desc("When true, every floating child entry is sampled independently and their solid masks are unioned, so multiple floating islands can stack, overlap, and collide instead of the picker choosing only one child per column.")
     private boolean mergeFloatingChildBiomes = false;
-    @Required
     @ArrayType(min = 1, type = IrisBiomeGeneratorLink.class)
     @Desc("Generators for this biome. Multiple generators with different interpolation sizes will mix with other biomes how you would expect. This defines your biome height relative to the fluid height. Use negative for oceans.")
     private KList<IrisBiomeGeneratorLink> generators = new KList<IrisBiomeGeneratorLink>().qadd(new IrisBiomeGeneratorLink());

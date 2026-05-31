@@ -44,6 +44,7 @@ import art.arcane.iris.util.common.parallel.MultiBurst;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import art.arcane.iris.util.common.scheduling.jobs.Job;
+import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.util.project.stream.ProceduralStream;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -77,6 +78,7 @@ import java.util.stream.StreamSupport;
 public class IrisObject extends IrisRegistrant {
     protected static final Vector HALF = new Vector(0.5, 0.5, 0.5);
     protected static final BlockData AIR = B.get("CAVE_AIR");
+    protected static final BlockData STONE = B.get("STONE");
     protected static final BlockData VAIR = B.get("VOID_AIR");
     protected static final BlockData VAIR_DEBUG = B.get("COBWEB");
     protected static final BlockData[] SNOW_LAYERS = new BlockData[]{B.get("minecraft:snow[layers=1]"), B.get("minecraft:snow[layers=2]"), B.get("minecraft:snow[layers=3]"), B.get("minecraft:snow[layers=4]"), B.get("minecraft:snow[layers=5]"), B.get("minecraft:snow[layers=6]"), B.get("minecraft:snow[layers=7]"), B.get("minecraft:snow[layers=8]")};
@@ -695,6 +697,8 @@ public class IrisObject extends IrisRegistrant {
         boolean organicFloor = config.getMode() == ObjectPlaceMode.ORGANIC_STILT;
         boolean ceilingHang = config.getMode() == ObjectPlaceMode.CEILING_HANG;
         boolean organic = organicFloor || ceilingHang;
+        boolean vacuuming = config.getMode() == ObjectPlaceMode.VACUUM || config.getMode() == ObjectPlaceMode.VACUUM_HIGH
+                || config.getMode() == ObjectPlaceMode.VACUUM_FAST || config.getMode() == ObjectPlaceMode.VACUUM_ORGANIC;
         boolean stilting = (config.getMode().equals(ObjectPlaceMode.STILT) || config.getMode().equals(ObjectPlaceMode.FAST_STILT) ||
                 config.getMode() == ObjectPlaceMode.MIN_STILT || config.getMode() == ObjectPlaceMode.FAST_MIN_STILT ||
                 config.getMode() == ObjectPlaceMode.CENTER_STILT || config.getMode() == ObjectPlaceMode.ERODE_STILT || organic);
@@ -721,7 +725,7 @@ public class IrisObject extends IrisRegistrant {
             }
         } else  if (yv < 0) {
             if (config.getMode().equals(ObjectPlaceMode.CENTER_HEIGHT) || config.getMode() == ObjectPlaceMode.CENTER_STILT
-                    || organic) {
+                    || organic || vacuuming) {
                 y = (c != null ? c.getSurface() : placer.getHighest(x, z, getLoader(), config.isUnderwater())) + rty;
                 if (!config.isForcePlace()) {
                     if (shouldBailForCarvingAnchor(placer, config, x, y, z)) {
@@ -875,6 +879,19 @@ public class IrisObject extends IrisRegistrant {
             return -1;
         }
 
+        if (yv < 0
+                && !config.isForcePlace()
+                && !config.isFromBottom()
+                && config.getMode() != ObjectPlaceMode.FLOATING
+                && !rawStructurePiece
+                && !stilting
+                && !vacuuming
+                && config.getCarvingSupport().supportsSurface()
+                && y > 0
+                && lacksFootprintSupport(placer, config, x, y, z, spinx, spiny, spinz)) {
+            return -1;
+        }
+
         if (yv < 0 && !config.getMode().equals(ObjectPlaceMode.FLOATING) && !rawStructurePiece) {
             if (!config.isForcePlace() && !config.isUnderwater() && !config.isOnwater() && placer.isUnderwater(x, z)) {
                 return -1;
@@ -928,6 +945,7 @@ public class IrisObject extends IrisRegistrant {
 
         int lowest = Integer.MAX_VALUE;
         int topLayer = Integer.MIN_VALUE;
+        int vacuumLowest = Integer.MAX_VALUE;
         y += yrand;
         readLock.lock();
 
@@ -1093,6 +1111,9 @@ public class IrisObject extends IrisRegistrant {
                     placer.set(xx, yy, zz, data);
                     if (tile != null) {
                         placer.setTile(xx, yy, zz, tile);
+                    }
+                    if (vacuuming && yy < vacuumLowest) {
+                        vacuumLowest = yy;
                     }
                 }
             }
@@ -1324,6 +1345,15 @@ public class IrisObject extends IrisRegistrant {
             readLock.unlock();
         }
 
+        if (vacuuming && vacuumLowest != Integer.MAX_VALUE && placer.getEngine() != null) {
+            BlockVector rotDim = config.getRotation().rotate(new BlockVector(getW(), getH(), getD()), spinx, spiny, spinz).clone();
+            int halfW = Math.max(0, Math.abs(rotDim.getBlockX()) / 2);
+            int halfD = Math.max(0, Math.abs(rotDim.getBlockZ()) / 2);
+            int centerX = x + config.getTranslate().getX();
+            int centerZ = z + config.getTranslate().getZ();
+            vacuumTerrain(placer, config, centerX, centerZ, halfW, halfD, vacuumLowest);
+        }
+
         if (heightmap != null) {
             RNG rngx = rng.nextParallelRNG(3468854);
 
@@ -1360,6 +1390,78 @@ public class IrisObject extends IrisRegistrant {
                 + "(forcePlace=false, fromBottom=false, mode!=FLOATING). Skipping to protect bedrock.");
     }
 
+    private void vacuumTerrain(IObjectPlacer placer, IrisObjectPlacement config, int centerX, int centerZ, int halfW, int halfD, int baseY) {
+        ObjectPlaceMode mode = config.getMode();
+        IrisVacuumSettings settings = config.getVacuumSettings();
+        int radius;
+        int step;
+        switch (mode) {
+            case VACUUM_HIGH -> {
+                radius = 20;
+                step = 1;
+            }
+            case VACUUM_FAST -> {
+                radius = 8;
+                step = 2;
+            }
+            default -> {
+                radius = 12;
+                step = 1;
+            }
+        }
+        if (settings != null && settings.getRadius() > 0) {
+            radius = settings.getRadius();
+        }
+        double falloff = settings != null ? Math.max(0.25, settings.getFalloff()) : 2.0;
+        int jitter = settings != null ? Math.max(0, settings.getOrganicJitter()) : 4;
+        boolean organicEdge = mode == ObjectPlaceMode.VACUUM_ORGANIC;
+        int meetY = baseY - 1;
+
+        IrisComplex complex = placer.getEngine().getComplex();
+        int worldMin = placer.getEngine().getMinHeight();
+        int worldMax = worldMin + placer.getEngine().getHeight() - 1;
+
+        for (int dx = -(halfW + radius); dx <= halfW + radius; dx += step) {
+            for (int dz = -(halfD + radius); dz <= halfD + radius; dz += step) {
+                int cx = centerX + dx;
+                int cz = centerZ + dz;
+                int outX = Math.max(0, Math.abs(dx) - halfW);
+                int outZ = Math.max(0, Math.abs(dz) - halfD);
+                double dist = Math.sqrt((double) (outX * outX) + (double) (outZ * outZ));
+                double effRadius = radius;
+                if (organicEdge && jitter > 0) {
+                    long h = ((long) cx * 341873128712L) ^ ((long) cz * 132897987541L);
+                    double n = ((Math.abs(h) % 1000) / 1000.0) - 0.5;
+                    effRadius = Math.max(1.0, radius + (n * 2.0 * jitter));
+                }
+                if (dist > effRadius) {
+                    continue;
+                }
+                double t = 1.0 - (dist / effRadius);
+                if (t <= 0) {
+                    continue;
+                }
+                double factor = Math.pow(t, falloff);
+                int origY = placer.getHighest(cx, cz, getLoader(), true);
+                int targetY = (int) Math.round(origY + ((meetY - origY) * factor));
+                targetY = Math.max(worldMin + 1, Math.min(worldMax, targetY));
+                if (targetY > origY) {
+                    BlockData fill = complex != null ? complex.getRockStream().get(cx, cz) : null;
+                    if (fill == null || B.isAir(fill)) {
+                        fill = STONE;
+                    }
+                    for (int yy = origY + 1; yy <= targetY; yy++) {
+                        placer.set(cx, yy, cz, fill);
+                    }
+                } else if (targetY < origY) {
+                    for (int yy = origY; yy > targetY; yy--) {
+                        placer.set(cx, yy, cz, AIR);
+                    }
+                }
+            }
+        }
+    }
+
     private boolean shouldBailForCarvingAnchor(IObjectPlacer placer, IrisObjectPlacement placement, int x, int y, int z) {
         boolean carved = isCarvedAnchor(placer, x, y, z);
         CarvingMode carvingMode = placement.getCarvingSupport();
@@ -1368,6 +1470,28 @@ public class IrisObject extends IrisRegistrant {
             case CARVING_ONLY -> !carved;
             case ANYWHERE -> false;
         };
+    }
+
+    private boolean lacksFootprintSupport(IObjectPlacer placer, IrisObjectPlacement config, int x, int y, int z, int spinx, int spiny, int spinz) {
+        BlockVector rot = config.getRotation().rotate(new BlockVector(getW(), getH(), getD()), spinx, spiny, spinz).clone();
+        int halfW = Math.max(0, Math.abs(rot.getBlockX()) / 2);
+        int halfD = Math.max(0, Math.abs(rot.getBlockZ()) / 2);
+        if (halfW == 0 && halfD == 0) {
+            return false;
+        }
+        int tx = config.getTranslate().getX();
+        int tz = config.getTranslate().getZ();
+        int cx = x + tx;
+        int cz = z + tz;
+        int[] sampleX = {cx, cx - halfW, cx + halfW, cx - halfW, cx + halfW};
+        int[] sampleZ = {cz, cz - halfD, cz + halfD, cz + halfD, cz - halfD};
+        for (int i = 0; i < sampleX.length; i++) {
+            int sh = placer.getHighest(sampleX[i], sampleZ[i], getLoader(), true);
+            if (isCarvedAnchor(placer, sampleX[i], sh, sampleZ[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isCarvedAnchor(IObjectPlacer placer, int x, int y, int z) {

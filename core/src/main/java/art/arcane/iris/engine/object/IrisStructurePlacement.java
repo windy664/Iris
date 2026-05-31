@@ -105,6 +105,24 @@ public class IrisStructurePlacement {
     @Desc("IRIS_PLACED only: extra blocks of air clearance added around the bored bounding box (horizontally and above) when bore=true. The floor is never bored below the structure so support is preserved.")
     private int borePadding = 0;
 
+    @Desc("IRIS_PLACED only: if true, massively carves the surrounding terrain into an open cavern around the structure instead of only clearing its tight bounding box. The structure's full interior is cleared and the surrounding terrain is excavated out to overboreRadius blocks, doming down to meet the ground at the edges so the structure is no longer buried in solid terrain. The mantle write window and the carve volume cap are expanded automatically to fit. Use for deep structures such as ancient cities so both their interior and surroundings are open and enterable. Takes precedence over bore when both are set.")
+    private boolean overbore = false;
+
+    @MinNumber(0)
+    @MaxNumber(128)
+    @Desc("IRIS_PLACED only: when overbore=true, how many blocks of terrain to carve horizontally outward from the structure's bounding box. Larger values produce a wider open cavern around the structure. Larger values also widen the mantle write window for every chunk near the structure, so increase it deliberately.")
+    private int overboreRadius = 24;
+
+    @MinNumber(0)
+    @MaxNumber(128)
+    @Desc("IRIS_PLACED only: when overbore=true, how many extra blocks of air to carve above the structure's roof at the cavern apex.")
+    private int overboreHeight = 8;
+
+    @MinNumber(0)
+    @MaxNumber(64)
+    @Desc("IRIS_PLACED only: when overbore=true, how many blocks of terrain to carve below the structure's floor. 0 keeps the floor solid for support; small values recess the cavern floor around the structure.")
+    private int overboreFloor = 0;
+
     @Desc("If false, this placement is skipped underwater.")
     private boolean underwater = false;
 }

@@ -74,6 +74,22 @@ public enum ObjectPlaceMode {
 
     CEILING_HANG,
 
+    @Desc("Anchors the object at the terrain surface (plus translate.y) like CENTER_HEIGHT, then bends the surrounding terrain to be flush with the object's base. Columns inside the object footprint are raised (or lowered) to meet the base, and the deformation falls off parabolically out to a radius so the terrain smoothly blends back to its natural height. Use this to seat a floating/translated object on the ground without a flat stilt disc, e.g. a cube translated up 10 on a mountain pulls the terrain up to meet it. Tune with vacuum-settings (radius, falloff).")
+
+    VACUUM,
+
+    @Desc("VACUUM with a larger radius and finer per-column sampling for the smoothest terrain blend. More expensive.")
+
+    VACUUM_HIGH,
+
+    @Desc("VACUUM with a smaller radius and coarser sampling for performance. Use when seating many objects.")
+
+    VACUUM_FAST,
+
+    @Desc("VACUUM whose falloff radius is perturbed by noise per column, so the terrain meets the object with an irregular organic edge rather than a clean parabolic bowl.")
+
+    VACUUM_ORGANIC,
+
     @Desc("Samples the height of the terrain at every x,z position of your object and pushes it down to the surface. It's pretty much like a melt function over the terrain.")
 
     PAINT,

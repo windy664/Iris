@@ -46,7 +46,9 @@ import org.spigotmc.SpigotWorldConfig;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -173,15 +175,18 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
         BoundingBox area = writableArea(chunk);
         int steps = GenerationStep.Decoration.values().length;
         IrisVanillaStructureControl control = vanillaControl();
+        int undergroundShift = control.getUndergroundYShift();
         for (int step = 0; step < steps; step++) {
             int index = 0;
             for (Structure structure : byStep.getOrDefault(step, List.of())) {
                 Object id = registry.getKey(structure);
                 if (control.shouldGenerate(id == null ? null : id.toString())) {
                     random.setFeatureSeed(decoSeed, index, step);
+                    int yShift = (undergroundShift != 0 && isUndergroundStep(structure.step())) ? undergroundShift : 0;
+                    WorldGenLevel target = yShift == 0 ? world : yShiftedLevel(world, yShift);
                     try {
                         structureManager.startsForStructure(sectionPos, structure)
-                                .forEach(start -> start.placeInChunk(world, structureManager, this, random, area, chunkPos));
+                                .forEach(start -> start.placeInChunk(target, structureManager, this, random, area, chunkPos));
                     } catch (Throwable e) {
                         Iris.reportError(e);
                     }
@@ -189,6 +194,31 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
                 index++;
             }
         }
+    }
+
+    private static boolean isUndergroundStep(GenerationStep.Decoration step) {
+        return step == GenerationStep.Decoration.UNDERGROUND_STRUCTURES
+                || step == GenerationStep.Decoration.STRONGHOLDS;
+    }
+
+    private WorldGenLevel yShiftedLevel(WorldGenLevel world, int yShift) {
+        return (WorldGenLevel) Proxy.newProxyInstance(
+                WorldGenLevel.class.getClassLoader(),
+                new Class<?>[]{WorldGenLevel.class},
+                (proxy, method, args) -> {
+                    if (args != null) {
+                        for (int i = 0; i < args.length; i++) {
+                            if (args[i] instanceof BlockPos bp) {
+                                args[i] = new BlockPos(bp.getX(), bp.getY() + yShift, bp.getZ());
+                            }
+                        }
+                    }
+                    try {
+                        return method.invoke(world, args);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
     }
 
     private BoundingBox writableArea(ChunkAccess chunk) {

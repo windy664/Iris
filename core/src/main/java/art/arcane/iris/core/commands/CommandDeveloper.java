@@ -109,6 +109,106 @@ public class CommandDeveloper implements DirectorExecutor {
         Iris.reportError(new Exception("This is a test"));
     }
 
+    @Director(description = "Hash generated block output of a fixed area for determinism/identity testing", origin = DirectorOrigin.BOTH)
+    public void genhash(
+            @Param(description = "The world to hash", contextual = true)
+            World world,
+            @Param(description = "Radius in chunks around the center", defaultValue = "4")
+            int radius,
+            @Param(description = "Center chunk X", defaultValue = "0")
+            int centerX,
+            @Param(description = "Center chunk Z", defaultValue = "0")
+            int centerZ) {
+        if (world == null) {
+            sender().sendMessage(C.RED + "World is null.");
+            return;
+        }
+
+        VolmitSender sender = sender();
+        sender.sendMessage(C.GREEN + "genhash started: " + ((radius * 2 + 1) * (radius * 2 + 1)) + " chunks...");
+        J.a(() -> runGenhash(sender, world, radius, centerX, centerZ));
+    }
+
+    private void runGenhash(VolmitSender sender, World world, int radius, int centerX, int centerZ) {
+        long startMs = M.ms();
+        int minY = world.getMinHeight();
+        int maxY = world.getMaxHeight();
+        long globalHash = 0L;
+        long solidBlocks = 0L;
+        Map<String, Long> histogram = new TreeMap<>();
+        JsonObject chunkHashes = new JsonObject();
+
+        for (int rx = centerX - radius; rx <= centerX + radius; rx++) {
+            for (int rz = centerZ - radius; rz <= centerZ + radius; rz++) {
+                org.bukkit.ChunkSnapshot snapshot;
+                try {
+                    org.bukkit.Chunk loaded = io.papermc.lib.PaperLib.getChunkAtAsync(world, rx, rz, true).get();
+                    snapshot = loaded.getChunkSnapshot(false, false, false);
+                } catch (Throwable e) {
+                    Iris.reportError(e);
+                    sender.sendMessage(C.RED + "genhash failed at chunk " + rx + "," + rz + ": " + e.getMessage());
+                    return;
+                }
+                long chunkHash = 0L;
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        int worldX = (rx << 4) + x;
+                        int worldZ = (rz << 4) + z;
+                        for (int y = minY; y < maxY; y++) {
+                            org.bukkit.Material material = snapshot.getBlockType(x, y, z);
+                            long positionSeed = ((long) worldX * 0x9E3779B97F4A7C15L)
+                                    ^ ((long) y * 0xC2B2AE3D27D4EB4FL)
+                                    ^ ((long) worldZ * 0x165667B19E3779F9L);
+                            long blockHash = genHashMix(positionSeed ^ ((long) (material.ordinal() + 1) * 0xD6E8FEB86659FD93L));
+                            chunkHash ^= blockHash;
+                            if (material != org.bukkit.Material.AIR
+                                    && material != org.bukkit.Material.CAVE_AIR
+                                    && material != org.bukkit.Material.VOID_AIR) {
+                                histogram.merge(material.name(), 1L, Long::sum);
+                                solidBlocks++;
+                            }
+                        }
+                    }
+                }
+                globalHash ^= chunkHash;
+                chunkHashes.addProperty(rx + "," + rz, Long.toHexString(chunkHash));
+            }
+        }
+
+        int side = radius * 2 + 1;
+        JsonObject result = new JsonObject();
+        result.addProperty("global", Long.toHexString(globalHash));
+        result.addProperty("chunks", side * side);
+        result.addProperty("solidBlocks", solidBlocks);
+        result.addProperty("minY", minY);
+        result.addProperty("maxY", maxY);
+        JsonObject hist = new JsonObject();
+        for (Map.Entry<String, Long> entry : histogram.entrySet()) {
+            hist.addProperty(entry.getKey(), entry.getValue());
+        }
+        result.add("histogram", hist);
+        result.add("chunkHashes", chunkHashes);
+
+        File out = new File(Iris.instance.getDataFolder(), "genhash.json");
+        try {
+            Files.writeString(out.toPath(), result.toString());
+        } catch (IOException e) {
+            Iris.reportError(e);
+        }
+
+        sender.sendMessage(C.GREEN + "genhash global=" + C.GOLD + Long.toHexString(globalHash)
+                + C.GREEN + " chunks=" + (side * side) + " solid=" + solidBlocks
+                + " in " + Form.duration((long) (M.ms() - startMs), 1));
+        Iris.info("genhash world=" + world.getName() + " global=" + Long.toHexString(globalHash)
+                + " chunks=" + (side * side) + " solidBlocks=" + solidBlocks + " -> " + out.getAbsolutePath());
+    }
+
+    private static long genHashMix(long z) {
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
+    }
+
     @Director(description = "QOL command to open an overworld studio world", sync = true)
     public void so() {
         sender().sendMessage(C.GREEN + "Opening studio for the \"Overworld\" pack (seed: 1337)");

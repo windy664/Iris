@@ -31,9 +31,11 @@ public class AsyncPregenMethodConcurrencyCapTest {
     }
 
     @Test
-    public void paperLikeConcurrencyUsesChunkWorkerPoolWhenAvailable() {
-        assertEquals(4, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(4, 16, 32));
+    public void paperLikeConcurrencyProvisionsForWorldGenThreadBump() {
+        assertEquals(32, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(4, 16, 32));
+        assertEquals(16, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(4, 16, 16));
         assertEquals(24, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(-1, 16, 24));
+        assertEquals(16, AsyncPregenMethod.resolvePaperLikeConcurrencyWorkerThreads(-1, 16, 8));
     }
 
     @Test

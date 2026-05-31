@@ -85,6 +85,8 @@ public class IrisObjectPlacement {
     private IrisStyledRange densityStyle = null;
     @Desc("When stilting is enabled, this object will define various properties related to it.")
     private IrisStiltSettings stiltSettings;
+    @Desc("When a VACUUM place mode is used, this defines the deformation radius and falloff.")
+    private IrisVacuumSettings vacuumSettings;
     @MaxNumber(64)
     @MinNumber(0)
     @Desc("When bore is enabled, expand max-y of the cuboid it removes")
@@ -178,6 +180,7 @@ public class IrisObjectPlacement {
         p.setBoreExtendMaxY(boreExtendMaxY);
         p.setBoreExtendMinY(boreExtendMinY);
         p.setStiltSettings(stiltSettings);
+        p.setVacuumSettings(vacuumSettings);
         p.setDensity(density);
         p.setDensityStyle(densityStyle);
         p.setChance(chance);

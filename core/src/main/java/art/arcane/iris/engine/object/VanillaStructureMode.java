@@ -22,12 +22,12 @@ import art.arcane.iris.engine.object.annotations.Desc;
 
 @Desc("Master toggle for vanilla & datapack structure generation in a dimension.")
 public enum VanillaStructureMode {
-    @Desc("All vanilla & datapack structures generate normally. This is the default. Per-set overrides may still disable individual sets.")
+    @Desc("All vanilla & datapack structures generate, except any keys listed in 'disabled'. This is the default. Use this to blacklist a few structures.")
     ALL_ON,
 
-    @Desc("All vanilla & datapack structures are suppressed. Per-set overrides may still enable individual sets.")
+    @Desc("No vanilla or datapack structures generate, except any keys listed in 'enabled'. Use this to whitelist a few structures.")
     ALL_OFF,
 
-    @Desc("Nothing generates unless explicitly enabled via a per-set override with enabled=true.")
+    @Desc("Same as ALL_OFF: nothing generates except keys listed in 'enabled'.")
     CUSTOM
 }

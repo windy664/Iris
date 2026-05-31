@@ -940,7 +940,41 @@ public class CNG {
         return applyPost(getNoise(x, z), x, z);
     }
 
+    private static final int COORD_CACHE_SIZE = 1 << 16;
+    private static final int COORD_CACHE_MASK = COORD_CACHE_SIZE - 1;
+
+    private static final class CoordCache {
+        private final Object[] owner = new Object[COORD_CACHE_SIZE];
+        private final long[] kx = new long[COORD_CACHE_SIZE];
+        private final long[] kz = new long[COORD_CACHE_SIZE];
+        private final double[] value = new double[COORD_CACHE_SIZE];
+    }
+
+    private static final ThreadLocal<CoordCache> COORD_CACHE_2D = ThreadLocal.withInitial(CoordCache::new);
+
+    private static int coordSlot(long a, long b, int salt) {
+        long h = (a * 0x9E3779B97F4A7C15L) ^ (b * 0xC2B2AE3D27D4EB4FL) ^ (salt * 0x165667B19E3779F9L);
+        h ^= (h >>> 32);
+        return (int) (h & COORD_CACHE_MASK);
+    }
+
     public double noiseFastSigned2D(double x, double z) {
+        long kx = Double.doubleToRawLongBits(x);
+        long kz = Double.doubleToRawLongBits(z);
+        CoordCache cc = COORD_CACHE_2D.get();
+        int slot = coordSlot(kx, kz, System.identityHashCode(this));
+        if (cc.owner[slot] == this && cc.kx[slot] == kx && cc.kz[slot] == kz) {
+            return cc.value[slot];
+        }
+        double computed = computeNoiseFastSigned2D(x, z);
+        cc.owner[slot] = this;
+        cc.kx[slot] = kx;
+        cc.kz[slot] = kz;
+        cc.value[slot] = computed;
+        return computed;
+    }
+
+    private double computeNoiseFastSigned2D(double x, double z) {
         if (cache != null && isWholeCoordinate(x) && isWholeCoordinate(z)) {
             return (cache.get((int) x, (int) z) * 2D) - 1D;
         }
@@ -964,12 +998,32 @@ public class CNG {
         return applyPost(getNoise(x, y, z), x, y, z);
     }
 
-    public double noiseFastSigned3D(double x, double y, double z) {
-        if (hasIdentitySignedFastPath()) {
-            return getSignedNoise(x, y, z);
-        }
+    private static final class CoordCache3D {
+        private final Object[] owner = new Object[COORD_CACHE_SIZE];
+        private final long[] kx = new long[COORD_CACHE_SIZE];
+        private final long[] ky = new long[COORD_CACHE_SIZE];
+        private final long[] kz = new long[COORD_CACHE_SIZE];
+        private final double[] value = new double[COORD_CACHE_SIZE];
+    }
 
-        return (noiseFast3D(x, y, z) * 2D) - 1D;
+    private static final ThreadLocal<CoordCache3D> COORD_CACHE_3D = ThreadLocal.withInitial(CoordCache3D::new);
+
+    public double noiseFastSigned3D(double x, double y, double z) {
+        long kx = Double.doubleToRawLongBits(x);
+        long ky = Double.doubleToRawLongBits(y);
+        long kz = Double.doubleToRawLongBits(z);
+        CoordCache3D cc = COORD_CACHE_3D.get();
+        int slot = coordSlot(kx ^ Long.rotateLeft(ky, 21), kz, System.identityHashCode(this));
+        if (cc.owner[slot] == this && cc.kx[slot] == kx && cc.ky[slot] == ky && cc.kz[slot] == kz) {
+            return cc.value[slot];
+        }
+        double computed = hasIdentitySignedFastPath() ? getSignedNoise(x, y, z) : (noiseFast3D(x, y, z) * 2D) - 1D;
+        cc.owner[slot] = this;
+        cc.kx[slot] = kx;
+        cc.ky[slot] = ky;
+        cc.kz[slot] = kz;
+        cc.value[slot] = computed;
+        return computed;
     }
 
     public CNG pow(double power) {

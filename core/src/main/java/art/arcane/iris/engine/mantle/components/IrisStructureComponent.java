@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.mantle.components;
 
 import art.arcane.iris.Iris;
+import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.PlacedStructurePiece;
@@ -37,15 +38,20 @@ import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.IrisStructurePlacement;
 import art.arcane.iris.engine.object.StructurePlacementRoute;
+import art.arcane.iris.util.common.data.B;
+import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.mantle.flag.ReservedFlag;
 import art.arcane.volmlib.util.math.RNG;
+import org.bukkit.block.data.BlockData;
 
 @ComponentFlag(ReservedFlag.JIGSAW)
 public class IrisStructureComponent extends IrisMantleComponent {
     private static final long MAX_BORE_VOLUME = 6_000_000L;
+    private static final long MAX_OVERBORE_VOLUME = 48_000_000L;
+    private static final BlockData CARVE_AIR = B.get("CAVE_AIR");
 
     public IrisStructureComponent(EngineMantle engineMantle) {
         super(engineMantle, ReservedFlag.JIGSAW, 1);
@@ -119,7 +125,9 @@ public class IrisStructureComponent extends IrisMantleComponent {
             return;
         }
 
-        if (placement.isBore()) {
+        if (placement.isOverbore()) {
+            overboreStructure(writer, pieces, placement.getOverboreRadius(), placement.getOverboreHeight(), placement.getOverboreFloor());
+        } else if (placement.isBore()) {
             boreStructure(writer, pieces, placement.getBorePadding());
         }
 
@@ -143,6 +151,128 @@ public class IrisStructureComponent extends IrisMantleComponent {
     }
 
     private void boreStructure(MantleWriter writer, KList<PlacedStructurePiece> pieces, int padding) {
+        int[] bounds = computePieceBounds(pieces);
+        if (bounds == null) {
+            return;
+        }
+        int pad = Math.max(0, padding);
+        int minX = bounds[0] - pad;
+        int minY = bounds[1];
+        int minZ = bounds[2] - pad;
+        int maxX = bounds[3] + pad;
+        int maxY = bounds[4] + pad;
+        int maxZ = bounds[5] + pad;
+        int worldMin = getEngineMantle().getEngine().getMinHeight() + 1;
+        int worldMax = getEngineMantle().getEngine().getMinHeight() + getEngineMantle().getEngine().getHeight() - 1;
+        minY = Math.max(minY, worldMin);
+        maxY = Math.min(maxY, worldMax);
+        if (maxX < minX || maxY < minY || maxZ < minZ) {
+            return;
+        }
+        long volume = (long) (maxX - minX + 1) * (long) (maxY - minY + 1) * (long) (maxZ - minZ + 1);
+        if (volume > MAX_BORE_VOLUME) {
+            Iris.warn("Skipping structure bore of " + volume + " blocks (cap " + MAX_BORE_VOLUME + "); use a smaller structure or larger spacing.");
+            return;
+        }
+        for (int bx = minX; bx <= maxX; bx++) {
+            for (int by = minY; by <= maxY; by++) {
+                for (int bz = minZ; bz <= maxZ; bz++) {
+                    writer.set(bx, by, bz, CARVE_AIR);
+                }
+            }
+        }
+    }
+
+    private void overboreStructure(MantleWriter writer, KList<PlacedStructurePiece> pieces, int radius, int ceiling, int floorDepth) {
+        int[] bounds = computePieceBounds(pieces);
+        if (bounds == null) {
+            return;
+        }
+        int r = Math.max(0, radius);
+        int boxMinX = bounds[0];
+        int boxMinZ = bounds[2];
+        int boxMaxX = bounds[3];
+        int boxMaxZ = bounds[5];
+        int worldMin = getEngineMantle().getEngine().getMinHeight() + 1;
+        int worldMax = getEngineMantle().getEngine().getMinHeight() + getEngineMantle().getEngine().getHeight() - 1;
+        int floorY = Math.max(worldMin, bounds[1] - Math.max(0, floorDepth));
+        int apexY = Math.min(worldMax, bounds[4] + Math.max(0, ceiling));
+        if (apexY < floorY) {
+            return;
+        }
+        int expMinX = boxMinX - r;
+        int expMaxX = boxMaxX + r;
+        int expMinZ = boxMinZ - r;
+        int expMaxZ = boxMaxZ + r;
+        long volume = (long) (expMaxX - expMinX + 1) * (long) (apexY - floorY + 1) * (long) (expMaxZ - expMinZ + 1);
+        if (volume > MAX_OVERBORE_VOLUME) {
+            Iris.warn("Skipping structure overbore of " + volume + " blocks (cap " + MAX_OVERBORE_VOLUME + "); reduce overboreRadius or use larger spacing.");
+            return;
+        }
+        int span = apexY - floorY;
+        double rr = r <= 0 ? 1.0 : (double) r;
+
+        RNG noiseRng = new RNG(seed() + Cache.key(boxMinX, boxMinZ));
+        CNG outlineNoise = CNG.signature(noiseRng);
+        CNG ceilNoise = CNG.signature(noiseRng.nextParallelRNG(0x51E10));
+        CNG floorNoise = CNG.signature(noiseRng.nextParallelRNG(0xF1009));
+        double outlineFreq = 0.045;
+        double ceilFreq = 0.055;
+        double floorFreq = 0.07;
+        int floorAmp = Math.min(5, Math.max(1, span / 8));
+        double ceilLump = Math.min(4.0, span * 0.15);
+
+        if (IrisSettings.get().getGeneral().isDebug()) {
+            Iris.info("Overbore carving cavern: box=[" + boxMinX + "," + floorY + "," + boxMinZ + " -> " + boxMaxX + "," + apexY + "," + boxMaxZ + "] radius=" + r + " volume=" + volume);
+        }
+
+        BlockData air = CARVE_AIR;
+        for (int bx = expMinX; bx <= expMaxX; bx++) {
+            int dx = bx < boxMinX ? boxMinX - bx : bx > boxMaxX ? bx - boxMaxX : 0;
+            for (int bz = expMinZ; bz <= expMaxZ; bz++) {
+                int dz = bz < boxMinZ ? boxMinZ - bz : bz > boxMaxZ ? bz - boxMaxZ : 0;
+                int floorYcol = floorY + (int) Math.round(floorNoise.fitDouble(-1.0, 1.0, bx * floorFreq, bz * floorFreq) * floorAmp);
+                if (floorYcol < worldMin) {
+                    floorYcol = worldMin;
+                }
+                int columnCeil;
+                if (dx == 0 && dz == 0) {
+                    int bump = (int) Math.round(ceilNoise.fitDouble(0.0, 1.0, bx * ceilFreq, bz * ceilFreq) * ceilLump);
+                    columnCeil = Math.min(worldMax, apexY - Math.max(0, bump));
+                } else {
+                    double dist = Math.sqrt((double) dx * dx + (double) dz * dz);
+                    double outline = outlineNoise.fitDouble(-1.0, 1.0, bx * outlineFreq, bz * outlineFreq);
+                    double rEff = rr * (0.80 + 0.35 * outline);
+                    if (rEff < 1.0) {
+                        rEff = 1.0;
+                    }
+                    if (dist > rEff) {
+                        continue;
+                    }
+                    double t = dist / rEff;
+                    double dome = Math.sqrt(Math.max(0.0, 1.0 - t * t));
+                    double lump = ceilNoise.fitDouble(-1.0, 1.0, bx * ceilFreq, bz * ceilFreq);
+                    double mix = dome * (0.80 + 0.40 * lump);
+                    if (mix < 0.0) {
+                        mix = 0.0;
+                    }
+                    columnCeil = floorYcol + (int) Math.round(span * mix);
+                    if (columnCeil <= floorYcol) {
+                        continue;
+                    }
+                    columnCeil = Math.min(worldMax, columnCeil);
+                }
+                for (int by = floorYcol; by <= columnCeil; by++) {
+                    writer.set(bx, by, bz, air);
+                }
+            }
+        }
+    }
+
+    private int[] computePieceBounds(KList<PlacedStructurePiece> pieces) {
+        if (pieces == null || pieces.isEmpty()) {
+            return null;
+        }
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
@@ -157,32 +287,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
             maxY = Math.max(maxY, p.getMaxY());
             maxZ = Math.max(maxZ, p.getMaxZ());
         }
-        int pad = Math.max(0, padding);
-        minX -= pad;
-        minZ -= pad;
-        maxX += pad;
-        maxZ += pad;
-        maxY += pad;
-        int worldMin = getEngineMantle().getEngine().getMinHeight() + 1;
-        int worldMax = getEngineMantle().getEngine().getMinHeight() + getEngineMantle().getEngine().getHeight() - 1;
-        minY = Math.max(minY, worldMin);
-        maxY = Math.min(maxY, worldMax);
-        if (maxX < minX || maxY < minY || maxZ < minZ) {
-            return;
-        }
-        long volume = (long) (maxX - minX + 1) * (long) (maxY - minY + 1) * (long) (maxZ - minZ + 1);
-        if (volume > MAX_BORE_VOLUME) {
-            Iris.warn("Skipping structure bore of " + volume + " blocks (cap " + MAX_BORE_VOLUME + "); use a smaller structure or larger spacing.");
-            return;
-        }
-        org.bukkit.block.data.BlockData air = org.bukkit.Material.AIR.createBlockData();
-        for (int bx = minX; bx <= maxX; bx++) {
-            for (int by = minY; by <= maxY; by++) {
-                for (int bz = minZ; bz <= maxZ; bz++) {
-                    writer.set(bx, by, bz, air);
-                }
-            }
-        }
+        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
     }
 
     private void placeObject(MantleWriter writer, IrisStructure structure, PlacedStructurePiece p, ObjectPlaceMode mode, int y, RNG rng) {
@@ -200,29 +305,31 @@ public class IrisStructureComponent extends IrisMantleComponent {
     @Override
     protected int computeRadius() {
         IrisDimension dimension = getDimension();
-        int maxChunks = 0;
+        int maxBlocks = 0;
 
         for (IrisRegion region : dimension.getAllRegions(this::getData)) {
-            maxChunks = Math.max(maxChunks, maxFrom(region.getStructures()));
+            maxBlocks = Math.max(maxBlocks, maxBlocksFrom(region.getStructures()));
         }
         for (IrisBiome biome : dimension.getAllBiomes(this::getData)) {
-            maxChunks = Math.max(maxChunks, maxFrom(biome.getStructures()));
+            maxBlocks = Math.max(maxBlocks, maxBlocksFrom(biome.getStructures()));
         }
-        maxChunks = Math.max(maxChunks, maxFrom(dimension.getStructures()));
+        maxBlocks = Math.max(maxBlocks, maxBlocksFrom(dimension.getStructures()));
 
-        return maxChunks * 16;
+        return maxBlocks;
     }
 
-    private int maxFrom(KList<IrisStructurePlacement> placements) {
+    private int maxBlocksFrom(KList<IrisStructurePlacement> placements) {
         int max = 0;
         for (IrisStructurePlacement placement : placements) {
             if (placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
                 continue;
             }
+            int carvePadding = placement.isOverbore() ? Math.max(0, placement.getOverboreRadius())
+                    : placement.isBore() ? Math.max(0, placement.getBorePadding()) : 0;
             for (String key : placement.getStructures()) {
                 IrisStructure structure = art.arcane.iris.core.loader.IrisData.loadAnyStructure(key, getData());
                 if (structure != null) {
-                    max = Math.max(max, structure.getMaxSizeChunks());
+                    max = Math.max(max, Math.max(1, structure.getMaxSizeChunks()) * 16 + carvePadding);
                 }
             }
         }

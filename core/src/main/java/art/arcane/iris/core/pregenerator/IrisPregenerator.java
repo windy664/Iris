@@ -205,7 +205,39 @@ public class IrisPregenerator {
         listener.onClose();
         Mantle mantle = getMantle();
         if (mantle != null) {
+            reclaimTectonicPlates(mantle);
+        }
+    }
+
+    private void reclaimTectonicPlates(Mantle mantle) {
+        int loadedBefore = mantle.getLoadedRegionCount();
+        if (loadedBefore <= 0) {
+            return;
+        }
+
+        int previousLoaded = loadedBefore;
+        int stagnantRounds = 0;
+        for (int attempt = 0; attempt < 24 && stagnantRounds < 4; attempt++) {
             mantle.trim(0, 0);
+            mantle.unloadTectonicPlate(0);
+            int loaded = mantle.getLoadedRegionCount();
+            if (loaded <= 0) {
+                break;
+            }
+
+            if (loaded >= previousLoaded) {
+                stagnantRounds++;
+            } else {
+                stagnantRounds = 0;
+            }
+
+            previousLoaded = loaded;
+            J.sleep(150);
+        }
+
+        int loadedAfter = mantle.getLoadedRegionCount();
+        if (loadedAfter < loadedBefore) {
+            Iris.info("Pregen reclaimed " + (loadedBefore - loadedAfter) + " tectonic plate(s) from the mantle");
         }
     }
 

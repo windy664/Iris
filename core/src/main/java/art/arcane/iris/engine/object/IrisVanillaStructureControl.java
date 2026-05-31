@@ -20,6 +20,8 @@ package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.ArrayType;
 import art.arcane.iris.engine.object.annotations.Desc;
+import art.arcane.iris.engine.object.annotations.MaxNumber;
+import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.RegistryListVanillaStructure;
 import art.arcane.volmlib.util.collection.KList;
 import lombok.AllArgsConstructor;
@@ -30,7 +32,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@Desc("Controls native vanilla & datapack structure generation for this dimension. The default mode is ALL_ON (everything generates).")
+@Desc("Controls native vanilla & datapack structure generation for this dimension (set as the dimension's 'vanillaStructures' field). Default mode is ALL_ON (everything generates). Blacklist a few: mode=ALL_ON + list them in 'disabled'. Whitelist a few: mode=ALL_OFF + list them in 'enabled'. Key matching is exact OR prefix (an entry matches when the structure key equals it or starts with it), so 'minecraft:village' covers every village variant. Run '/iris structure list <dimension>' to dump every valid key. Only affects NEWLY generated chunks, and is separate from the IRIS_PLACED import system (imported structures are controlled by biome/region/dimension 'structures' placements, not here).")
 @Data
 public class IrisVanillaStructureControl {
     @Desc("Master toggle. ALL_ON generates every vanilla & datapack structure except those in 'disabled'. ALL_OFF (or CUSTOM) generates nothing except those in 'enabled'.")
@@ -38,13 +40,18 @@ public class IrisVanillaStructureControl {
 
     @ArrayType(type = String.class, min = 1)
     @RegistryListVanillaStructure
-    @Desc("Structure keys to turn OFF while mode is ALL_ON, e.g. 'minecraft:stronghold'. A namespace:path prefix also matches, so 'minecraft:village' disables every village.")
+    @Desc("Structure keys to turn OFF while mode is ALL_ON, e.g. 'minecraft:stronghold'. A namespace:path prefix also matches, so 'minecraft:village' disables every village variant and 'minecraft:ruined_portal' disables every ruined portal. Ignored when mode is ALL_OFF.")
     private KList<String> disabled = new KList<>();
 
     @ArrayType(type = String.class, min = 1)
     @RegistryListVanillaStructure
-    @Desc("Structure keys to turn ON while mode is ALL_OFF (or CUSTOM), e.g. 'minecraft:village_plains'. A namespace:path prefix also matches.")
+    @Desc("Structure keys to turn ON while mode is ALL_OFF (or CUSTOM), e.g. 'minecraft:village_plains'. A namespace:path prefix also matches, so 'minecraft:village' enables every village variant. Ignored when mode is ALL_ON.")
     private KList<String> enabled = new KList<>();
+
+    @MinNumber(-512)
+    @MaxNumber(512)
+    @Desc("Vertical block offset applied only to UNDERGROUND vanilla structures (the UNDERGROUND_STRUCTURES and STRONGHOLDS generation steps: strongholds, trial chambers, mineshafts, ancient cities, etc.). Surface structures (villages, outposts, etc.) are never shifted. Use a negative value to push deep structures lower when your dimension's sea/terrain level differs from vanilla's (e.g. -64 if you lowered the fluid height to 0). 0 = no shift.")
+    private int undergroundYShift = 0;
 
     public boolean active() {
         return mode == VanillaStructureMode.ALL_ON || !enabled.isEmpty();

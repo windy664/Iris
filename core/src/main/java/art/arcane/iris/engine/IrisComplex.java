@@ -49,6 +49,8 @@ import java.util.*;
 public class IrisComplex implements DataProvider {
     private static final BlockData AIR = Material.AIR.createBlockData();
     private static final NoiseBounds ZERO_NOISE_BOUNDS = new NoiseBounds(0D, 0D);
+    private static final int GRID_BOUNDS_CACHE_SIZE = 8192;
+    private static final ThreadLocal<GridBoundsCache> GRID_BOUNDS_CACHE = ThreadLocal.withInitial(GridBoundsCache::new);
     private RNG rng;
     private double fluidHeight;
     private IrisData data;
@@ -316,15 +318,84 @@ public class IrisComplex implements DataProvider {
         return biome;
     }
 
-    private double interpolateGenerators(Engine engine, IrisInterpolator interpolator, Set<IrisGenerator> generators, double x, double z, long seed) {
+    private double interpolateGenerators(Engine engine, IrisInterpolator interpolator, int interpolatorIndex, Set<IrisGenerator> generators, double x, double z, long seed) {
         if (generators.isEmpty()) {
             return 0;
         }
 
+        NoiseBounds sampledBounds = gridSampleBounds(engine, interpolator, interpolatorIndex, generators, x, z);
+        double hi = sampledBounds.max();
+        double lo = sampledBounds.min();
+
+        double d = 0;
+
+        for (IrisGenerator i : generators) {
+            d += M.lerp(lo, hi, i.getHeight(x, z, seed + 239945));
+        }
+
+        return d / generators.size();
+    }
+
+    private NoiseBounds gridSampleBounds(Engine engine, IrisInterpolator interpolator, int interpolatorIndex, Set<IrisGenerator> generators, double x, double z) {
+        int grid = IrisSettings.get().getPerformance().getHeightBoundsInterpolationGrid();
+        if (grid <= 1) {
+            return sampleBoundsRaw(engine, interpolator, generators, x, z);
+        }
+
+        int xi = (int) Math.floor(x);
+        int zi = (int) Math.floor(z);
+        int mask = grid - 1;
+        int gx = xi & ~mask;
+        int gz = zi & ~mask;
+        double fx = (x - gx) / grid;
+        double fz = (z - gz) / grid;
+
+        GridBoundsCache cache = GRID_BOUNDS_CACHE.get();
+        long b00 = cornerBounds(cache, engine, interpolator, interpolatorIndex, generators, gx, gz);
+        long b10 = cornerBounds(cache, engine, interpolator, interpolatorIndex, generators, gx + grid, gz);
+        long b01 = cornerBounds(cache, engine, interpolator, interpolatorIndex, generators, gx, gz + grid);
+        long b11 = cornerBounds(cache, engine, interpolator, interpolatorIndex, generators, gx + grid, gz + grid);
+
+        double lo = biLerp(boundsLow(b00), boundsLow(b10), boundsLow(b01), boundsLow(b11), fx, fz);
+        double hi = biLerp(boundsHigh(b00), boundsHigh(b10), boundsHigh(b01), boundsHigh(b11), fx, fz);
+        return new NoiseBounds(lo, hi);
+    }
+
+    private long cornerBounds(GridBoundsCache cache, Engine engine, IrisInterpolator interpolator, int interpolatorIndex, Set<IrisGenerator> generators, int gx, int gz) {
+        int slot = cache.slot(gx, gz, interpolatorIndex);
+        if (cache.valid[slot] && cache.gx[slot] == gx && cache.gz[slot] == gz && cache.idx[slot] == interpolatorIndex) {
+            return cache.packed[slot];
+        }
+
+        NoiseBounds bounds = sampleBoundsRaw(engine, interpolator, generators, gx, gz);
+        long packed = (((long) Float.floatToRawIntBits((float) bounds.min())) << 32) | (Float.floatToRawIntBits((float) bounds.max()) & 0xFFFFFFFFL);
+        cache.gx[slot] = gx;
+        cache.gz[slot] = gz;
+        cache.idx[slot] = interpolatorIndex;
+        cache.packed[slot] = packed;
+        cache.valid[slot] = true;
+        return packed;
+    }
+
+    private static double boundsLow(long packed) {
+        return Float.intBitsToFloat((int) (packed >>> 32));
+    }
+
+    private static double boundsHigh(long packed) {
+        return Float.intBitsToFloat((int) (packed & 0xFFFFFFFFL));
+    }
+
+    private static double biLerp(double v00, double v10, double v01, double v11, double fx, double fz) {
+        double a = v00 + ((v10 - v00) * fx);
+        double b = v01 + ((v11 - v01) * fx);
+        return a + ((b - a) * fz);
+    }
+
+    private NoiseBounds sampleBoundsRaw(Engine engine, IrisInterpolator interpolator, Set<IrisGenerator> generators, double x, double z) {
         CoordinateBiomeCache sampleCache = new CoordinateBiomeCache(64);
         IdentityHashMap<IrisBiome, GeneratorBounds> cachedBounds = generatorBounds.get(interpolator);
         IdentityHashMap<IrisBiome, GeneratorBounds> localBounds = new IdentityHashMap<>(8);
-        NoiseBounds sampledBounds = interpolator.interpolateBounds(x, z, (xx, zz) -> {
+        return interpolator.interpolateBounds(x, z, (xx, zz) -> {
             try {
                 IrisBiome bx = sampleCache.get(xx, zz);
                 if (bx == null) {
@@ -342,24 +413,15 @@ public class IrisComplex implements DataProvider {
 
             return ZERO_NOISE_BOUNDS;
         });
-
-        double hi = sampledBounds.max();
-        double lo = sampledBounds.min();
-
-        double d = 0;
-
-        for (IrisGenerator i : generators) {
-            d += M.lerp(lo, hi, i.getHeight(x, z, seed + 239945));
-        }
-
-        return d / generators.size();
     }
 
     private double getInterpolatedHeight(Engine engine, double x, double z, long seed) {
         double h = 0;
 
+        int interpolatorIndex = 0;
         for (Map.Entry<IrisInterpolator, Set<IrisGenerator>> entry : generators.entrySet()) {
-            h += interpolateGenerators(engine, entry.getKey(), entry.getValue(), x, z, seed);
+            h += interpolateGenerators(engine, entry.getKey(), interpolatorIndex, entry.getValue(), x, z, seed);
+            interpolatorIndex++;
         }
 
         return h;
@@ -496,6 +558,20 @@ public class IrisComplex implements DataProvider {
             this.min = min;
             this.max = max;
             this.noiseBounds = new NoiseBounds(min, max);
+        }
+    }
+
+    private static final class GridBoundsCache {
+        private final int[] gx = new int[GRID_BOUNDS_CACHE_SIZE];
+        private final int[] gz = new int[GRID_BOUNDS_CACHE_SIZE];
+        private final int[] idx = new int[GRID_BOUNDS_CACHE_SIZE];
+        private final long[] packed = new long[GRID_BOUNDS_CACHE_SIZE];
+        private final boolean[] valid = new boolean[GRID_BOUNDS_CACHE_SIZE];
+
+        private int slot(int cornerX, int cornerZ, int interpolatorIndex) {
+            long h = (cornerX * 0x9E3779B97F4A7C15L) ^ (cornerZ * 0xC2B2AE3D27D4EB4FL) ^ (interpolatorIndex * 0x165667B19E3779F9L);
+            h ^= (h >>> 32);
+            return (int) (h & (GRID_BOUNDS_CACHE_SIZE - 1));
         }
     }
 

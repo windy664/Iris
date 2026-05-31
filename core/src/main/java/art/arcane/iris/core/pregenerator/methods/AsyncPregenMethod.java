@@ -368,11 +368,12 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     }
 
     static int resolvePaperLikeConcurrencyWorkerThreads(int detectedWorkerPoolThreads, int detectedCpuThreads, int configuredWorldGenThreads) {
+        int provisionedWorkerThreads = Math.max(1, configuredWorldGenThreads);
         if (detectedWorkerPoolThreads > 0) {
-            return detectedWorkerPoolThreads;
+            return Math.max(detectedWorkerPoolThreads, provisionedWorkerThreads);
         }
 
-        return Math.max(1, Math.max(detectedCpuThreads, configuredWorldGenThreads));
+        return Math.max(provisionedWorkerThreads, detectedCpuThreads);
     }
 
     static int computeFoliaRecommendedCap(int workerThreads) {
