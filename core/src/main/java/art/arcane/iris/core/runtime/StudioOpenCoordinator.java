@@ -87,7 +87,7 @@ public final class StudioOpenCoordinator {
         try {
             long openStart = System.currentTimeMillis();
             long t = openStart;
-            Iris.info("[Studio timing] ===== studio open START: " + request.worldName() + " =====");
+            Iris.debug("[Studio timing] ===== studio open START: " + request.worldName() + " =====");
             updateStage(request, "resolve_dimension", 0.04D);
             if (IrisToolbelt.getDimension(request.dimensionKey()) == null) {
                 throw new IrisException("Dimension cannot be found for id " + request.dimensionKey() + ".");
@@ -165,7 +165,7 @@ public final class StudioOpenCoordinator {
             }
             t = logStudioPhase("finalize + openVSCode", t, openStart);
 
-            Iris.info("[Studio timing] ===== server-side open PREP done = " + (System.currentTimeMillis() - openStart) + "ms  (world " + world.getName() + ") — player-view terrain gen follows; the REAL wait is the [Studio timing] player-view lines below =====");
+            Iris.info("Studio open: " + world.getName() + " ready in " + (System.currentTimeMillis() - openStart) + "ms");
             future.complete(new StudioOpenResult(world, safeEntry));
         } catch (Throwable e) {
             Iris.reportError("Studio open failed for world \"" + request.worldName() + "\".", e);
@@ -183,7 +183,7 @@ public final class StudioOpenCoordinator {
 
     private long logStudioPhase(String phase, long t, long openStart) {
         long now = System.currentTimeMillis();
-        Iris.info("[Studio timing] " + phase + " = " + (now - t) + "ms  (cumulative " + (now - openStart) + "ms)");
+        Iris.debug("[Studio timing] " + phase + " = " + (now - t) + "ms  (cumulative " + (now - openStart) + "ms)");
         return now;
     }
 

@@ -19,6 +19,7 @@
 package art.arcane.iris.core;
 
 import art.arcane.iris.Iris;
+import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.nms.datapack.DataVersion;
@@ -119,7 +120,7 @@ public class ServerConfigurator {
         }
     }
 
-    private static KList<File> getDatapacksFolder() {
+    public static KList<File> getDatapacksFolder() {
         if (!IrisSettings.get().getGeneral().forceMainWorld.isEmpty()) {
             return new KList<File>().qadd(new File(Bukkit.getWorldContainer(), IrisSettings.get().getGeneral().forceMainWorld + "/datapacks"));
         }
@@ -158,6 +159,7 @@ public class ServerConfigurator {
         }
         DimensionHeight height = new DimensionHeight(fixer);
         KList<File> folders = getDatapacksFolder();
+        DatapackIngestService.reapplyFromStaging(folders);
         java.util.concurrent.ConcurrentMap<String, KSet<String>> biomes = new java.util.concurrent.ConcurrentHashMap<>();
 
         try (Stream<IrisData> stream = allPacks()) {

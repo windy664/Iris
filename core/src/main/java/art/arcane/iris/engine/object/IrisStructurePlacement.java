@@ -23,7 +23,6 @@ import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.RegistryListResource;
-import art.arcane.iris.engine.object.annotations.RegistryListVanillaStructure;
 import art.arcane.volmlib.util.collection.KList;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -38,16 +37,8 @@ import lombok.experimental.Accessors;
 public class IrisStructurePlacement {
     @ArrayType(type = String.class, min = 1)
     @RegistryListResource(IrisStructure.class)
-    @Desc("Iris structures to place here (route IRIS_PLACED). Use this for imported or hand-authored structures with full block control.")
+    @Desc("Iris structures to place here. Use this for imported or hand-authored structures with full block control.")
     private KList<String> structures = new KList<>();
-
-    @ArrayType(type = String.class, min = 1)
-    @RegistryListVanillaStructure
-    @Desc("Vanilla or datapack structure keys to place here faithfully (route NATIVE_AT_POINT), e.g. minecraft:igloo. Real loot/mobs/variety, no block editing.")
-    private KList<String> vanilla = new KList<>();
-
-    @Desc("How the placement is realized. Defaults sensibly by which list is populated, but you may set it explicitly.")
-    private StructurePlacementRoute route = StructurePlacementRoute.IRIS_PLACED;
 
     @Desc("How start positions are scattered.")
     private StructureDistribution distribution = StructureDistribution.RANDOM_SPREAD;
@@ -81,46 +72,46 @@ public class IrisStructurePlacement {
     @Desc("CONCENTRIC_RINGS only: how many placements share each ring before moving outward.")
     private int ringSpread = 3;
 
-    @Desc("IRIS_PLACED only: rotation applied to the placed structure.")
+    @Desc("rotation applied to the placed structure.")
     private IrisObjectRotation rotation = new IrisObjectRotation();
 
-    @Desc("IRIS_PLACED only: translation applied to the placed structure.")
+    @Desc("translation applied to the placed structure.")
     private IrisObjectTranslate translate = new IrisObjectTranslate();
 
-    @Desc("IRIS_PLACED only: scale applied to the placed structure.")
+    @Desc("scale applied to the placed structure.")
     private IrisObjectScale scale = new IrisObjectScale();
 
-    @Desc("IRIS_PLACED: when underground=false this is the minimum surface Y the placement is allowed at (a gate); when underground=true this is the lower bound of the Y band the structure is placed within.")
+    @Desc("When underground=false this is the minimum surface Y the placement is allowed at (a gate); when underground=true this is the lower bound of the Y band the structure is placed within.")
     private int minHeight = -2032;
 
-    @Desc("IRIS_PLACED: when underground=false this is the maximum surface Y the placement is allowed at (a gate); when underground=true this is the upper bound of the Y band the structure is placed within.")
+    @Desc("When underground=false this is the maximum surface Y the placement is allowed at (a gate); when underground=true this is the upper bound of the Y band the structure is placed within.")
     private int maxHeight = 2032;
 
-    @Desc("IRIS_PLACED only: if true the structure is placed underground at a random world Y inside [minHeight, maxHeight] (raw stamp, no terrain matching) instead of being dropped onto the terrain surface. Use this for deep structures like ancient cities in a deep cave band.")
+    @Desc("if true the structure is placed underground at a random world Y inside [minHeight, maxHeight] (raw stamp, no terrain matching) instead of being dropped onto the terrain surface. Use this for deep structures like ancient cities in a deep cave band.")
     private boolean underground = false;
 
-    @Desc("IRIS_PLACED only: if true, the structure's full bounding box (floor up to roof) is bored out to air before the pieces are stamped, so the structure sits inside an open cavern instead of being encased in solid terrain. Essential for underground structures such as ancient cities to be visible and enterable.")
+    @Desc("if true, the structure's full bounding box (floor up to roof) is bored out to air before the pieces are stamped, so the structure sits inside an open cavern instead of being encased in solid terrain. Essential for underground structures such as ancient cities to be visible and enterable.")
     private boolean bore = false;
 
-    @Desc("IRIS_PLACED only: extra blocks of air clearance added around the bored bounding box (horizontally and above) when bore=true. The floor is never bored below the structure so support is preserved.")
+    @Desc("extra blocks of air clearance added around the bored bounding box (horizontally and above) when bore=true. The floor is never bored below the structure so support is preserved.")
     private int borePadding = 0;
 
-    @Desc("IRIS_PLACED only: if true, massively carves the surrounding terrain into an open cavern around the structure instead of only clearing its tight bounding box. The structure's full interior is cleared and the surrounding terrain is excavated out to overboreRadius blocks, doming down to meet the ground at the edges so the structure is no longer buried in solid terrain. The mantle write window and the carve volume cap are expanded automatically to fit. Use for deep structures such as ancient cities so both their interior and surroundings are open and enterable. Takes precedence over bore when both are set.")
+    @Desc("if true, massively carves the surrounding terrain into an open cavern around the structure instead of only clearing its tight bounding box. The structure's full interior is cleared and the surrounding terrain is excavated out to overboreRadius blocks, doming down to meet the ground at the edges so the structure is no longer buried in solid terrain. The mantle write window and the carve volume cap are expanded automatically to fit. Use for deep structures such as ancient cities so both their interior and surroundings are open and enterable. Takes precedence over bore when both are set.")
     private boolean overbore = false;
 
     @MinNumber(0)
     @MaxNumber(128)
-    @Desc("IRIS_PLACED only: when overbore=true, how many blocks of terrain to carve horizontally outward from the structure's bounding box. Larger values produce a wider open cavern around the structure. Larger values also widen the mantle write window for every chunk near the structure, so increase it deliberately.")
+    @Desc("when overbore=true, how many blocks of terrain to carve horizontally outward from the structure's bounding box. Larger values produce a wider open cavern around the structure. Larger values also widen the mantle write window for every chunk near the structure, so increase it deliberately.")
     private int overboreRadius = 24;
 
     @MinNumber(0)
     @MaxNumber(128)
-    @Desc("IRIS_PLACED only: when overbore=true, how many extra blocks of air to carve above the structure's roof at the cavern apex.")
+    @Desc("when overbore=true, how many extra blocks of air to carve above the structure's roof at the cavern apex.")
     private int overboreHeight = 8;
 
     @MinNumber(0)
     @MaxNumber(64)
-    @Desc("IRIS_PLACED only: when overbore=true, how many blocks of terrain to carve below the structure's floor. 0 keeps the floor solid for support; small values recess the cavern floor around the structure.")
+    @Desc("when overbore=true, how many blocks of terrain to carve below the structure's floor. 0 keeps the floor solid for support; small values recess the cavern floor around the structure.")
     private int overboreFloor = 0;
 
     @Desc("If false, this placement is skipped underwater.")

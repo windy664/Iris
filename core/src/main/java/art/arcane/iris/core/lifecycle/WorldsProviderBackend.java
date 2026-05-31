@@ -57,11 +57,6 @@ final class WorldsProviderBackend implements WorldLifecycleBackend {
         return "worlds_provider";
     }
 
-    @Override
-    public String describeSelectionReason() {
-        return "external Worlds provider is registered and healthy";
-    }
-
     @SuppressWarnings({"rawtypes", "unchecked"})
     private Object resolveLevelStem(World.Environment environment) {
         String key;

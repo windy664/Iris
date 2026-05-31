@@ -60,11 +60,10 @@ public final class WorldLifecycleService {
                     + "\", caller=" + request.callerKind().name().toLowerCase() + ".", e);
             return CompletableFuture.failedFuture(e);
         }
-        Iris.info("WorldLifecycle create: world=%s, caller=%s, backend=%s, reason=%s",
+        Iris.info("WorldLifecycle create: world=%s, caller=%s, backend=%s",
                 request.worldName(),
                 request.callerKind().name().toLowerCase(),
-                backend.backendName(),
-                backend.describeSelectionReason());
+                backend.backendName());
         return backend.create(request).whenComplete((world, throwable) -> {
             if (throwable != null) {
                 Throwable cause = WorldLifecycleSupport.unwrap(throwable);
@@ -106,10 +105,9 @@ public final class WorldLifecycleService {
 
     private boolean unloadDirect(World world, boolean save) {
         WorldLifecycleBackend backend = selectUnloadBackend(world.getName());
-        Iris.info("WorldLifecycle unload: world=%s, backend=%s, reason=%s",
+        Iris.info("WorldLifecycle unload: world=%s, backend=%s",
                 world.getName(),
-                backend.backendName(),
-                backend.describeSelectionReason());
+                backend.backendName());
         boolean unloaded;
         try {
             unloaded = backend.unload(world, save);

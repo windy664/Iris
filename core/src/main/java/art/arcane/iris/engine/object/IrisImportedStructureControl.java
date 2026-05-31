@@ -32,9 +32,9 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@Desc("Controls native vanilla & datapack structure generation for this dimension (set as the dimension's 'vanillaStructures' field). Default mode is ALL_ON (everything generates). Blacklist a few: mode=ALL_ON + list them in 'disabled'. Whitelist a few: mode=ALL_OFF + list them in 'enabled'. Key matching is exact OR prefix (an entry matches when the structure key equals it or starts with it), so 'minecraft:village' covers every village variant. Run '/iris structure list <dimension>' to dump every valid key. Only affects NEWLY generated chunks, and is separate from the IRIS_PLACED import system (imported structures are controlled by biome/region/dimension 'structures' placements, not here).")
+@Desc("Controls native vanilla & ingested datapack structure generation for this dimension (set as the dimension's 'importedStructures' field). Default mode is ALL_ON (everything generates). Blacklist a few: mode=ALL_ON + list them in 'disabled'. Whitelist a few: mode=ALL_OFF + list them in 'enabled'. Both lists autocomplete every live vanilla AND ingested datapack structure key. Key matching is exact OR prefix (an entry matches when the structure key equals it or starts with it), so 'minecraft:village' covers every village variant. Run '/iris structure list <dimension>' to dump every valid key. Only affects NEWLY generated chunks, and is separate from the Iris 'structures' placement system (imported structures are placed by biome/region/dimension 'structures' lists, not here).")
 @Data
-public class IrisVanillaStructureControl {
+public class IrisImportedStructureControl {
     @Desc("Master toggle. ALL_ON generates every vanilla & datapack structure except those in 'disabled'. ALL_OFF (or CUSTOM) generates nothing except those in 'enabled'.")
     private VanillaStructureMode mode = VanillaStructureMode.ALL_ON;
 

@@ -21,6 +21,7 @@ package art.arcane.iris.core.commands;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
+import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.service.StudioSVC;
@@ -92,6 +93,16 @@ public class CommandIris implements DirectorExecutor {
         DirectorHelp.print(sender(), getClass());
     }
 
+    @Director(description = "Download/update external datapack imports declared in pack dimensions (alias of /iris datapack ingest)", aliases = {"ingestpacks"})
+    public void ingest(
+            @Param(description = "Restart the server when new datapacks are installed (required for new structures to register and generate)", defaultValue = "false")
+            boolean restart
+    ) {
+        VolmitSender ingestSender = sender();
+        ingestSender.sendMessage(C.GRAY + "Starting datapack ingest...");
+        J.a(() -> DatapackIngestService.ingestAll(ingestSender, restart));
+    }
+
     private CommandStudio studio;
     private CommandPregen pregen;
     private CommandSettings settings;
@@ -102,6 +113,7 @@ public class CommandIris implements DirectorExecutor {
     private CommandDeveloper developer;
     private CommandPack pack;
     private CommandFind find;
+    private CommandDatapack datapack;
     public static boolean worldCreation = false;
     private static final AtomicReference<Thread> mainWorld = new AtomicReference<>();
     String WorldEngine;

@@ -182,7 +182,7 @@ public class IrisCreator {
         }
         if (studio()) {
             IrisRuntimeSchedulerMode runtimeSchedulerMode = IrisRuntimeSchedulerMode.resolve(IrisSettings.get().getPregen());
-            Iris.info("Studio create scheduling: mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
+            Iris.debug("Studio create scheduling: mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
                     + ", regionizedRuntime=" + FoliaScheduler.isRegionizedRuntime(Bukkit.getServer()));
         }
 
@@ -199,7 +199,7 @@ public class IrisCreator {
             IrisWorlds.get().put(name(), dimension());
         }
         ServerConfigurator.installDataPacksIfChanged(!studio());
-        Iris.info("[Studio timing]   create.packPrep + datapacks = " + (System.currentTimeMillis() - createStart) + "ms (cumulative in create)");
+        Iris.debug("[Studio timing]   create.packPrep + datapacks = " + (System.currentTimeMillis() - createStart) + "ms (cumulative in create)");
         reportStudioProgress(0.40D, "install_datapacks");
 
         PlatformChunkGenerator access = (PlatformChunkGenerator) wc.generator();
@@ -216,7 +216,7 @@ public class IrisCreator {
             world = J.sfut(() -> INMS.get().createWorldAsync(wc, request))
                     .thenCompose(Function.identity())
                     .get();
-            Iris.info("[Studio timing]   create.createWorldAsync (NMS bukkit world load + spawn prep) = " + (System.currentTimeMillis() - nmsStart) + "ms");
+            Iris.debug("[Studio timing]   create.createWorldAsync (NMS bukkit world load + spawn prep) = " + (System.currentTimeMillis() - nmsStart) + "ms");
         } catch (Throwable e) {
             done.set(true);
             cancelRepeatingTask(createProgressTask);

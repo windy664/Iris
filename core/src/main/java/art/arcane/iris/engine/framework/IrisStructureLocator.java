@@ -25,7 +25,6 @@ import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.IrisStructurePlacement;
 import art.arcane.iris.engine.object.StructureDistribution;
-import art.arcane.iris.engine.object.StructurePlacementRoute;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
 
@@ -73,6 +72,18 @@ public final class IrisStructureLocator {
         return idx.loadKeys.contains(key) || idx.vanillaSources.contains(key);
     }
 
+    public static boolean suppressesVanilla(Engine engine, String vanillaKey) {
+        if (engine == null || vanillaKey == null || vanillaKey.isEmpty()) {
+            return false;
+        }
+        for (String source : index(engine).vanillaSources) {
+            if (source.equalsIgnoreCase(vanillaKey)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean startsInChunk(Engine engine, String key, int cx, int cz) {
         if (!isPlaced(engine, key)) {
             return false;
@@ -80,9 +91,6 @@ public final class IrisStructureLocator {
         long seed = engine.getSeedManager().getMantle();
         RNG rng = new RNG(Cache.key(cx, cz) + seed);
         for (IrisStructurePlacement placement : placementsAt(engine, cx, cz)) {
-            if (placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
-                continue;
-            }
             if (!matches(placement, key, engine.getData())) {
                 continue;
             }
@@ -197,7 +205,7 @@ public final class IrisStructureLocator {
         }
 
         for (IrisStructurePlacement placement : all) {
-            if (placement == null || placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
+            if (placement == null) {
                 continue;
             }
             if (!matches(placement, key, data)) {
@@ -258,9 +266,6 @@ public final class IrisStructureLocator {
         int bx = 8 + (cx << 4);
         int bz = 8 + (cz << 4);
         for (IrisStructurePlacement placement : placementsAt(engine, cx, cz)) {
-            if (placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
-                continue;
-            }
             if (!matches(placement, key, data)) {
                 continue;
             }
@@ -302,7 +307,7 @@ public final class IrisStructureLocator {
             return;
         }
         for (IrisStructurePlacement placement : placements) {
-            if (placement == null || placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
+            if (placement == null) {
                 continue;
             }
             for (String structureKey : placement.getStructures()) {

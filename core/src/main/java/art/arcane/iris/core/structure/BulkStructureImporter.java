@@ -45,7 +45,7 @@ public final class BulkStructureImporter {
         KList<String> keys = INMS.get().getStructureKeys();
         List<String> vanilla = new ArrayList<>();
         for (String k : keys) {
-            if (k != null && k.startsWith("minecraft:")) {
+            if (k != null && !k.isBlank()) {
                 vanilla.add(k);
             }
         }
@@ -56,7 +56,7 @@ public final class BulkStructureImporter {
         int skipped = 0;
         int failed = 0;
 
-        sender.sendMessage(C.GREEN + "Importing " + C.WHITE + total + C.GREEN + " vanilla structures (mode=" + mode + ", includeNonJigsaw=" + includeNonJigsaw + ")...");
+        sender.sendMessage(C.GREEN + "Importing " + C.WHITE + total + C.GREEN + " vanilla & datapack structures (mode=" + mode + ", includeNonJigsaw=" + includeNonJigsaw + ")...");
 
         for (String keyString : vanilla) {
             NamespacedKey nk = NamespacedKey.fromString(keyString.toLowerCase());
@@ -191,7 +191,7 @@ public final class BulkStructureImporter {
             String name = templateNameFor(keyString);
 
             try {
-                StructureImporter.Result result = StructureImporter.importStructure(data, nk, name, mode);
+                StructureImporter.Result result = StructureImporter.importStructure(data, nk, name, mode, true);
                 if (result.success()) {
                     imported++;
                 } else if (result.message() != null && result.message().startsWith("Skipped")) {

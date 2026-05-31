@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
 import art.arcane.iris.core.ServerConfigurator;
+import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.runtime.TransientWorldCleanupSupport;
 import art.arcane.iris.core.runtime.WorldRuntimeControlService;
@@ -583,6 +584,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
             J.sr(this::tickQueue, 0);
             J.s(this::setupPapi);
             J.a(ServerConfigurator::configureIfDeferred, 20);
+            J.a(DatapackIngestService::autoIngestOnStartup, 60);
 
             autoStartStudio();
             if (!J.isFolia()) {

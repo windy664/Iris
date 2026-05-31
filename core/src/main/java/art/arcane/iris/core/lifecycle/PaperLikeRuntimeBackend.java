@@ -38,7 +38,7 @@ final class PaperLikeRuntimeBackend implements WorldLifecycleBackend {
             WorldLifecycleStaging.stageGenerator(request.worldName(), request.generator(), request.biomeProvider());
             WorldLifecycleSupport.stageRuntimeConfiguration(request.worldName());
 
-            Iris.info("WorldLifecycle runtime LevelStem: world=" + request.worldName()
+            Iris.debug("WorldLifecycle runtime LevelStem: world=" + request.worldName()
                     + ", backend=paper_like_runtime, flavor=" + capabilities.paperLikeFlavor().name().toLowerCase(Locale.ROOT)
                     + ", registrySource=" + WorldLifecycleSupport.runtimeLevelStemRegistrySource(request));
             Object levelStem = WorldLifecycleSupport.resolveRuntimeLevelStem(capabilities, request);
@@ -80,10 +80,5 @@ final class PaperLikeRuntimeBackend implements WorldLifecycleBackend {
     @Override
     public String backendName() {
         return "paper_like_runtime";
-    }
-
-    @Override
-    public String describeSelectionReason() {
-        return "server family " + capabilities.serverFamily().id() + " exposes paper-like runtime world lifecycle capabilities";
     }
 }

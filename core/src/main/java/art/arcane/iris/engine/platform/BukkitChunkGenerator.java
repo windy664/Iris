@@ -96,9 +96,6 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
     private final AtomicBoolean setup;
     private final boolean studio;
     private final AtomicInteger a = new AtomicInteger(0);
-    private final AtomicBoolean firstChunkLogged = new AtomicBoolean(false);
-    private volatile long firstChunkTime = 0L;
-    private final AtomicInteger chunkGenCount = new AtomicInteger(0);
     private volatile long lastChunkGenTime = 0L;
     private final CompletableFuture<Integer> spawnChunks = new CompletableFuture<>();
     private final AtomicCache<EngineTarget> targetCache = new AtomicCache<>();
@@ -153,7 +150,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         if (engine == null) return false;
         try {
             INMS.get().inject(world.getSeed(), engine, world);
-            Iris.info("Injected Iris Biome Source into " + world.getName());
+            Iris.debug("Injected Iris Biome Source into " + world.getName());
             if (!studio) {
                 J.s(() -> updateSpawnLocation(world), 1);
             }
@@ -704,17 +701,6 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         try {
             Engine engine = getEngine(world);
             lastChunkGenTime = System.currentTimeMillis();
-            if (firstChunkLogged.compareAndSet(false, true)) {
-                firstChunkTime = System.currentTimeMillis();
-                Iris.info("[Studio timing] FIRST chunk generating in " + world.getName() + " at chunk " + x + "," + z + " (player-view terrain starts here — server-side open prep already done)");
-            }
-            if (studio) {
-                int gen = chunkGenCount.incrementAndGet();
-                if (gen % 64 == 0) {
-                    long el = Math.max(1L, System.currentTimeMillis() - firstChunkTime);
-                    Iris.info("[Studio timing] player-view terrain: " + gen + " chunks in " + el + "ms (" + (gen * 1000L / el) + " chunks/sec) — THIS is the wait you actually see");
-                }
-            }
             computeStudioGenerator();
             TerrainChunk tc = TerrainChunk.create(d);
             this.world.bind(world);
@@ -843,7 +829,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             if (e == null) {
                 return true;
             }
-            return e.getDimension().getVanillaStructures().getMode() != VanillaStructureMode.ALL_OFF;
+            return e.getDimension().getImportedStructures().getMode() != VanillaStructureMode.ALL_OFF;
         } catch (Throwable t) {
             return true;
         }

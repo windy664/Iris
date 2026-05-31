@@ -518,6 +518,6 @@ public class IrisData implements ExclusionStrategy, TypeAdapterFactory {
         }
 
         b.complete();
-        Iris.info("Loaded Prefetch Cache to reduce generation disk use.");
+        Iris.debug("Loaded Prefetch Cache to reduce generation disk use.");
     }
 }

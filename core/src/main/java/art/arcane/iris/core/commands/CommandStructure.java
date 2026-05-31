@@ -22,6 +22,7 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.structure.BulkStructureImporter;
 import art.arcane.iris.core.structure.StructureImporter;
 import art.arcane.iris.core.structure.StructureIndexService;
+import art.arcane.iris.core.structure.StructureModeHandler;
 import art.arcane.iris.core.structure.VillageImporter;
 import art.arcane.iris.engine.framework.PlacedStructurePiece;
 import art.arcane.iris.engine.framework.StructureAssembler;
@@ -82,7 +83,7 @@ public class CommandStructure implements DirectorExecutor {
             String key,
             @Param(description = "Name for the imported structure (defaults from the key)", defaultValue = "")
             String name,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite")
+            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite", customHandler = StructureModeHandler.class)
             String mode
     ) {
         IrisData data = dimension.getLoader();
@@ -111,7 +112,7 @@ public class CommandStructure implements DirectorExecutor {
             String key,
             @Param(description = "Name for the imported structure (defaults from the key)", defaultValue = "")
             String name,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite")
+            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite", customHandler = StructureModeHandler.class)
             String mode
     ) {
         IrisData data = dimension.getLoader();
@@ -133,11 +134,11 @@ public class CommandStructure implements DirectorExecutor {
         }
     }
 
-    @Director(description = "Import EVERY vanilla structure into a pack: jigsaw structures rebuilt as pool graphs, single-template structures imported as objects. Idempotent in add-only mode.", aliases = {"import-all", "ia"}, origin = DirectorOrigin.BOTH)
+    @Director(description = "Import EVERY registered structure - vanilla AND ingested datapacks - into a pack: jigsaw structures rebuilt as pool graphs, single-template structures imported as objects. Idempotent in add-only mode.", aliases = {"import-all", "ia"}, origin = DirectorOrigin.BOTH)
     public void importAllVanilla(
             @Param(description = "The dimension whose pack to import into", aliases = "dim")
             IrisDimension dimension,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only")
+            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only", customHandler = StructureModeHandler.class)
             String mode,
             @Param(description = "Also import non-jigsaw single-template structures", name = "include-non-jigsaw", aliases = {"single", "nbt"}, defaultValue = "true")
             boolean includeNonJigsaw
@@ -157,7 +158,7 @@ public class CommandStructure implements DirectorExecutor {
     public void importTemplates(
             @Param(description = "The dimension whose pack to import into", aliases = "dim")
             IrisDimension dimension,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only")
+            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only", customHandler = StructureModeHandler.class)
             String mode
     ) {
         IrisData data = dimension.getLoader();
@@ -171,7 +172,7 @@ public class CommandStructure implements DirectorExecutor {
         }
     }
 
-    @Director(description = "Re-ingest EVERY vanilla structure and jigsaw template from scratch (overwrite), regenerating all .iob objects so they pick up the latest jigsaw/structure-block conversion. Use this after updating Iris if imported structures show raw markers.", aliases = {"reimport", "ri"}, origin = DirectorOrigin.BOTH)
+    @Director(description = "Re-ingest EVERY registered structure - vanilla AND ingested datapacks - plus every jigsaw template from scratch (overwrite), regenerating all .iob objects so they pick up the latest jigsaw/structure-block conversion. Use this after updating Iris or after ingesting datapacks if imported structures show raw markers.", aliases = {"reimport", "ri"}, origin = DirectorOrigin.BOTH)
     public void reingest(
             @Param(description = "The dimension whose pack to re-ingest", aliases = "dim")
             IrisDimension dimension

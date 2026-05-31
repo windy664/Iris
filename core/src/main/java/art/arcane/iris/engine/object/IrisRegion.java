@@ -128,14 +128,12 @@ public class IrisRegion extends IrisRegistrant implements IRare {
     @Desc("A list of root-level biomes in this region. Don't specify child biomes of other biomes here. Just the root parents.")
     private KList<String> landBiomes = new KList<>();
     @RegistryListResource(IrisBiome.class)
-    @Required
-    @ArrayType(min = 1, type = String.class)
-    @Desc("A list of root-level biomes in this region. Don't specify child biomes of other biomes here. Just the root parents.")
+    @ArrayType(type = String.class)
+    @Desc("A list of root-level sea biomes in this region. Optional: leave empty for land-only dimensions (flat, island, or fully-land worlds where no ocean is generated). Don't specify child biomes of other biomes here. Just the root parents.")
     private KList<String> seaBiomes = new KList<>();
     @RegistryListResource(IrisBiome.class)
-    @Required
-    @ArrayType(min = 1, type = String.class)
-    @Desc("A list of root-level biomes in this region. Don't specify child biomes of other biomes here. Just the root parents.")
+    @ArrayType(type = String.class)
+    @Desc("A list of root-level shore biomes in this region. Optional: leave empty for land-only dimensions (flat, island, or fully-land worlds where no shoreline is generated). Don't specify child biomes of other biomes here. Just the root parents.")
     private KList<String> shoreBiomes = new KList<>();
     @RegistryListResource(IrisBiome.class)
     @ArrayType(min = 1, type = String.class)

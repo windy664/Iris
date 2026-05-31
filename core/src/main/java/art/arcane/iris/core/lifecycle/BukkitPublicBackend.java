@@ -50,9 +50,4 @@ final class BukkitPublicBackend implements WorldLifecycleBackend {
     public String backendName() {
         return "bukkit_public";
     }
-
-    @Override
-    public String describeSelectionReason() {
-        return "public Bukkit world lifecycle path";
-    }
 }

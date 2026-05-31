@@ -78,6 +78,10 @@ public final class StructureImporter {
     }
 
     public static Result importStructure(IrisData data, NamespacedKey key, String name, Mode mode) {
+        return importStructure(data, key, name, mode, false);
+    }
+
+    public static Result importStructure(IrisData data, NamespacedKey key, String name, Mode mode, boolean objectOnly) {
         Structure structure;
         try {
             structure = Bukkit.getStructureManager().loadStructure(key);
@@ -98,7 +102,7 @@ public final class StructureImporter {
         File poolFile = new File(data.getDataFolder(), "jigsaw-pools/" + name + ".json");
         File structureFile = new File(data.getDataFolder(), "structures/" + name + ".json");
 
-        boolean exists = objectFile.exists() || structureFile.exists();
+        boolean exists = objectOnly ? objectFile.exists() : (objectFile.exists() || structureFile.exists());
         if (mode == Mode.ADD_ONLY && exists) {
             return new Result(false, "Skipped (add-only): '" + name + "' already exists", 0);
         }
@@ -145,8 +149,13 @@ public final class StructureImporter {
             objectFile.getParentFile().mkdirs();
             object.write(objectFile);
             writeJson(pieceFile, pieceJson(name));
-            writeJson(poolFile, poolJson(name));
-            writeJson(structureFile, structureJson(name, key.toString(), Math.max(w, d)));
+            if (objectOnly) {
+                poolFile.delete();
+                structureFile.delete();
+            } else {
+                writeJson(poolFile, poolJson(name));
+                writeJson(structureFile, structureJson(name, key.toString(), Math.max(w, d)));
+            }
         } catch (Throwable e) {
             return new Result(false, "Failed writing import for '" + name + "': " + e.getMessage(), count);
         }

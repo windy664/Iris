@@ -84,7 +84,6 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private final AtomicLong completed = new AtomicLong();
     private final AtomicLong failed = new AtomicLong();
     private final AtomicLong lastProgressAt = new AtomicLong(M.ms());
-    private final AtomicLong lastPermitWaitLog = new AtomicLong(0L);
     private final AtomicLong lastChunkCleanup = new AtomicLong(M.ms());
     private final Object permitMonitor = new Object();
     private volatile Engine metricsEngine;
@@ -468,18 +467,6 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         }
     }
 
-    private void logPermitWaitIfNeeded(int x, int z, long waitedMs) {
-        long now = M.ms();
-        long last = lastPermitWaitLog.get();
-        if (now - last < 5000L) {
-            return;
-        }
-
-        if (lastPermitWaitLog.compareAndSet(last, now)) {
-            Iris.warn("Async pregen waiting for permit at chunk " + x + "," + z + " waitedMs=" + waitedMs + " " + metricsSnapshot());
-        }
-    }
-
     @Override
     public void init() {
         Iris.info("Async pregen init: world=" + world.getName()
@@ -539,8 +526,6 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             long waitStart = M.ms();
             synchronized (permitMonitor) {
                 while (inFlight.get() >= adaptiveInFlightLimit.get()) {
-                    long waited = Math.max(0L, M.ms() - waitStart);
-                    logPermitWaitIfNeeded(x, z, waited);
                     permitMonitor.wait(500L);
                 }
             }
@@ -551,7 +536,6 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
             long permitWaitStart = M.ms();
             while (!semaphore.tryAcquire(1, TimeUnit.SECONDS)) {
-                logPermitWaitIfNeeded(x, z, Math.max(0L, M.ms() - waitStart));
             }
             long permitWait = Math.max(0L, M.ms() - permitWaitStart);
             if (permitWait > 0L) {

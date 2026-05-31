@@ -585,7 +585,7 @@ public class NMSBinding implements INMSBinding {
             if (!dimensionType.identifier().getNamespace().equals("iris")) {
                 Iris.error("Loaded world %s with invalid dimension type! expected=%s actual=%s", world.getName(), expectedDimensionType, actualDimensionType);
             } else {
-                Iris.info("Loaded world %s with Iris dimension type %s", world.getName(), actualDimensionType);
+                Iris.debug("Loaded world " + world.getName() + " with Iris dimension type " + actualDimensionType);
             }
         } else {
             Iris.error("Loaded world %s with unknown dimension type! expected=%s", world.getName(), expectedDimensionType);

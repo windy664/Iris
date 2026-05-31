@@ -24,6 +24,7 @@ import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
+import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.iris.core.gui.PregeneratorJob;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.ResourceLoader;
@@ -132,7 +133,7 @@ public class IrisEngine implements Engine {
         generated = new AtomicInteger(0);
         long _t0 = M.ms();
         mantle = new IrisEngineMantle(this);
-        Iris.info("[IrisEngine timing] new IrisEngineMantle=" + (M.ms() - _t0) + "ms");
+        Iris.debug("[IrisEngine timing] new IrisEngineMantle=" + (M.ms() - _t0) + "ms");
         context = new IrisContext(this);
         cleaning = new AtomicBoolean(false);
         modeFallbackLogged = new AtomicBoolean(false);
@@ -141,25 +142,25 @@ public class IrisEngine implements Engine {
             getData().dump();
             getData().clearLists();
             getTarget().setDimension(getData().getDimensionLoader().load(getDimension().getLoadKey()));
-            Iris.info("[IrisEngine timing] dump+clearLists+reload=" + (M.ms() - _t0) + "ms");
+            Iris.debug("[IrisEngine timing] dump+clearLists+reload=" + (M.ms() - _t0) + "ms");
         }
         context.touch();
         getData().setEngine(this);
         _t0 = M.ms();
         getData().loadPrefetch(this);
-        Iris.info("[IrisEngine timing] loadPrefetch=" + (M.ms() - _t0) + "ms");
+        Iris.debug("[IrisEngine timing] loadPrefetch=" + (M.ms() - _t0) + "ms");
         try {
             StructureIndexService.writeOnce(getData());
         } catch (Throwable e) {
             Iris.reportError(e);
         }
-        Iris.info("Initializing Engine: " + target.getWorld().name() + "/" + target.getDimension().getLoadKey() + " (" + target.getDimension().getDimensionHeight() + " height) Seed: " + getSeedManager().getSeed());
+        Iris.info("Engine init: " + target.getWorld().name() + "/" + target.getDimension().getLoadKey() + " seed=" + getSeedManager().getSeed());
         failing = false;
         closed = false;
         art = J.ar(this::tickRandomPlayer, 0);
         _t0 = M.ms();
         setupEngine();
-        Iris.info("[IrisEngine timing] setupEngine total=" + (M.ms() - _t0) + "ms");
+        Iris.debug("[IrisEngine timing] setupEngine total=" + (M.ms() - _t0) + "ms");
         Iris.debug("Engine Initialized " + getCacheID());
     }
 
@@ -224,25 +225,25 @@ public class IrisEngine implements Engine {
             cacheId = RNG.r.nextInt();
             long t0 = M.ms();
             complex = ensureComplex();
-            Iris.info("[IrisEngine timing] ensureComplex=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] ensureComplex=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             upperContext = buildUpperContext();
-            Iris.info("[IrisEngine timing] buildUpperContext=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] buildUpperContext=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             effects = new IrisEngineEffects(this);
-            Iris.info("[IrisEngine timing] IrisEngineEffects=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] IrisEngineEffects=" + (M.ms() - t0) + "ms");
             hash32 = new CompletableFuture<>();
             t0 = M.ms();
             mantle.hotload();
-            Iris.info("[IrisEngine timing] mantle.hotload=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] mantle.hotload=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             setupMode();
-            Iris.info("[IrisEngine timing] setupMode=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] setupMode=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             IrisWorldManager manager = new IrisWorldManager(this);
             worldManager = manager;
             manager.startManager();
-            Iris.info("[IrisEngine timing] IrisWorldManager=" + (M.ms() - t0) + "ms");
+            Iris.debug("[IrisEngine timing] IrisWorldManager=" + (M.ms() - t0) + "ms");
             J.a(this::computeBiomeMaxes);
             J.a(() -> {
                 File[] roots = getData().getLoaders()
@@ -255,6 +256,7 @@ public class IrisEngine implements Engine {
                         .toArray(File[]::new);
                 hash32.complete(IO.hashRecursiveMeta(roots));
             });
+            J.a(() -> DatapackIngestService.refreshWorkspace(getData()));
         } catch (Throwable e) {
             Iris.error("FAILED TO SETUP ENGINE!");
             e.printStackTrace();

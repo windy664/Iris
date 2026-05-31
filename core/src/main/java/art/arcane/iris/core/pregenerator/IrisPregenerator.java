@@ -73,7 +73,7 @@ public class IrisPregenerator {
     public IrisPregenerator(PregenTask task, PregeneratorMethod generator, PregenListener listener) {
         benchmarking = IrisPackBenchmarking.getInstance();
         this.listener = listenify(listener);
-        cl = new ChronoLatch(5000);
+        cl = new ChronoLatch(10000);
         saveLatch = new ChronoLatch(IrisSettings.get().getPregen().getSaveIntervalMs());
         generatedRegions = new KSet<>();
         this.shutdown = new AtomicBoolean(false);

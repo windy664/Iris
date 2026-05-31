@@ -255,11 +255,14 @@ public class IrisDimension extends IrisRegistrant {
     @Desc("Collection of ores to be generated")
     @ArrayType(type = IrisOreGenerator.class, min = 1)
     private KList<IrisOreGenerator> ores = new KList<>();
-    @Desc("Dimension-wide structure placements (jigsaw or vanilla/datapack), independent of biome/region placements")
+    @Desc("Dimension-wide Iris structure placements, independent of biome/region placements")
     @ArrayType(type = IrisStructurePlacement.class, min = 1)
     private KList<IrisStructurePlacement> structures = new KList<>();
-    @Desc("Controls native vanilla & datapack structure generation for this dimension. Defaults to ALL_ON.")
-    private IrisVanillaStructureControl vanillaStructures = new IrisVanillaStructureControl();
+    @Desc("Controls native vanilla & ingested datapack structure generation for this dimension. Defaults to ALL_ON. The 'disabled'/'enabled' lists autocomplete every live vanilla and ingested datapack structure key.")
+    private IrisImportedStructureControl importedStructures = new IrisImportedStructureControl();
+    @ArrayType(type = String.class, min = 1)
+    @Desc("External datapack imports for this dimension. List Modrinth datapack page URLs ('https://modrinth.com/datapack/<slug>' resolves the latest datapack version, or a specific '.../version/<id>' link pins a version) or a direct .zip URL. Run '/iris datapack ingest' (or '/iris ingest') to download/update them and install them into the world's datapacks folder. Once ingested, their structures behave exactly like vanilla jigsaw structures. To REPLACE a vanilla structure with an imported one, add a 'structures' placement (route IRIS_PLACED) referencing the imported structure key (which carries the matching 'vanillaSource', e.g. 'minecraft:stronghold'): its vanilla counterpart is then automatically suppressed, so it never double-generates - no 'importedStructures.disabled' entry needed. Use 'importedStructures.disabled' only to turn a vanilla structure OFF entirely when you are NOT placing a replacement, or place any imported structure key arbitrarily through a 'structures' placement.")
+    private KList<String> datapackImports = new KList<>();
     @MinNumber(0)
     @MaxNumber(318)
     @Desc("The Subterrain Fluid Layer Height")

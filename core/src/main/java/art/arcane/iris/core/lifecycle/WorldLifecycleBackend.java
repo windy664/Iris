@@ -12,6 +12,4 @@ public interface WorldLifecycleBackend {
     boolean unload(World world, boolean save);
 
     String backendName();
-
-    String describeSelectionReason();
 }

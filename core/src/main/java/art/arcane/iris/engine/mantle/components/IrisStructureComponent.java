@@ -37,7 +37,6 @@ import art.arcane.iris.engine.object.ObjectPlaceMode;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.IrisStructurePlacement;
-import art.arcane.iris.engine.object.StructurePlacementRoute;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.context.ChunkContext;
@@ -82,9 +81,6 @@ public class IrisStructureComponent extends IrisMantleComponent {
 
     @ChunkCoordinates
     private void placeFromPlacement(MantleWriter writer, IrisStructurePlacement placement, int cx, int cz, RNG rng) {
-        if (placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
-            return;
-        }
         if (placement.getStructures().isEmpty()) {
             return;
         }
@@ -368,9 +364,6 @@ public class IrisStructureComponent extends IrisMantleComponent {
     private int maxBlocksFrom(KList<IrisStructurePlacement> placements) {
         int max = 0;
         for (IrisStructurePlacement placement : placements) {
-            if (placement.getRoute() == StructurePlacementRoute.NATIVE_AT_POINT) {
-                continue;
-            }
             int carvePadding = placement.isOverbore() ? Math.max(0, placement.getOverboreRadius())
                     : placement.isBore() ? Math.max(0, placement.getBorePadding()) : 0;
             for (String key : placement.getStructures()) {
