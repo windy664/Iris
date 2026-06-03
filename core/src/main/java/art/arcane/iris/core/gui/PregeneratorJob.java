@@ -169,6 +169,15 @@ public class PregeneratorJob implements PregenListener {
         return targetName != null && targetName.equalsIgnoreCase(world.getName());
     }
 
+    public boolean targetsWorldName(String worldName) {
+        if (worldName == null || engine == null || engine.getWorld() == null) {
+            return false;
+        }
+
+        String targetName = engine.getWorld().name();
+        return targetName != null && targetName.equalsIgnoreCase(worldName);
+    }
+
     private static Color parseColor(String c) {
         String v = (c.startsWith("#") ? c : "#" + c).trim();
         try {

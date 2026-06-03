@@ -53,15 +53,25 @@ public class IrisImportedStructureControl {
     @Desc("Vertical block offset applied only to UNDERGROUND vanilla structures (the UNDERGROUND_STRUCTURES and STRONGHOLDS generation steps: strongholds, trial chambers, mineshafts, ancient cities, etc.). Surface structures (villages, outposts, etc.) are never shifted. Use a negative value to push deep structures lower when your dimension's sea/terrain level differs from vanilla's (e.g. -64 if you lowered the fluid height to 0). 0 = no shift.")
     private int undergroundYShift = 0;
 
+    @Desc("When true (the default), ingested datapacks generate normally: a datapack that redefines a VANILLA structure key (e.g. an ancient-city datapack overriding 'minecraft:ancient_city') REPLACES the vanilla placement, structure definition, jigsaw pools and pieces exactly as the datapack intends, and the datapack's OWN new structures generate too. When false, datapack structures do NOT generate at all - Iris strips the vanilla-key overrides from the installed datapack copy so the original vanilla structures generate untouched, and holds every datapack-namespaced structure out of natural generation so it never appears over or beside the vanilla one. Datapacks stay installed and importable either way, so when false the only way to get a datapack structure is to run '/iris structure import' and place it manually from a biome/region/dimension 'structures' list. Resolved globally across every loaded pack: if ANY dimension sets this false, vanilla-key overrides are stripped for every installed datapack.")
+    private boolean datapackOverrides = true;
+
     public boolean active() {
         return mode == VanillaStructureMode.ALL_ON || !enabled.isEmpty();
     }
 
     public boolean shouldGenerate(String key) {
+        if (!datapackOverrides && isDatapackKey(key)) {
+            return false;
+        }
         if (mode == VanillaStructureMode.ALL_ON) {
             return !matches(disabled, key);
         }
         return matches(enabled, key);
+    }
+
+    private static boolean isDatapackKey(String key) {
+        return key != null && key.contains(":") && !key.startsWith("minecraft:");
     }
 
     private boolean matches(KList<String> list, String key) {

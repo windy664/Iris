@@ -22,7 +22,7 @@ import art.arcane.iris.engine.object.annotations.ArrayType;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
-import art.arcane.iris.engine.object.annotations.RegistryListResource;
+import art.arcane.iris.engine.object.annotations.RegistryListStructure;
 import art.arcane.volmlib.util.collection.KList;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,8 +36,8 @@ import lombok.experimental.Accessors;
 @Data
 public class IrisStructurePlacement {
     @ArrayType(type = String.class, min = 1)
-    @RegistryListResource(IrisStructure.class)
-    @Desc("Iris structures to place here. Use this for imported or hand-authored structures with full block control.")
+    @RegistryListStructure
+    @Desc("Structures to place here. Any vanilla, datapack, or imported Iris structure key (e.g. minecraft_village_plains, minecraft_stronghold). Jigsaw component pieces are not valid here.")
     private KList<String> structures = new KList<>();
 
     @Desc("How start positions are scattered.")

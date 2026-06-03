@@ -284,6 +284,7 @@ public class IrisPregenerator {
                 Mantle mantle = getMantle();
                 if (mantle != null) {
                     mantle.trim(0, 0);
+                    mantle.unloadTectonicPlate(0);
                 }
             }
 

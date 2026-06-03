@@ -87,6 +87,12 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private final AtomicLong lastChunkCleanup = new AtomicLong(M.ms());
     private final Object permitMonitor = new Object();
     private volatile Engine metricsEngine;
+    private volatile Mantle cachedMantle;
+    private final int maxResidentTectonicPlates;
+    private final int mantleBackpressureWaitMs;
+    private final long mantleBackpressureTimeoutMs;
+    private final long mantleReclaimIntervalMs;
+    private final AtomicLong lastMantleReclaim = new AtomicLong(0L);
 
     public AsyncPregenMethod(World world, int unusedThreads) {
         if (!PaperLib.isPaper()) {
@@ -136,6 +142,10 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         this.lastUse = new ConcurrentHashMap<>();
         this.adaptiveInFlightLimit = new AtomicInteger(this.threads);
         this.adaptiveMinInFlightLimit = Math.max(4, Math.min(16, Math.max(1, this.threads / 4)));
+        this.maxResidentTectonicPlates = pregen.getMaxResidentTectonicPlates();
+        this.mantleBackpressureWaitMs = pregen.getMantleBackpressureWaitMs();
+        this.mantleBackpressureTimeoutMs = pregen.getMantleBackpressureTimeoutMs();
+        this.mantleReclaimIntervalMs = 1_000L;
     }
 
     private IrisPaperLikeBackendMode resolvePaperLikeBackendMode(IrisSettings.IrisSettingsPregen pregen) {
@@ -467,6 +477,75 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         }
     }
 
+    private Mantle resolveMantle() {
+        Mantle cached = cachedMantle;
+        if (cached != null) {
+            return cached;
+        }
+
+        Mantle resolved = getMantle();
+        if (resolved != null) {
+            cachedMantle = resolved;
+        }
+        return resolved;
+    }
+
+    private void enforceMantleBudget() {
+        int cap = maxResidentTectonicPlates;
+        if (cap <= 0) {
+            return;
+        }
+
+        Mantle mantle = resolveMantle();
+        if (mantle == null) {
+            return;
+        }
+
+        long now = M.ms();
+        long lastReclaimAt = lastMantleReclaim.get();
+        if (now - lastReclaimAt >= mantleReclaimIntervalMs && lastMantleReclaim.compareAndSet(lastReclaimAt, now)) {
+            mantle.trim(0L, 0);
+            mantle.unloadTectonicPlate(0);
+        }
+
+        if (mantle.getLoadedRegionCount() <= cap) {
+            return;
+        }
+
+        long waitStart = M.ms();
+        long lastLog = 0L;
+        while (mantle.getLoadedRegionCount() > cap) {
+            mantle.trim(0L, 0);
+            int freed = mantle.unloadTectonicPlate(0);
+            int resident = mantle.getLoadedRegionCount();
+            if (resident <= cap) {
+                break;
+            }
+
+            long elapsed = M.ms() - waitStart;
+            if (elapsed >= mantleBackpressureTimeoutMs) {
+                Iris.warn("Pregen mantle backpressure exceeded " + mantleBackpressureTimeoutMs + "ms with " + resident
+                        + " tectonic plates resident (cap " + cap + "); proceeding to avoid deadlock. "
+                        + "Raise pregen.maxResidentTectonicPlates if this persists. " + metricsSnapshot());
+                return;
+            }
+
+            long logNow = M.ms();
+            if (logNow - lastLog >= 5_000L) {
+                lastLog = logNow;
+                Iris.warn("Pregen mantle backpressure: " + resident + " tectonic plates resident (cap " + cap
+                        + "), freed " + freed + " last pass, waited " + elapsed + "ms.");
+            }
+
+            try {
+                Thread.sleep(mantleBackpressureWaitMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     @Override
     public void init() {
         Iris.info("Async pregen init: world=" + world.getName()
@@ -522,6 +601,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     public void generateChunk(int x, int z, PregenListener listener) {
         listener.onChunkGenerating(x, z);
         periodicChunkCleanup();
+        enforceMantleBudget();
         try {
             long waitStart = M.ms();
             synchronized (permitMonitor) {

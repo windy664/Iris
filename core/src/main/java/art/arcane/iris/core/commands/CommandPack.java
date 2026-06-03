@@ -23,7 +23,6 @@ import art.arcane.iris.core.pack.PackValidationRegistry;
 import art.arcane.iris.core.pack.PackValidationResult;
 import art.arcane.iris.core.pack.PackValidator;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.volmlib.util.director.annotations.Director;
@@ -33,12 +32,7 @@ import java.io.File;
 
 @Director(name = "pack", aliases = {"pk"}, description = "Pack validation and maintenance")
 public class CommandPack implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
-    @Director(description = "Validate a pack (or all packs) and re-publish results", aliases = {"v", "check"})
+    @Director(description = "Validate a pack (or all packs) and re-publish results", aliases = {"v"})
     public void validate(
             @Param(description = "The pack folder name to validate (leave empty for all)", defaultValue = "")
             String pack
@@ -75,7 +69,7 @@ public class CommandPack implements DirectorExecutor {
         runValidate(s, target);
     }
 
-    @Director(description = "Restore most recent trashed files for a pack", aliases = {"r", "undelete"})
+    @Director(description = "Restore most recent trashed files for a pack", aliases = {"r"})
     public void restore(
             @Param(description = "The pack folder name to restore")
             String pack
@@ -99,7 +93,7 @@ public class CommandPack implements DirectorExecutor {
         s.sendMessage(C.GRAY + "Re-run /iris pack validate " + pack + " to re-check.");
     }
 
-    @Director(description = "Show cached validation status for a pack", aliases = {"s", "info"})
+    @Director(description = "Show cached validation status for a pack", aliases = {"s"})
     public void status(
             @Param(description = "The pack folder name", defaultValue = "")
             String pack

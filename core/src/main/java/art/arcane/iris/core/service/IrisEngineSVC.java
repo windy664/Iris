@@ -308,7 +308,7 @@ public class IrisEngineSVC implements IrisService {
                     }
 
                     try {
-                        engine.getMantle().trim(activeIdleDuration(engineWorld), activeTectonicLimit(engineWorld));
+                        engine.getMantle().trim(activeIdleDuration(engine), activeTectonicLimit(engine));
                     } catch (Throwable e) {
                         if (isMantleClosed(e)) {
                             close();
@@ -336,7 +336,7 @@ public class IrisEngineSVC implements IrisService {
 
                     try {
                         long unloadStart = System.currentTimeMillis();
-                        int count = engine.getMantle().unloadTectonicPlate(IrisSettings.get().getPerformance().getEngineSVC().forceMulticoreWrite ? 0 : activeTectonicLimit(engineWorld));
+                        int count = engine.getMantle().unloadTectonicPlate(IrisSettings.get().getPerformance().getEngineSVC().forceMulticoreWrite ? 0 : activeTectonicLimit(engine));
                         if (count > 0) {
                             Iris.debug(C.GOLD + "Unloaded " + C.YELLOW + count + " TectonicPlates in " + C.RED + Form.duration(System.currentTimeMillis() - unloadStart, 2));
                         }
@@ -357,27 +357,26 @@ public class IrisEngineSVC implements IrisService {
             return tectonicLimit.get() / Math.max(worlds.size(), 1);
         }
 
-        private int activeTectonicLimit(@Nullable World world) {
-            int limit = tectonicLimit();
-            if (world == null) {
-                return limit;
+        private boolean pregenTargets(Engine engine) {
+            if (engine == null || engine.getWorld() == null) {
+                return false;
             }
 
             PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
-            if (pregeneratorJob == null || !pregeneratorJob.targetsWorld(world)) {
+            return pregeneratorJob != null && pregeneratorJob.targetsWorldName(engine.getWorld().name());
+        }
+
+        private int activeTectonicLimit(Engine engine) {
+            int limit = tectonicLimit();
+            if (!pregenTargets(engine)) {
                 return limit;
             }
 
             return Math.max(1, Math.min(limit, Math.max(2, limit / 8)));
         }
 
-        private long activeIdleDuration(@Nullable World world) {
-            if (world == null) {
-                return TimeUnit.SECONDS.toMillis(IrisSettings.get().getPerformance().getMantleKeepAlive());
-            }
-
-            PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
-            if (pregeneratorJob == null || !pregeneratorJob.targetsWorld(world)) {
+        private long activeIdleDuration(Engine engine) {
+            if (!pregenTargets(engine)) {
                 return TimeUnit.SECONDS.toMillis(IrisSettings.get().getPerformance().getMantleKeepAlive());
             }
 
@@ -411,13 +410,7 @@ public class IrisEngineSVC implements IrisService {
                 return true;
             }
 
-            World world = engine.getWorld().realWorld();
-            if (world == null) {
-                return false;
-            }
-
-            PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
-            return pregeneratorJob != null && pregeneratorJob.targetsWorld(world);
+            return pregenTargets(engine);
         }
 
         private boolean shouldSkipForMaintenance(@Nullable World world) {

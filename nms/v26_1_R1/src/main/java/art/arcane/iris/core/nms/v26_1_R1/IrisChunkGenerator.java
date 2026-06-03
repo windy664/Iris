@@ -50,11 +50,18 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
     private static final WrappedReturningMethod<Heightmap, Object> SET_HEIGHT;
     private final ChunkGenerator delegate;
     private final Engine engine;
+    private final CustomBiomeSource customBiomeSource;
+    private volatile Set<String> reachableStructureKeysCache;
 
     public IrisChunkGenerator(ChunkGenerator delegate, long seed, Engine engine, World world) {
-        super(((CraftWorld) world).getHandle(), edit(delegate, new CustomBiomeSource(seed, engine, world)), null);
+        this(delegate, engine, world, new CustomBiomeSource(seed, engine, world));
+    }
+
+    private IrisChunkGenerator(ChunkGenerator delegate, Engine engine, World world, CustomBiomeSource customBiomeSource) {
+        super(((CraftWorld) world).getHandle(), edit(delegate, customBiomeSource), null);
         this.delegate = delegate;
         this.engine = engine;
+        this.customBiomeSource = customBiomeSource;
     }
 
     @Override
@@ -91,11 +98,38 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
         if (!importedControl().active()) {
             return null;
         }
+        HolderSet<Structure> reachable = filterReachableStructures(level, holders);
+        if (reachable == null || reachable.size() == 0) {
+            return null;
+        }
         try {
-            return delegate.findNearestMapStructure(level, holders, pos, radius, findUnexplored);
+            return delegate.findNearestMapStructure(level, reachable, pos, radius, findUnexplored);
         } catch (Throwable e) {
             return null;
         }
+    }
+
+    private HolderSet<Structure> filterReachableStructures(ServerLevel level, HolderSet<Structure> holders) {
+        Set<String> reachable = reachableStructureKeysCache;
+        if (reachable == null) {
+            reachable = VanillaStructureBiomes.reachableStructureKeys(level, delegate.getBiomeSource());
+            reachableStructureKeysCache = reachable;
+        }
+        if (reachable.isEmpty()) {
+            return holders;
+        }
+        Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        List<Holder<Structure>> kept = new ArrayList<>();
+        for (Holder<Structure> holder : holders) {
+            Object id = registry.getKey(holder.value());
+            if (id != null && reachable.contains(id.toString())) {
+                kept.add(holder);
+            }
+        }
+        if (kept.size() == holders.size()) {
+            return holders;
+        }
+        return HolderSet.direct(kept);
     }
 
     @Override
@@ -144,7 +178,8 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
 
     @Override
     public CompletableFuture<ChunkAccess> createBiomes(RandomState randomstate, Blender blender, StructureManager structuremanager, ChunkAccess ichunkaccess) {
-        return delegate.createBiomes(randomstate, blender, structuremanager, ichunkaccess);
+        ichunkaccess.fillBiomesFromNoise(customBiomeSource::getVisibleNoiseBiome, randomstate.sampler());
+        return CompletableFuture.completedFuture(ichunkaccess);
     }
 
     @Override

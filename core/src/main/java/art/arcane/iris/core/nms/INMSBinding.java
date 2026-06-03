@@ -97,6 +97,18 @@ public interface INMSBinding {
         return new KList<>();
     }
 
+    default KList<String> getReachableStructureKeys(World world) {
+        return new KList<>();
+    }
+
+    default KList<String> getStructureBiomeKeys(String structureKey) {
+        return new KList<>();
+    }
+
+    default KList<String> getPossibleBiomeKeys(World world) {
+        return new KList<>();
+    }
+
     boolean isBukkit();
 
     int getBiomeId(Biome biome);
@@ -159,6 +171,10 @@ public interface INMSBinding {
 
     default int getSpawnChunkCount(World world) {
         return 441;
+    }
+
+    default boolean purgeChunk(World world, int x, int z) {
+        throw new UnsupportedOperationException("The active NMS binding does not support chunk purge (regen).");
     }
 
     boolean missingDimensionTypes(String... keys);

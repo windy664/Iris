@@ -57,22 +57,25 @@ public class IrisDepositModifier extends EngineAssignedModifier<BlockData> {
         long seed = x * 341873128712L + z * 132897987541L;
         long mask = 0;
         MantleChunk chunk = getEngine().getMantle().getMantle().getChunk(x, z).use();
-        for (IrisDepositGenerator k : getDimension().getDeposits()) {
-            long finalSeed = seed * ++mask;
-            burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
-        }
+        try {
+            for (IrisDepositGenerator k : getDimension().getDeposits()) {
+                long finalSeed = seed * ++mask;
+                burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
+            }
 
-        for (IrisDepositGenerator k : region.getDeposits()) {
-            long finalSeed = seed * ++mask;
-            burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
-        }
+            for (IrisDepositGenerator k : region.getDeposits()) {
+                long finalSeed = seed * ++mask;
+                burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
+            }
 
-        for (IrisDepositGenerator k : biome.getDeposits()) {
-            long finalSeed = seed * ++mask;
-            burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
+            for (IrisDepositGenerator k : biome.getDeposits()) {
+                long finalSeed = seed * ++mask;
+                burst.queue(() -> generate(k, chunk, terrain, rng.nextParallelRNG(finalSeed), x, z, false, context));
+            }
+            burst.complete();
+        } finally {
+            chunk.release();
         }
-        burst.complete();
-        chunk.release();
     }
 
     public void generate(IrisDepositGenerator k, MantleChunk chunk, Hunk<BlockData> data, RNG rng, int cx, int cz, boolean safe, ChunkContext context) {

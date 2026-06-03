@@ -24,7 +24,10 @@ import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.datapack.ModrinthResolver.ResolvedDatapack;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.project.IrisProject;
+import art.arcane.iris.core.structure.BulkStructureImporter;
+import art.arcane.iris.core.structure.StructureImporter;
 import art.arcane.iris.engine.object.IrisDimension;
+import art.arcane.iris.engine.object.IrisImportedStructureControl;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.volmlib.util.collection.KList;
@@ -53,10 +56,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public final class DatapackIngestService {
     private static final String USER_AGENT = "VolmitSoftware/Iris (datapack-ingest)";
+    private static final String OVERRIDES_STRIPPED_MARKER = ".iris-overrides-stripped";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private DatapackIngestService() {
@@ -78,6 +83,7 @@ public final class DatapackIngestService {
         }
         if (!restarting) {
             refreshWorkspaces();
+            autoImportDatapackStructures();
         }
     }
 
@@ -114,12 +120,13 @@ public final class DatapackIngestService {
         KList<File> worldFolders = ServerConfigurator.getDatapacksFolder();
         String mcVersion = serverMcVersion();
         Manifest manifest = readManifest(root);
+        boolean stripOverrides = resolveStripOverrides();
 
-        message(sender, C.GRAY + "Ingesting " + C.WHITE + urls.size() + C.GRAY + " datapack import(s)" + (mcVersion == null ? "" : " for MC " + mcVersion) + "...");
+        message(sender, C.GRAY + "Ingesting " + C.WHITE + urls.size() + C.GRAY + " datapack import(s)" + (mcVersion == null ? "" : " for MC " + mcVersion) + (stripOverrides ? C.GRAY + " (datapackOverrides=false: vanilla-key overrides will be stripped)" : "") + "...");
 
         for (String url : urls) {
             try {
-                ingestSingle(sender, url, mcVersion, cacheDir, stagingDir, worldFolders, manifest, report);
+                ingestSingle(sender, url, mcVersion, cacheDir, stagingDir, worldFolders, manifest, report, stripOverrides);
             } catch (Exception e) {
                 report.failed.add(url + " - " + e.getMessage());
                 message(sender, C.RED + "  Failed: " + C.WHITE + url + C.RED + " - " + e.getMessage());
@@ -132,8 +139,8 @@ public final class DatapackIngestService {
 
         if (report.changed()) {
             message(sender, C.YELLOW + "New datapack structures were installed. A server restart is required for them to register and generate.");
-            message(sender, C.GRAY + "Disable a vanilla structure via the dimension 'importedStructures.disabled' list to let an imported replacement take over, or place any imported key through a 'structures' placement.");
-            message(sender, C.GRAY + "To edit or manually place them as Iris resources, after the restart run /iris structure importAllVanilla <dimension> - it imports vanilla and datapack structures together as editable jigsaw pools, pieces & objects.");
+            message(sender, C.GRAY + "After the restart their jigsaw pools, pieces & objects are imported automatically (set general.autoImportDatapackStructures=false to disable), or run /iris structure import <dimension> to import everything on demand. Reference an imported key from a 'structures' placement to position it manually.");
+            message(sender, C.GRAY + "Datapacks replace matching vanilla structure keys and generate their own structures by default; set the dimension 'importedStructures.datapackOverrides' to false to keep vanilla untouched and stop ALL datapack structures from generating - they stay importable for manual placement only.");
             if (restart) {
                 ServerConfigurator.restart();
             } else {
@@ -153,12 +160,13 @@ public final class DatapackIngestService {
         if (staged == null || staged.length == 0) {
             return;
         }
+        boolean stripOverrides = resolveStripOverrides();
         for (File stagedDir : staged) {
             if (!new File(stagedDir, "pack.mcmeta").isFile()) {
                 continue;
             }
             try {
-                install(stagedDir, worldFolders, stagedDir.getName(), false);
+                install(stagedDir, worldFolders, stagedDir.getName(), false, stripOverrides);
             } catch (IOException e) {
                 Iris.reportError(e);
             }
@@ -210,7 +218,7 @@ public final class DatapackIngestService {
         return readManifest(Iris.instance.getDataFolder("datapacks")).entries;
     }
 
-    private static void ingestSingle(VolmitSender sender, String url, String mcVersion, File cacheDir, File stagingDir, KList<File> worldFolders, Manifest manifest, Report report) throws IOException {
+    private static void ingestSingle(VolmitSender sender, String url, String mcVersion, File cacheDir, File stagingDir, KList<File> worldFolders, Manifest manifest, Report report, boolean stripOverrides) throws IOException {
         ResolvedDatapack resolved = ModrinthResolver.resolve(url, mcVersion);
         String id = deriveId(resolved);
         File stagedDir = new File(stagingDir, id);
@@ -222,7 +230,7 @@ public final class DatapackIngestService {
                 && new File(stagedDir, "pack.mcmeta").isFile();
 
         if (sameVersion) {
-            install(stagedDir, worldFolders, id, false);
+            install(stagedDir, worldFolders, id, false, stripOverrides);
             report.upToDate.add(id + " (" + safe(resolved.getVersionNumber()) + ")");
             message(sender, C.GRAY + "  Up to date: " + C.WHITE + id + C.GRAY + " " + safe(resolved.getVersionNumber()));
             return;
@@ -247,7 +255,7 @@ public final class DatapackIngestService {
             throw new IOException(id + " is not a valid datapack (missing pack.mcmeta)");
         }
 
-        install(stagedDir, worldFolders, id, true);
+        install(stagedDir, worldFolders, id, true, stripOverrides);
 
         Entry entry = existing != null ? existing : new Entry();
         entry.url = url;
@@ -257,6 +265,7 @@ public final class DatapackIngestService {
         entry.sha1 = checksum;
         entry.filename = resolved.getFileName();
         entry.installedEpoch = System.currentTimeMillis();
+        entry.structuresImported = false;
         manifest.put(entry);
 
         report.updated.add(id + " (" + safe(resolved.getVersionNumber()) + ")");
@@ -299,10 +308,13 @@ public final class DatapackIngestService {
         return false;
     }
 
-    private static void install(File stagedDir, KList<File> worldFolders, String id, boolean force) throws IOException {
+    private static void install(File stagedDir, KList<File> worldFolders, String id, boolean force, boolean stripOverrides) throws IOException {
         for (File worldFolder : worldFolders) {
             File target = new File(worldFolder, id);
-            if (!force && target.isDirectory() && new File(target, "pack.mcmeta").isFile()) {
+            File marker = new File(target, OVERRIDES_STRIPPED_MARKER);
+            boolean installed = target.isDirectory() && new File(target, "pack.mcmeta").isFile();
+            boolean stripStateMatches = marker.isFile() == stripOverrides;
+            if (!force && installed && stripStateMatches) {
                 continue;
             }
             if (!worldFolder.exists()) {
@@ -310,6 +322,104 @@ public final class DatapackIngestService {
             }
             IO.delete(target);
             IO.copyDirectory(stagedDir.toPath(), target.toPath());
+            if (stripOverrides) {
+                stripVanillaStructureOverrides(target);
+                writeMarker(marker);
+            }
+        }
+    }
+
+    private static boolean resolveStripOverrides() {
+        try (Stream<IrisData> stream = ServerConfigurator.allPacks()) {
+            return stream.anyMatch(DatapackIngestService::packDisablesOverrides);
+        }
+    }
+
+    private static boolean packDisablesOverrides(IrisData data) {
+        if (data == null || data.getDimensionLoader() == null) {
+            return false;
+        }
+        for (IrisDimension dimension : data.getDimensionLoader().loadAll(data.getDimensionLoader().getPossibleKeys())) {
+            if (dimension == null) {
+                continue;
+            }
+            IrisImportedStructureControl control = dimension.getImportedStructures();
+            if (control != null && !control.isDatapackOverrides()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void stripVanillaStructureOverrides(File datapackRoot) {
+        File minecraftData = new File(new File(datapackRoot, "data"), "minecraft");
+        if (!minecraftData.isDirectory()) {
+            return;
+        }
+        String[] relativeTrees = {
+                "worldgen" + File.separator + "structure_set",
+                "worldgen" + File.separator + "structure",
+                "worldgen" + File.separator + "template_pool",
+                "structure"
+        };
+        for (String tree : relativeTrees) {
+            File dir = new File(minecraftData, tree);
+            if (dir.exists()) {
+                IO.delete(dir);
+            }
+        }
+    }
+
+    private static void writeMarker(File marker) {
+        try {
+            Files.writeString(marker.toPath(), "stripped", StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            Iris.reportError(e);
+        }
+    }
+
+    private static void autoImportDatapackStructures() {
+        if (!IrisSettings.get().getGeneral().autoImportDatapackStructures) {
+            return;
+        }
+        File root = Iris.instance.getDataFolder("datapacks");
+        Manifest manifest = readManifest(root);
+        if (manifest.entries.isEmpty()) {
+            return;
+        }
+        boolean pending = false;
+        for (Entry entry : manifest.entries) {
+            if (!entry.structuresImported) {
+                pending = true;
+                break;
+            }
+        }
+        if (!pending) {
+            return;
+        }
+
+        Iris.info("Importing datapack structures (jigsaw pools, pieces & objects) into packs that declare datapackImports...");
+        AtomicInteger packs = new AtomicInteger();
+        try (Stream<IrisData> stream = ServerConfigurator.allPacks()) {
+            stream.forEach(data -> {
+                if (data == null || !hasImports(data)) {
+                    return;
+                }
+                try {
+                    BulkStructureImporter.importDatapackStructures(data, StructureImporter.Mode.ADD_ONLY, Iris.getSender());
+                    packs.incrementAndGet();
+                } catch (Throwable e) {
+                    Iris.reportError(e);
+                }
+            });
+        }
+
+        for (Entry entry : manifest.entries) {
+            entry.structuresImported = true;
+        }
+        writeManifest(root, manifest);
+        if (packs.get() > 0) {
+            Iris.info("Datapack structure import finished for " + packs.get() + " pack(s). Reference the imported keys from a 'structures' placement to position them manually.");
         }
     }
 
@@ -540,6 +650,7 @@ public final class DatapackIngestService {
         public String sha1;
         public String filename;
         public long installedEpoch;
+        public boolean structuresImported;
     }
 
     private static final class Manifest {

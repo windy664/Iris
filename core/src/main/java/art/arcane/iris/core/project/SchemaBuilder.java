@@ -25,6 +25,7 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.service.ExternalDataSVC;
+import art.arcane.iris.core.structure.StructureSchemaKeys;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.volmlib.util.collection.KList;
@@ -43,6 +44,7 @@ import java.awt.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -245,6 +247,22 @@ public class SchemaBuilder {
                     } else {
                         Iris.error("Cannot find Registry Loader for type " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
                     }
+                } else if (k.isAnnotationPresent(RegistryListStructure.class)) {
+                    String key = "enum-iris-structure-placement";
+
+                    if (!definitions.containsKey(key)) {
+                        JSONObject j = new JSONObject();
+                        j.put("enum", new JSONArray(StructureSchemaKeys.collect(
+                                INMS.get().getStructureKeys(),
+                                Arrays.asList(data.getStructureLoader().getPossibleKeys()),
+                                Arrays.asList(data.getJigsawPieceLoader().getPossibleKeys())).toArray(new String[0])));
+                        definitions.put(key, j);
+                    }
+
+                    fancyType = "Structure";
+                    prop.put("$ref", "#/definitions/" + key);
+                    description.add(SYMBOL_TYPE__N + "  Must be a valid vanilla, datapack, or imported Iris structure (use ctrl+space for auto complete!)");
+
                 } else if (k.isAnnotationPresent(RegistryListBlockType.class)) {
                     String key = "enum-block-type";
 
@@ -522,6 +540,23 @@ public class SchemaBuilder {
                                 } else {
                                     Iris.error("Cannot find Registry Loader for type (list schema) " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
                                 }
+                            } else if (k.isAnnotationPresent(RegistryListStructure.class)) {
+                                fancyType = "List<Structure>";
+                                String key = "enum-iris-structure-placement";
+
+                                if (!definitions.containsKey(key)) {
+                                    JSONObject j = new JSONObject();
+                                    j.put("enum", new JSONArray(StructureSchemaKeys.collect(
+                                            INMS.get().getStructureKeys(),
+                                            Arrays.asList(data.getStructureLoader().getPossibleKeys()),
+                                            Arrays.asList(data.getJigsawPieceLoader().getPossibleKeys())).toArray(new String[0])));
+                                    definitions.put(key, j);
+                                }
+
+                                JSONObject items = new JSONObject();
+                                items.put("$ref", "#/definitions/" + key);
+                                prop.put("items", items);
+                                description.add(SYMBOL_TYPE__N + "  Must be a valid vanilla, datapack, or imported Iris structure (use ctrl+space for auto complete!)");
                             } else if (k.isAnnotationPresent(RegistryListBlockType.class)) {
                                 fancyType = "List of Block Types";
                                 String key = "enum-block-type";

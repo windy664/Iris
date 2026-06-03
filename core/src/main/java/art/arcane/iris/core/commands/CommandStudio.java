@@ -28,15 +28,12 @@ import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
-import art.arcane.iris.engine.platform.ChunkReplacementListener;
-import art.arcane.iris.engine.platform.ChunkReplacementOptions;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.common.director.DirectorContext;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.iris.util.common.director.handlers.DimensionHandler;
 import art.arcane.iris.util.common.director.specialhandlers.NullableDimensionHandler;
 import art.arcane.volmlib.util.director.DirectorOrigin;
@@ -89,33 +86,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-@Director(name = "studio", aliases = {"std", "s"}, description = "Studio Commands", studio = true)
+@Director(name = "studio", aliases = {"std", "s"}, description = "Studio Commands")
 public class CommandStudio implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
     private CommandEdit edit;
     //private CommandDeepSearch deepSearch;
 
     public static String hrf(Duration duration) {
         return duration.toString().substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase();
-    }
-
-    //TODO fix pack trimming
-    @Director(description = "Download a project.", aliases = "dl")
-    public void download(
-            @Param(name = "pack", description = "The pack to download", defaultValue = "overworld", aliases = "project")
-            String pack,
-            @Param(name = "branch", description = "The branch to download from", defaultValue = "stable")
-            String branch,
-            //@Param(name = "trim", description = "Whether or not to download a trimmed version (do not enable when editing)", defaultValue = "false")
-            //boolean trim,
-            @Param(name = "overwrite", description = "Whether or not to overwrite the pack with the downloaded one", aliases = "force", defaultValue = "false")
-            boolean overwrite
-    ) {
-        new CommandIris().download(pack, branch, overwrite);
     }
 
     @Director(description = "Open a new studio world", aliases = "o", sync = true)
@@ -128,7 +105,7 @@ public class CommandStudio implements DirectorExecutor {
         Iris.service(StudioSVC.class).open(sender(), seed, dimension.getLoadKey());
     }
 
-    @Director(description = "Open VSCode for a dimension", aliases = {"vsc", "edit"})
+    @Director(description = "Open VSCode for a dimension", aliases = {"vsc"})
     public void vscode(
             @Param(defaultValue = "default", description = "The dimension to open VSCode for", aliases = "dim", customHandler = DimensionHandler.class)
             IrisDimension dimension
@@ -137,7 +114,7 @@ public class CommandStudio implements DirectorExecutor {
         Iris.service(StudioSVC.class).openVSCode(sender(), dimension.getLoadKey());
     }
 
-    @Director(description = "Close an open studio project", aliases = {"x", "c"}, sync = true)
+    @Director(description = "Close an open studio project", aliases = {"x"}, sync = true)
     public void close() {
         VolmitSender commandSender = sender();
         if (!Iris.service(StudioSVC.class).isProjectOpen()) {
@@ -191,7 +168,7 @@ public class CommandStudio implements DirectorExecutor {
         sender().sendMessage(C.GREEN + "The \"" + dimension.getName() + "\" pack has version: " + dimension.getVersion());
     }
 
-    @Director(description = "Open the noise explorer (External GUI)", aliases = {"nmap", "n", "generator", "gen"})
+    @Director(description = "Open the noise explorer (External GUI)", aliases = {"nmap"})
     public void noise(
             @Param(description = "Optional pack generator to preview", defaultValue = "null", contextual = true)
             IrisGenerator generator,

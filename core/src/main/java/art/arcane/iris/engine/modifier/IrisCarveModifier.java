@@ -72,7 +72,6 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
     public void onModify(int x, int z, Hunk<BlockData> output, boolean multicore, ChunkContext context) {
         PrecisionStopwatch p = PrecisionStopwatch.start();
         Mantle<Matter> mantle = getEngine().getMantle().getMantle();
-        MantleChunk<Matter> mc = mantle.getChunk(x, z).use();
         IrisDimensionCarvingResolver.State resolverState = new IrisDimensionCarvingResolver.State();
         Long2ObjectOpenHashMap<IrisBiome> caveBiomeCache = new Long2ObjectOpenHashMap<>(2048);
         CarveScratch scratch = SCRATCH.get();
@@ -101,6 +100,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
             }
         }
 
+        MantleChunk<Matter> mc = mantle.getChunk(x, z).use();
         try {
             PrecisionStopwatch resolveStopwatch = PrecisionStopwatch.start();
             mc.iterate(MatterCavern.class, (xx, yy, zz, c) -> {

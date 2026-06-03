@@ -4,8 +4,6 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMSBinding;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineTarget;
-import art.arcane.iris.engine.platform.ChunkReplacementListener;
-import art.arcane.iris.engine.platform.ChunkReplacementOptions;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,7 +13,6 @@ import org.junit.Test;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -106,10 +103,6 @@ public class WorldLifecycleRuntimeLevelStemTest {
         @Override
         public EngineTarget getTarget() {
             return null;
-        }
-
-        @Override
-        public void injectChunkReplacement(World world, int x, int z, Executor syncExecutor, ChunkReplacementOptions options, ChunkReplacementListener listener) {
         }
 
         @Override

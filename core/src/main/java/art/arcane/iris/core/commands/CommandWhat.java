@@ -27,7 +27,6 @@ import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
@@ -44,13 +43,8 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Director(name = "what", origin = DirectorOrigin.PLAYER, studio = true, description = "Iris What?")
+@Director(name = "what", origin = DirectorOrigin.PLAYER, description = "Iris What?")
 public class CommandWhat implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
     @Director(description = "What is in my hand?", origin = DirectorOrigin.PLAYER)
     public void hand() {
         try {

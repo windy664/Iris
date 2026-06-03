@@ -146,9 +146,24 @@ public class IrisSettings {
         public int chunkLoadTimeoutSeconds = 15;
         public int timeoutWarnIntervalMs = 500;
         public int saveIntervalMs = 30_000;
+        public int maxResidentTectonicPlates = 96;
+        public int mantleBackpressureWaitMs = 25;
+        public int mantleBackpressureTimeoutMs = 60_000;
 
         public int getChunkLoadTimeoutSeconds() {
             return Math.max(5, Math.min(chunkLoadTimeoutSeconds, 120));
+        }
+
+        public int getMaxResidentTectonicPlates() {
+            return Math.max(16, maxResidentTectonicPlates);
+        }
+
+        public int getMantleBackpressureWaitMs() {
+            return Math.max(5, Math.min(mantleBackpressureWaitMs, 1_000));
+        }
+
+        public int getMantleBackpressureTimeoutMs() {
+            return Math.max(5_000, Math.min(mantleBackpressureTimeoutMs, 600_000));
         }
 
         public int getTimeoutWarnIntervalMs() {
@@ -199,6 +214,7 @@ public class IrisSettings {
         public boolean useCustomColorsIngame = true;
         public boolean adjustVanillaHeight = false;
         public boolean autoIngestDatapacks = true;
+        public boolean autoImportDatapackStructures = true;
         public String forceMainWorld = "";
         public int spinh = -20;
         public int spins = 7;

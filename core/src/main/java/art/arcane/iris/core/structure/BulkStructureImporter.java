@@ -157,31 +157,31 @@ public final class BulkStructureImporter {
         try {
             templateKeys = enumerateTemplateKeys();
         } catch (Throwable e) {
-            sender.sendMessage(C.RED + "Failed to enumerate vanilla structure templates via the server ResourceManager: " + e);
+            sender.sendMessage(C.RED + "Failed to enumerate structure templates via the server ResourceManager: " + e);
             return new Report(0, 0, 0, 0);
         }
 
-        List<String> vanilla = new ArrayList<>();
+        List<String> all = new ArrayList<>();
         for (String key : templateKeys) {
-            if (key != null && key.startsWith("minecraft:")) {
-                vanilla.add(key);
+            if (key != null && !key.isBlank()) {
+                all.add(key);
             }
         }
-        Collections.sort(vanilla);
+        Collections.sort(all);
 
-        int total = vanilla.size();
+        int total = all.size();
         int imported = 0;
         int skipped = 0;
         int failed = 0;
 
         if (total == 0) {
-            sender.sendMessage(C.YELLOW + "No vanilla structure templates were found under the 'structure' resource path.");
+            sender.sendMessage(C.YELLOW + "No structure templates were found under the 'structure' resource path.");
             return new Report(0, 0, 0, 0);
         }
 
-        sender.sendMessage(C.GREEN + "Importing " + C.WHITE + total + C.GREEN + " vanilla structure templates (mode=" + mode + ")...");
+        sender.sendMessage(C.GREEN + "Importing " + C.WHITE + total + C.GREEN + " structure templates (mode=" + mode + ")...");
 
-        for (String keyString : vanilla) {
+        for (String keyString : all) {
             NamespacedKey nk = NamespacedKey.fromString(keyString.toLowerCase());
             if (nk == null) {
                 failed++;
@@ -217,7 +217,117 @@ public final class BulkStructureImporter {
         return new Report(total, imported, skipped, failed);
     }
 
-    private static String templateNameFor(String key) {
+    public static Report importDatapackStructures(IrisData data, StructureImporter.Mode mode, VolmitSender sender) {
+        KList<String> keys = INMS.get().getStructureKeys();
+        List<String> datapack = new ArrayList<>();
+        for (String k : keys) {
+            if (k != null && !k.isBlank() && !k.startsWith("minecraft:")) {
+                datapack.add(k);
+            }
+        }
+        Collections.sort(datapack);
+
+        int total = datapack.size();
+        int imported = 0;
+        int skipped = 0;
+        int failed = 0;
+
+        if (total == 0) {
+            sender.sendMessage(C.YELLOW + "No datapack (non-minecraft) structures are registered. Ingest a datapack and restart first, then run this again.");
+        } else {
+            sender.sendMessage(C.GREEN + "Importing " + C.WHITE + total + C.GREEN + " datapack structures (mode=" + mode + ")...");
+            for (String keyString : datapack) {
+                NamespacedKey nk = NamespacedKey.fromString(keyString.toLowerCase());
+                if (nk == null) {
+                    failed++;
+                    sender.sendMessage(C.RED + "[fail] " + keyString + ": invalid key");
+                    continue;
+                }
+                String name = StructureImporter.deriveName(nk);
+
+                try {
+                    VillageImporter.Result jigsaw = VillageImporter.importVillage(data, nk, name, mode);
+                    if (jigsaw.success()) {
+                        imported++;
+                        sender.sendMessage(C.GRAY + "[jigsaw] " + keyString + " -> " + name);
+                        continue;
+                    }
+
+                    String message = jigsaw.message() == null ? "" : jigsaw.message();
+                    if (message.contains("is not a jigsaw structure")) {
+                        StructureImporter.Result single = StructureImporter.importStructure(data, nk, name, mode);
+                        if (single.success()) {
+                            imported++;
+                            sender.sendMessage(C.GRAY + "[single] " + keyString + " -> " + name);
+                        } else if (single.message() != null && single.message().startsWith("Skipped")) {
+                            skipped++;
+                        } else if (single.message() != null && single.message().contains("No loadable structure NBT")) {
+                            skipped++;
+                        } else {
+                            failed++;
+                            sender.sendMessage(C.RED + "[fail] " + keyString + ": " + single.message());
+                        }
+                        continue;
+                    }
+
+                    if (message.startsWith("Skipped")) {
+                        skipped++;
+                        continue;
+                    }
+
+                    failed++;
+                    sender.sendMessage(C.RED + "[fail] " + keyString + ": " + message);
+                } catch (Throwable e) {
+                    failed++;
+                    sender.sendMessage(C.RED + "[fail] " + keyString + ": " + e.getMessage());
+                }
+            }
+        }
+
+        try {
+            List<String> templateKeys = enumerateTemplateKeys();
+            List<String> datapackTemplates = new ArrayList<>();
+            for (String key : templateKeys) {
+                if (key != null && !key.startsWith("minecraft:")) {
+                    datapackTemplates.add(key);
+                }
+            }
+            Collections.sort(datapackTemplates);
+            if (!datapackTemplates.isEmpty()) {
+                sender.sendMessage(C.GREEN + "Importing " + C.WHITE + datapackTemplates.size() + C.GREEN + " datapack structure templates...");
+                for (String keyString : datapackTemplates) {
+                    NamespacedKey nk = NamespacedKey.fromString(keyString.toLowerCase());
+                    if (nk == null) {
+                        failed++;
+                        continue;
+                    }
+                    String name = templateNameFor(keyString);
+                    try {
+                        StructureImporter.Result result = StructureImporter.importStructure(data, nk, name, mode, true);
+                        if (result.success()) {
+                            imported++;
+                        } else if (result.message() != null && result.message().startsWith("Skipped")) {
+                            skipped++;
+                        } else {
+                            failed++;
+                            sender.sendMessage(C.RED + "[fail] " + keyString + ": " + result.message());
+                        }
+                    } catch (Throwable e) {
+                        failed++;
+                        sender.sendMessage(C.RED + "[fail] " + keyString + ": " + e.getMessage());
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            sender.sendMessage(C.YELLOW + "Could not enumerate datapack templates via the server ResourceManager: " + e.getMessage());
+        }
+
+        StructureIndexService.write(data);
+        sender.sendMessage(C.GREEN + "Datapack structure import complete: " + C.WHITE + imported + C.GREEN + " imported, " + C.WHITE + skipped + C.GREEN + " skipped, " + C.WHITE + failed + C.GREEN + " failed.");
+        return new Report(total, imported, skipped, failed);
+    }
+
+    static String templateNameFor(String key) {
         int colon = key.indexOf(':');
         String namespace = colon >= 0 ? key.substring(0, colon) : "minecraft";
         String path = colon >= 0 ? key.substring(colon + 1) : key;

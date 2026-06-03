@@ -16,10 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package art.arcane.iris.core.commands;
+package art.arcane.iris.engine.object.annotations;
 
-import art.arcane.iris.util.common.director.DirectorExecutor;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-public class CommandSettings implements DirectorExecutor {
+import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+@Retention(RUNTIME)
+@Target({PARAMETER, TYPE, FIELD})
+public @interface RegistryListStructure {
 
 }

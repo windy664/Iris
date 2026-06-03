@@ -21,6 +21,7 @@ package art.arcane.iris.core.structure;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.LegacyTileData;
+import art.arcane.volmlib.util.io.IO;
 import com.google.gson.GsonBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -150,8 +151,8 @@ public final class StructureImporter {
             object.write(objectFile);
             writeJson(pieceFile, pieceJson(name));
             if (objectOnly) {
-                poolFile.delete();
-                structureFile.delete();
+                IO.deleteUp(poolFile);
+                IO.deleteUp(structureFile);
             } else {
                 writeJson(poolFile, poolJson(name));
                 writeJson(structureFile, structureJson(name, key.toString(), Math.max(w, d)));

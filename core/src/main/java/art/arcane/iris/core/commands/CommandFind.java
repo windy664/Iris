@@ -22,6 +22,7 @@ import art.arcane.iris.Iris;
 import art.arcane.iris.core.service.ObjectStudioSaveService;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.IrisStructureLocator;
+import art.arcane.iris.engine.framework.StructureReachability;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.util.common.director.DirectorExecutor;
@@ -29,6 +30,7 @@ import art.arcane.iris.util.common.director.specialhandlers.ObjectHandler;
 import art.arcane.iris.util.common.director.specialhandlers.StructureHandler;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.scheduling.J;
+import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
@@ -127,6 +129,12 @@ public class CommandFind implements DirectorExecutor {
                 }
                 if (match == null) {
                     sender().sendMessage(C.RED + "Unknown structure: " + structure);
+                    return;
+                }
+                if (!StructureReachability.isReachable(e, structure)) {
+                    KList<String> miss = StructureReachability.missingBiomeKeys(e, structure);
+                    sender().sendMessage(C.YELLOW + structure + " cannot generate in this world (its required biomes are not produced by this pack"
+                            + (miss.isEmpty() ? "" : ": needs " + String.join("/", miss)) + ").");
                     return;
                 }
                 StructureSearchResult result = target.getWorld().locateNearestStructure(target.getLocation(), match, 100, true);

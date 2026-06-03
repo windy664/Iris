@@ -20,6 +20,7 @@ package art.arcane.iris.core.structure;
 
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.object.IrisObject;
+import art.arcane.volmlib.util.io.IO;
 import com.google.gson.GsonBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -606,8 +607,8 @@ public final class VillageImporter {
     }
 
     private static void removeStrayPieceArtifacts(IrisData data, String pieceName) {
-        new File(data.getDataFolder(), "jigsaw-pools/" + pieceName + ".json").delete();
-        new File(data.getDataFolder(), "structures/" + pieceName + ".json").delete();
+        IO.deleteUp(new File(data.getDataFolder(), "jigsaw-pools/" + pieceName + ".json"));
+        IO.deleteUp(new File(data.getDataFolder(), "structures/" + pieceName + ".json"));
     }
 
     private static boolean writeEmptyPiece(IrisData data, String pieceName) {

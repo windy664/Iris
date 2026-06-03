@@ -21,21 +21,17 @@ package art.arcane.iris.core.commands;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
-import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisDimension;
-import art.arcane.iris.engine.platform.ChunkReplacementListener;
-import art.arcane.iris.engine.platform.ChunkReplacementOptions;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.director.DirectorContext;
 import art.arcane.volmlib.util.director.DirectorParameterHandler;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
@@ -88,24 +84,8 @@ import static org.bukkit.Bukkit.getServer;
 
 @Director(name = "iris", aliases = {"ir", "irs"}, description = "Basic Command")
 public class CommandIris implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
-    @Director(description = "Download/update external datapack imports declared in pack dimensions (alias of /iris datapack ingest)", aliases = {"ingestpacks"})
-    public void ingest(
-            @Param(description = "Restart the server when new datapacks are installed (required for new structures to register and generate)", defaultValue = "false")
-            boolean restart
-    ) {
-        VolmitSender ingestSender = sender();
-        ingestSender.sendMessage(C.GRAY + "Starting datapack ingest...");
-        J.a(() -> DatapackIngestService.ingestAll(ingestSender, restart));
-    }
-
     private CommandStudio studio;
     private CommandPregen pregen;
-    private CommandSettings settings;
     private CommandObject object;
     private CommandStructure structure;
     private CommandWhat what;
@@ -120,7 +100,7 @@ public class CommandIris implements DirectorExecutor {
     String worldNameToCheck = "YourWorldName";
     VolmitSender sender = Iris.getSender();
 
-    @Director(description = "Create a new world", aliases = {"+", "c"})
+    @Director(description = "Create a new world", aliases = {"c"})
     public void create(
             @Param(aliases = "world-name", description = "The name of the world to create")
             String name,
@@ -527,7 +507,7 @@ public class CommandIris implements DirectorExecutor {
         }
     }
 
-    @Director(description = "Remove an Iris world", aliases = {"del", "rm", "delete"}, sync = true)
+    @Director(description = "Remove an Iris world", aliases = {"rm"}, sync = true)
     public void remove(
             @Param(description = "The world to remove")
             World world,

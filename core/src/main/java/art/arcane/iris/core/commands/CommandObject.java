@@ -36,7 +36,6 @@ import art.arcane.volmlib.util.data.Cuboid;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.common.data.registry.Materials;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.iris.util.common.director.specialhandlers.NullableDimensionHandler;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
@@ -61,14 +60,9 @@ import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.*;
 
-@Director(name = "object", aliases = "o", origin = DirectorOrigin.PLAYER, studio = true, description = "Iris object manipulation")
+@Director(name = "object", aliases = "o", origin = DirectorOrigin.PLAYER, description = "Iris object manipulation")
 public class CommandObject implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
-    @Director(description = "Open an object studio world (grid of every object; dimension optional, defaults to all packs)", aliases = {"std", "s"}, sync = true)
+    @Director(description = "Open an object studio world (grid of every object; dimension optional, defaults to all packs)", sync = true)
     public void studio(
             @Param(defaultValue = "null", description = "Optional dimension whose object pack to lay out; omit to aggregate objects from every pack", aliases = "dim", customHandler = NullableDimensionHandler.class)
             IrisDimension dimension,
@@ -334,7 +328,7 @@ public class CommandObject implements DirectorExecutor {
     }
 
     @Director(description = "Make tree leaves vanilla-decay-plausible (every leaf within 6 blocks of a log)",
-            origin = DirectorOrigin.BOTH, studio = false)
+            origin = DirectorOrigin.BOTH)
     public void plausibilize(
             @Param(description = "Object key, prefix (trees/), or filesystem path",
                     customHandler = ObjectTargetHandler.class)
@@ -536,7 +530,7 @@ public class CommandObject implements DirectorExecutor {
 
     }
 
-    @Director(description = "Get a powder that reveals objects", studio = true, aliases = "d")
+    @Director(description = "Get a powder that reveals objects", aliases = "d")
     public void dust() {
         player().getInventory().addItem(WandSVC.createDust());
         sender().playSound(Sound.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 1f, 1.5f);
@@ -720,7 +714,7 @@ public class CommandObject implements DirectorExecutor {
         sender().sendMessage(C.GREEN + "Successfully object to saved: " + dimension.getLoadKey() + "/objects/" + name);
     }
 
-    @Director(description = "Shift a selection in your looking direction", aliases = "-")
+    @Director(description = "Shift a selection in your looking direction")
     public void shift(
             @Param(description = "The amount to shift by", defaultValue = "1")
             int amount
@@ -751,7 +745,7 @@ public class CommandObject implements DirectorExecutor {
         sender().playSound(Sound.ENTITY_ITEM_FRAME_ROTATE_ITEM, 1f, 0.55f);
     }
 
-    @Director(description = "Undo a number of pastes", aliases = "-")
+    @Director(description = "Undo a number of pastes", aliases = "u")
     public void undo(
             @Param(description = "The amount of pastes to undo", defaultValue = "1")
             int amount
@@ -762,7 +756,7 @@ public class CommandObject implements DirectorExecutor {
         sender().sendMessage(C.BLUE + "Reverted " + actualReverts + C.BLUE +" pastes!");
     }
 
-    @Director(description = "Gets an object wand and grabs the current WorldEdit selection.", aliases = "we", origin = DirectorOrigin.PLAYER, studio = true)
+    @Director(description = "Gets an object wand and grabs the current WorldEdit selection.", aliases = "we", origin = DirectorOrigin.PLAYER)
     public void we() {
         if (!Bukkit.getPluginManager().isPluginEnabled("WorldEdit")) {
             sender().sendMessage(C.RED + "You can't get a WorldEdit selection without WorldEdit, you know.");

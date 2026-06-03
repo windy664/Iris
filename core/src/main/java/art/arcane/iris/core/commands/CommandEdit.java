@@ -22,7 +22,6 @@ import art.arcane.iris.Iris;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
@@ -31,13 +30,8 @@ import art.arcane.iris.util.common.format.C;
 import java.awt.*;
 
 
-@Director(name = "edit", origin = DirectorOrigin.PLAYER, studio = true, description = "Edit something")
+@Director(name = "edit", origin = DirectorOrigin.PLAYER, description = "Edit something")
 public class CommandEdit implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
     private boolean noStudio() {
         if (!sender().isPlayer()) {
             sender().sendMessage(C.RED + "Players only!");

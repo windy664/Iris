@@ -22,10 +22,11 @@ import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.structure.BulkStructureImporter;
 import art.arcane.iris.core.structure.StructureImporter;
 import art.arcane.iris.core.structure.StructureIndexService;
-import art.arcane.iris.core.structure.StructureModeHandler;
-import art.arcane.iris.core.structure.VillageImporter;
+import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.framework.IrisStructureLocator;
 import art.arcane.iris.engine.framework.PlacedStructurePiece;
 import art.arcane.iris.engine.framework.StructureAssembler;
+import art.arcane.iris.engine.framework.StructureReachability;
 import art.arcane.iris.engine.object.IObjectPlacer;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisObjectPlacement;
@@ -33,7 +34,6 @@ import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.ObjectPlaceMode;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
@@ -51,17 +51,14 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.util.StructureSearchResult;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-@Director(name = "structure", aliases = {"struct", "str"}, studio = true, description = "Iris structure tools (index, import, info)")
+@Director(name = "structure", aliases = {"struct", "str"}, description = "Iris structure tools (index, import, info)")
 public class CommandStructure implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
-    @Director(description = "Regenerate structure-index.json listing all vanilla, datapack & iris structures", aliases = {"ls", "index"}, origin = DirectorOrigin.BOTH)
+    @Director(description = "Regenerate structure-index.json listing all vanilla, datapack & iris structures", aliases = {"ls"}, origin = DirectorOrigin.BOTH)
     public void list(
             @Param(description = "The dimension whose pack to index", aliases = "dim")
             IrisDimension dimension
@@ -75,106 +72,9 @@ public class CommandStructure implements DirectorExecutor {
         sender().sendMessage(C.GREEN + "Wrote structure index: " + C.WHITE + file.getPath());
     }
 
-    @Director(description = "Import a vanilla/datapack structure NBT into a pack as editable Iris resources", aliases = {"imp"}, origin = DirectorOrigin.BOTH)
-    public void importStructure(
+    @Director(name = "import", description = "Import EVERY structure - vanilla AND ingested datapacks - into this pack as editable Iris resources, always overwriting. Rebuilds jigsaw structures (villages, outposts, datapack jigsaws) as editable pool/piece graphs, imports every structure template NBT as an object, and assembles the multi-template structures (shipwrecks, ruined portals, ocean ruins, nether fossils). Run after ingesting a datapack and restarting. Regenerate chunks or use a fresh world for the imported copies to place.", aliases = {"import-all", "reimport", "imp", "all"}, origin = DirectorOrigin.BOTH)
+    public void importAll(
             @Param(description = "The dimension whose pack to import into", aliases = "dim")
-            IrisDimension dimension,
-            @Param(description = "Structure key to import, e.g. minecraft:igloo/top or nova_structures:desert_temple")
-            String key,
-            @Param(description = "Name for the imported structure (defaults from the key)", defaultValue = "")
-            String name,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite", customHandler = StructureModeHandler.class)
-            String mode
-    ) {
-        IrisData data = dimension.getLoader();
-        if (data == null) {
-            sender().sendMessage(C.RED + "Could not resolve the pack for dimension " + dimension.getLoadKey());
-            return;
-        }
-        NamespacedKey nk = NamespacedKey.fromString(key.toLowerCase());
-        if (nk == null) {
-            sender().sendMessage(C.RED + "Invalid structure key: " + key);
-            return;
-        }
-        String n = name == null || name.isEmpty() ? StructureImporter.deriveName(nk) : name;
-        StructureImporter.Result result = StructureImporter.importStructure(data, nk, n, StructureImporter.parseMode(mode));
-        sender().sendMessage((result.success() ? C.GREEN : C.RED) + result.message());
-        if (result.success()) {
-            sender().sendMessage(C.GRAY + "Reference it from a biome/region/dimension structures list as '" + n + "'.");
-        }
-    }
-
-    @Director(description = "Import a full vanilla/datapack JIGSAW structure (e.g. a village) by reconstructing its template-pool graph into editable Iris pools, pieces & connectors", aliases = {"iv", "village"}, origin = DirectorOrigin.BOTH)
-    public void importVillage(
-            @Param(description = "The dimension whose pack to import into", aliases = "dim")
-            IrisDimension dimension,
-            @Param(description = "Jigsaw structure key to import, e.g. minecraft:village_plains")
-            String key,
-            @Param(description = "Name for the imported structure (defaults from the key)", defaultValue = "")
-            String name,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "overwrite", customHandler = StructureModeHandler.class)
-            String mode
-    ) {
-        IrisData data = dimension.getLoader();
-        if (data == null) {
-            sender().sendMessage(C.RED + "Could not resolve the pack for dimension " + dimension.getLoadKey());
-            return;
-        }
-        NamespacedKey nk = NamespacedKey.fromString(key.toLowerCase());
-        if (nk == null) {
-            sender().sendMessage(C.RED + "Invalid structure key: " + key);
-            return;
-        }
-        String n = name == null || name.isEmpty() ? StructureImporter.deriveName(nk) : name;
-        VillageImporter.Result result = VillageImporter.importVillage(data, nk, n, StructureImporter.parseMode(mode));
-        sender().sendMessage((result.success() ? C.GREEN : C.RED) + result.message());
-        if (result.success()) {
-            sender().sendMessage(C.GRAY + "Reference it from a biome/region/dimension structures list as '" + n + "'.");
-            sender().sendMessage(C.GRAY + "Inspect the rebuilt jigsaw graph with: /iris structure info " + dimension.getLoadKey() + " " + n);
-        }
-    }
-
-    @Director(description = "Import EVERY registered structure - vanilla AND ingested datapacks - into a pack: jigsaw structures rebuilt as pool graphs, single-template structures imported as objects. Idempotent in add-only mode.", aliases = {"import-all", "ia"}, origin = DirectorOrigin.BOTH)
-    public void importAllVanilla(
-            @Param(description = "The dimension whose pack to import into", aliases = "dim")
-            IrisDimension dimension,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only", customHandler = StructureModeHandler.class)
-            String mode,
-            @Param(description = "Also import non-jigsaw single-template structures", name = "include-non-jigsaw", aliases = {"single", "nbt"}, defaultValue = "true")
-            boolean includeNonJigsaw
-    ) {
-        IrisData data = dimension.getLoader();
-        if (data == null) {
-            sender().sendMessage(C.RED + "Could not resolve the pack for dimension " + dimension.getLoadKey());
-            return;
-        }
-        BulkStructureImporter.Report report = BulkStructureImporter.importAllVanilla(data, StructureImporter.parseMode(mode), includeNonJigsaw, sender());
-        if (report.imported() > 0) {
-            sender().sendMessage(C.GRAY + "Reference imported structures from a biome/region/dimension structures list, or run /iris structure list " + dimension.getLoadKey() + " to see the refreshed index.");
-        }
-    }
-
-    @Director(description = "Import EVERY vanilla structure TEMPLATE (the piece NBTs under minecraft:.../...) as editable Iris objects, including the non-jigsaw templates that import-all cannot reach. Idempotent in add-only mode.", aliases = {"import-templates", "it"}, origin = DirectorOrigin.BOTH)
-    public void importTemplates(
-            @Param(description = "The dimension whose pack to import into", aliases = "dim")
-            IrisDimension dimension,
-            @Param(description = "overwrite | add-only | merge", defaultValue = "add-only", customHandler = StructureModeHandler.class)
-            String mode
-    ) {
-        IrisData data = dimension.getLoader();
-        if (data == null) {
-            sender().sendMessage(C.RED + "Could not resolve the pack for dimension " + dimension.getLoadKey());
-            return;
-        }
-        BulkStructureImporter.Report report = BulkStructureImporter.importAllTemplates(data, StructureImporter.parseMode(mode), sender());
-        if (report.imported() > 0) {
-            sender().sendMessage(C.GRAY + "Reference imported templates from a biome/region/dimension structures list, or run /iris structure list " + dimension.getLoadKey() + " to see the refreshed index.");
-        }
-    }
-
-    @Director(description = "Re-ingest EVERY registered structure - vanilla AND ingested datapacks - plus every jigsaw template from scratch (overwrite), regenerating all .iob objects so they pick up the latest jigsaw/structure-block conversion. Use this after updating Iris or after ingesting datapacks if imported structures show raw markers.", aliases = {"reimport", "ri"}, origin = DirectorOrigin.BOTH)
-    public void reingest(
-            @Param(description = "The dimension whose pack to re-ingest", aliases = "dim")
             IrisDimension dimension
     ) {
         IrisData data = dimension.getLoader();
@@ -182,17 +82,17 @@ public class CommandStructure implements DirectorExecutor {
             sender().sendMessage(C.RED + "Could not resolve the pack for dimension " + dimension.getLoadKey());
             return;
         }
-        sender().sendMessage(C.GREEN + "Re-ingesting all vanilla structures and jigsaws for " + C.WHITE + dimension.getLoadKey() + C.GREEN + " (overwrite)...");
+        sender().sendMessage(C.GREEN + "Importing all vanilla & datapack structures into " + C.WHITE + dimension.getLoadKey() + C.GREEN + " (overwrite)...");
         BulkStructureImporter.Report jigsaws = BulkStructureImporter.importAllVanilla(data, StructureImporter.Mode.OVERWRITE, true, sender());
         BulkStructureImporter.Report templates = BulkStructureImporter.importAllTemplates(data, StructureImporter.Mode.OVERWRITE, sender());
         BulkStructureImporter.Report groups = BulkStructureImporter.importTemplateGroups(data, StructureImporter.Mode.OVERWRITE, sender());
         int imported = jigsaws.imported() + templates.imported() + groups.imported();
         int failed = jigsaws.failed() + templates.failed() + groups.failed();
-        sender().sendMessage(C.GREEN + "Re-ingest complete: " + C.WHITE + imported + C.GREEN + " objects rewritten, " + C.WHITE + failed + C.GREEN + " failed.");
-        sender().sendMessage(C.GRAY + "Regenerate chunks (or use a fresh world) for structures to place from the rewritten objects. Run /iris structure list " + dimension.getLoadKey() + " to refresh the index.");
+        sender().sendMessage(C.GREEN + "Import complete: " + C.WHITE + imported + C.GREEN + " structures/objects written, " + C.WHITE + failed + C.GREEN + " failed.");
+        sender().sendMessage(C.GRAY + "Reference them from a biome/region/dimension 'structures' list, or run /iris structure list " + dimension.getLoadKey() + " to refresh the index. Regenerate chunks for changes to take effect.");
     }
 
-    @Director(description = "Locate every vanilla/datapack/iris structure to verify which are locatable in this world. Heavy synchronous search per structure - keep the radius modest. 'Not found' can mean rarer than the radius, a different dimension (nether/end structures never appear in the overworld), or a structure that generates but cannot be located; generation itself happens during chunk decoration, independent of locate.", aliases = {"verify", "test", "locateall"}, origin = DirectorOrigin.BOTH, sync = true)
+    @Director(description = "Locate every vanilla/datapack/iris structure to verify which are locatable in this world. Heavy synchronous search per structure - keep the radius modest. 'Not found' can mean rarer than the radius, a different dimension (nether/end structures never appear in the overworld), or a structure that generates but cannot be located; generation itself happens during chunk decoration, independent of locate.", aliases = {"locateall"}, origin = DirectorOrigin.BOTH, sync = true)
     public void verify(
             @Param(description = "The dimension to verify", aliases = "dim")
             IrisDimension dimension,
@@ -210,18 +110,39 @@ public class CommandStructure implements DirectorExecutor {
 
         sender().sendMessage(C.GREEN + "Verifying structures in " + C.WHITE + world.getName() + C.GREEN + " from " + center.getBlockX() + "," + center.getBlockZ() + " within " + searchRadius + " chunks...");
 
+        Engine engine = null;
+        PlatformChunkGenerator access = IrisToolbelt.access(world);
+        if (access != null) {
+            engine = access.getEngine();
+        }
+        Set<String> reachable = engine == null ? Collections.emptySet() : StructureReachability.reachableKeys(engine);
+
         int found = 0;
         int missing = 0;
+        int unreachable = 0;
+        int irisPlaced = 0;
         KList<String> notFound = new KList<>();
+        KList<String> cannotGenerate = new KList<>();
         for (org.bukkit.generator.structure.Structure structure : Registry.STRUCTURE) {
             NamespacedKey key = structure.getKey();
             String keyName = key == null ? structure.toString() : key.toString();
+            boolean isIrisPlaced = engine != null && IrisStructureLocator.suppressesVanilla(engine, keyName);
+            boolean isReachable = engine != null && reachable.contains(keyName.toLowerCase());
+            if (engine != null && !isIrisPlaced && !isReachable) {
+                unreachable++;
+                KList<String> miss = StructureReachability.missingBiomeKeys(engine, keyName);
+                cannotGenerate.add(keyName + (miss.isEmpty() ? "" : " (needs " + String.join("/", miss) + ")"));
+                continue;
+            }
+            if (isIrisPlaced) {
+                irisPlaced++;
+            }
             try {
                 StructureSearchResult result = world.locateNearestStructure(center, structure, searchRadius, true);
                 if (result != null && result.getLocation() != null) {
                     found++;
                     Location l = result.getLocation();
-                    sender().sendMessage(C.GREEN + "[ok] " + C.WHITE + keyName + C.GREEN + " @ " + l.getBlockX() + "," + l.getBlockZ());
+                    sender().sendMessage((isIrisPlaced ? C.AQUA + "[iris] " : C.GREEN + "[ok] ") + C.WHITE + keyName + C.GREEN + " @ " + l.getBlockX() + "," + l.getBlockZ());
                 } else {
                     missing++;
                     notFound.add(keyName);
@@ -232,9 +153,14 @@ public class CommandStructure implements DirectorExecutor {
             }
         }
 
-        sender().sendMessage(C.GREEN + "Structure verify: " + C.WHITE + found + C.GREEN + " generate, " + C.WHITE + missing + C.GREEN + " not found within " + searchRadius + " chunks.");
+        sender().sendMessage(C.GREEN + "Structure verify: " + C.WHITE + found + C.GREEN + " located (" + irisPlaced + " iris-placed), "
+                + C.WHITE + unreachable + C.GREEN + " cannot generate here, "
+                + C.WHITE + missing + C.GREEN + " reachable-but-not-found within " + searchRadius + " chunks.");
+        if (!cannotGenerate.isEmpty()) {
+            sender().sendMessage(C.RED + "Cannot generate (required biomes absent from this pack): " + C.GRAY + String.join(", ", cannotGenerate));
+        }
         if (!notFound.isEmpty()) {
-            sender().sendMessage(C.YELLOW + "Not found (rarer than radius, disabled, or non-generating): " + C.GRAY + String.join(", ", notFound));
+            sender().sendMessage(C.YELLOW + "Reachable but not found (rarer than radius): " + C.GRAY + String.join(", ", notFound));
         }
     }
 

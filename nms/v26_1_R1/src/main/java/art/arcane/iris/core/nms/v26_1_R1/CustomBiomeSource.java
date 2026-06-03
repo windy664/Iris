@@ -42,6 +42,7 @@ public class CustomBiomeSource extends BiomeSource {
     private final KMap<String, Holder<Biome>> customBiomes;
     private final Holder<Biome> fallbackBiome;
     private final ConcurrentHashMap<Long, Holder<Biome>> noiseBiomeCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Holder<Biome>> structureBiomeCache = new ConcurrentHashMap<>();
 
     public CustomBiomeSource(long seed, Engine engine, World world) {
         this.engine = engine;
@@ -174,12 +175,32 @@ public class CustomBiomeSource extends BiomeSource {
     @Override
     public Holder<Biome> getNoiseBiome(int x, int y, int z, Climate.Sampler sampler) {
         long cacheKey = packNoiseKey(x, y, z);
+        Holder<Biome> cachedHolder = structureBiomeCache.get(cacheKey);
+        if (cachedHolder != null) {
+            return cachedHolder;
+        }
+
+        Holder<Biome> resolvedHolder = resolveStructureBiomeHolder(x, y, z);
+        Holder<Biome> existingHolder = structureBiomeCache.putIfAbsent(cacheKey, resolvedHolder);
+        if (existingHolder != null) {
+            return existingHolder;
+        }
+
+        if (structureBiomeCache.size() > NOISE_BIOME_CACHE_MAX) {
+            structureBiomeCache.clear();
+        }
+
+        return resolvedHolder;
+    }
+
+    public Holder<Biome> getVisibleNoiseBiome(int x, int y, int z, Climate.Sampler sampler) {
+        long cacheKey = packNoiseKey(x, y, z);
         Holder<Biome> cachedHolder = noiseBiomeCache.get(cacheKey);
         if (cachedHolder != null) {
             return cachedHolder;
         }
 
-        Holder<Biome> resolvedHolder = resolveNoiseBiomeHolder(x, y, z);
+        Holder<Biome> resolvedHolder = resolveVisibleBiomeHolder(x, y, z);
         Holder<Biome> existingHolder = noiseBiomeCache.putIfAbsent(cacheKey, resolvedHolder);
         if (existingHolder != null) {
             return existingHolder;
@@ -192,13 +213,64 @@ public class CustomBiomeSource extends BiomeSource {
         return resolvedHolder;
     }
 
-    private Holder<Biome> resolveNoiseBiomeHolder(int x, int y, int z) {
-        if (engine == null || engine.isClosed()) {
+    private Holder<Biome> resolveStructureBiomeHolder(int x, int y, int z) {
+        BiomeResolution resolution = resolveBiomeResolution(x, y, z);
+        if (resolution == null) {
             return getFallbackBiome();
         }
 
-        if (engine.getComplex() == null) {
+        if (resolution.irisBiome.isCustom()) {
+            return resolveCustomHolder(resolution);
+        }
+
+        Holder<Biome> holder = NMSBinding.biomeToBiomeBase(biomeRegistry, resolution.irisBiome.getVanillaDerivative());
+        if (holder != null) {
+            return holder;
+        }
+
+        return getFallbackBiome();
+    }
+
+    private Holder<Biome> resolveVisibleBiomeHolder(int x, int y, int z) {
+        BiomeResolution resolution = resolveBiomeResolution(x, y, z);
+        if (resolution == null) {
             return getFallbackBiome();
+        }
+
+        if (resolution.irisBiome.isCustom()) {
+            return resolveCustomHolder(resolution);
+        }
+
+        org.bukkit.block.Biome vanillaBiome = resolution.underground
+                ? resolution.irisBiome.getGroundBiome(resolution.rng, resolution.blockX, resolution.blockY, resolution.blockZ)
+                : resolution.irisBiome.getSkyBiome(resolution.rng, resolution.blockX, resolution.blockY, resolution.blockZ);
+        Holder<Biome> holder = NMSBinding.biomeToBiomeBase(biomeRegistry, vanillaBiome);
+        if (holder != null) {
+            return holder;
+        }
+
+        return getFallbackBiome();
+    }
+
+    private Holder<Biome> resolveCustomHolder(BiomeResolution resolution) {
+        IrisBiomeCustom customBiome = resolution.irisBiome.getCustomBiome(resolution.rng, resolution.blockX, resolution.blockY, resolution.blockZ);
+        if (customBiome != null) {
+            Holder<Biome> holder = customBiomes.get(customBiome.getId());
+            if (holder != null) {
+                return holder;
+            }
+        }
+
+        return getFallbackBiome();
+    }
+
+    private BiomeResolution resolveBiomeResolution(int x, int y, int z) {
+        if (engine == null || engine.isClosed()) {
+            return null;
+        }
+
+        if (engine.getComplex() == null) {
+            return null;
         }
 
         int blockX = x << 2;
@@ -218,7 +290,7 @@ public class CustomBiomeSource extends BiomeSource {
             irisBiome = engine.getComplex().getTrueBiomeStream().get(blockX, blockZ);
         }
         if (irisBiome == null) {
-            return getFallbackBiome();
+            return null;
         }
 
         RNG noiseRng = new RNG(seed
@@ -226,27 +298,7 @@ public class CustomBiomeSource extends BiomeSource {
                 ^ (((long) blockY) * 132897987541L)
                 ^ (((long) blockZ) * 42317861L));
 
-        if (irisBiome.isCustom()) {
-            IrisBiomeCustom customBiome = irisBiome.getCustomBiome(noiseRng, blockX, blockY, blockZ);
-            if (customBiome != null) {
-                Holder<Biome> holder = customBiomes.get(customBiome.getId());
-                if (holder != null) {
-                    return holder;
-                }
-            }
-
-            return getFallbackBiome();
-        }
-
-        org.bukkit.block.Biome vanillaBiome = underground
-                ? irisBiome.getGroundBiome(noiseRng, blockX, blockY, blockZ)
-                : irisBiome.getSkyBiome(noiseRng, blockX, blockY, blockZ);
-        Holder<Biome> holder = NMSBinding.biomeToBiomeBase(biomeRegistry, vanillaBiome);
-        if (holder != null) {
-            return holder;
-        }
-
-        return getFallbackBiome();
+        return new BiomeResolution(irisBiome, underground, blockX, blockY, blockZ, noiseRng);
     }
 
     private Holder<Biome> getFallbackBiome() {
@@ -327,5 +379,23 @@ public class CustomBiomeSource extends BiomeSource {
         }
 
         return null;
+    }
+
+    private static final class BiomeResolution {
+        private final IrisBiome irisBiome;
+        private final boolean underground;
+        private final int blockX;
+        private final int blockY;
+        private final int blockZ;
+        private final RNG rng;
+
+        private BiomeResolution(IrisBiome irisBiome, boolean underground, int blockX, int blockY, int blockZ, RNG rng) {
+            this.irisBiome = irisBiome;
+            this.underground = underground;
+            this.blockX = blockX;
+            this.blockY = blockY;
+            this.blockZ = blockZ;
+            this.rng = rng;
+        }
     }
 }

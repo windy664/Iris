@@ -21,7 +21,6 @@ package art.arcane.iris.core.commands;
 import art.arcane.iris.core.datapack.DatapackIngestService;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.director.DirectorExecutor;
-import art.arcane.iris.util.common.director.DirectorHelp;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
@@ -32,12 +31,7 @@ import java.util.List;
 
 @Director(name = "datapack", aliases = {"datapacks", "dp"}, description = "Download & manage external datapack imports (Modrinth)")
 public class CommandDatapack implements DirectorExecutor {
-    @Director(description = "Show help tree for this command group", aliases = {"?"})
-    public void help() {
-        DirectorHelp.print(sender(), getClass());
-    }
-
-    @Director(description = "Download/update every datapack listed in a pack dimension's 'datapackImports' and install it into the world so its structures register like vanilla", aliases = {"pull", "update", "sync"})
+    @Director(description = "Download/update every datapack listed in a pack dimension's 'datapackImports' and install it into the world so its structures register like vanilla", aliases = {"pull"})
     public void ingest(
             @Param(description = "Restart the server when new datapacks are installed (required for new structures to register and generate)", defaultValue = "false")
             boolean restart
@@ -47,7 +41,7 @@ public class CommandDatapack implements DirectorExecutor {
         J.a(() -> DatapackIngestService.ingestAll(sender, restart));
     }
 
-    @Director(description = "List configured datapack imports and their installed versions", aliases = {"ls", "status"})
+    @Director(description = "List configured datapack imports and their installed versions", aliases = {"ls"})
     public void list() {
         VolmitSender sender = sender();
         KList<String> configured = DatapackIngestService.collectConfiguredImports();
@@ -68,7 +62,7 @@ public class CommandDatapack implements DirectorExecutor {
         }
     }
 
-    @Director(description = "Remove an installed datapack by id (also delete its URL from datapackImports to keep it gone)", aliases = {"rm", "delete"})
+    @Director(description = "Remove an installed datapack by id (also delete its URL from datapackImports to keep it gone)", aliases = {"rm"})
     public void remove(
             @Param(description = "The datapack id (folder name) shown by /iris datapack list")
             String id
