@@ -15,6 +15,7 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -68,8 +69,8 @@ public class ProceduralTreeGeneratorTest {
 
         TreeBlockCanvas canvas = new TreeBlockCanvas();
         int height = 9;
-        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height);
-        TreeCanopyBuilder.build(canvas, tree, height, offsets, 1234L, null);
+        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height).get(0).offsets();
+        TreeCanopyBuilder.build(canvas, tree, height, offsets, 0, 1234L, null);
 
         assertFalse("canopy produced no leaves", canvas.getLeaf().isEmpty());
 
@@ -97,8 +98,8 @@ public class ProceduralTreeGeneratorTest {
         tree.getCanopy().setMode(mode);
         TreeBlockCanvas canvas = new TreeBlockCanvas();
         int height = 10;
-        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height);
-        TreeCanopyBuilder.build(canvas, tree, height, offsets, 99L, null);
+        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height).get(0).offsets();
+        TreeCanopyBuilder.build(canvas, tree, height, offsets, 0, 99L, null);
         return canvas;
     }
 
@@ -118,12 +119,61 @@ public class ProceduralTreeGeneratorTest {
 
         TreeBlockCanvas canvas = new TreeBlockCanvas();
         int height = 14;
-        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height);
+        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height).get(0).offsets();
         List<int[]> endpoints = new java.util.ArrayList<>();
-        TreeCanopyBuilder.build(canvas, tree, height, offsets, 777L, endpoints);
+        TreeCanopyBuilder.build(canvas, tree, height, offsets, 0, 777L, endpoints);
 
         assertFalse("branch system recorded no endpoints", endpoints.isEmpty());
         assertFalse("branch system placed no leaves", canvas.getLeaf().isEmpty());
+    }
+
+    @Test
+    public void trunkForksProduceMultipleLimbs() {
+        IrisProceduralTree tree = new IrisProceduralTree();
+        tree.setTrunk("minecraft:oak_log");
+        tree.setTrunkForks(3);
+        tree.setForkHeight(0.4);
+        tree.setForkAngle(30);
+
+        TreeBlockCanvas canvas = new TreeBlockCanvas();
+        int height = 18;
+        List<TreeTrunkBuilder.Limb> limbs = TreeTrunkBuilder.build(canvas, tree, height);
+
+        assertEquals("a 3-fork tree should yield 3 crown limbs", 3, limbs.size());
+        Set<Integer> topXs = new HashSet<>();
+        for (TreeBlockCanvas.Vec v : canvas.getTrunk()) {
+            if (v.y() == height - 1) {
+                topXs.add(v.x());
+            }
+        }
+        assertTrue("forks should spread the trunk into separate tops", topXs.size() >= 2);
+    }
+
+    @Test
+    public void recursiveBranchesAddMoreWood() {
+        int shallow = branchWoodCount(1);
+        int deep = branchWoodCount(3);
+        assertTrue("deeper recursion should add more branch wood", deep > shallow);
+    }
+
+    private int branchWoodCount(int depth) {
+        IrisProceduralTree tree = new IrisProceduralTree();
+        tree.setTrunk("minecraft:oak_log");
+        tree.setLeaves("minecraft:oak_leaves");
+        IrisTreeBranches branches = new IrisTreeBranches();
+        branches.setProbabilityFunction(IrisTreeBranchProbability.CONSTANT);
+        branches.setProbabilityConstant(1.0);
+        branches.setLengthFunction(IrisTreeFunction.CONSTANT);
+        branches.setLengthConstant(4);
+        branches.setBranchDepth(depth);
+        branches.setSubBranches(new art.arcane.iris.engine.object.IrisTreeSubBranches());
+        tree.getCanopy().setBranches(branches);
+
+        TreeBlockCanvas canvas = new TreeBlockCanvas();
+        int height = 14;
+        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height).get(0).offsets();
+        TreeCanopyBuilder.build(canvas, tree, height, offsets, 0, 555L, new java.util.ArrayList<>());
+        return canvas.getTrunk().size();
     }
 
     @Test
@@ -165,6 +215,28 @@ public class ProceduralTreeGeneratorTest {
         assertEquals(Integer.valueOf(2), distances.get(b));
         assertEquals(Integer.valueOf(3), distances.get(c));
         assertNull("disconnected leaf must remain unsupported", distances.get(far));
+    }
+
+    @Test
+    public void supportTendrilsMakeFarLeavesLegal() {
+        TreeBlockCanvas canvas = new TreeBlockCanvas();
+        canvas.setTrunk(0, 0, 0, TreeBlockCanvas.Role.TRUNK, TreeBlockCanvas.Axis.Y);
+        for (int x = 1; x <= 14; x++) {
+            canvas.setLeaf(x, 0, 0, TreeBlockCanvas.Role.LEAF);
+        }
+
+        Map<TreeBlockCanvas.Vec, Integer> before = TreePlausibility.computeDistances(canvas.getTrunk(), canvas.getLeaf());
+        assertNull("the far leaf should start unsupported", before.get(new TreeBlockCanvas.Vec(14, 0, 0)));
+
+        TreeSupport.ensureLeavesSupported(canvas, 24);
+
+        Map<TreeBlockCanvas.Vec, Integer> after = TreePlausibility.computeDistances(canvas.getTrunk(), canvas.getLeaf());
+        assertFalse("leaves should remain after support", canvas.getLeaf().isEmpty());
+        for (TreeBlockCanvas.Vec leaf : canvas.getLeaf()) {
+            Integer d = after.get(leaf);
+            assertNotNull("every leaf must be reachable from wood after support", d);
+            assertTrue("every leaf must be within legal decay distance after support", d <= 6);
+        }
     }
 
     @Test

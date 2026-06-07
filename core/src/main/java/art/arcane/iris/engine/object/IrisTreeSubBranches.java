@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.Desc;
+import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.Snippet;
 import lombok.AllArgsConstructor;
@@ -46,6 +47,11 @@ public class IrisTreeSubBranches {
     @MinNumber(0)
     @Desc("Sub-branch length as a fraction of its parent branch length.")
     private double lengthScale = 0.5;
+
+    @MinNumber(0)
+    @MaxNumber(1)
+    @Desc("How much each sub-branch sags/droops along its length (catenary).")
+    private double sag = 0;
 
     @MinNumber(0)
     @Desc("Leaf ball radius placed at each sub-branch tip.")

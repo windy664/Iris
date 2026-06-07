@@ -71,7 +71,7 @@ public final class TreeFunctions {
             case LOG -> Math.log(1.0 + t * (Math.E - 1.0));
             case SIGMOID -> 1.0 / (1.0 + Math.exp(-steepness * (t - 0.5)));
             case PARABOLIC, EASE_IN_OUT -> smoothstep(t);
-            case EXPONENTIAL -> t * t;
+            case EXPONENTIAL -> Math.pow(t, Math.max(1.0, steepness));
             case SQRT -> Math.sqrt(t);
             case STEP -> t < 0.5 ? 0.0 : 1.0;
             case BELL -> bell(t);

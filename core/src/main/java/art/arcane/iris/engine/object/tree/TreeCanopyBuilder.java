@@ -35,7 +35,7 @@ public final class TreeCanopyBuilder {
     }
 
     public static void build(TreeBlockCanvas canvas, IrisProceduralTree tree, int height, double[][] offsets,
-                             long baseSeed, List<int[]> branchEndpoints) {
+                             int branchStartY, long baseSeed, List<int[]> branchEndpoints) {
         IrisTreeCanopy canopy = tree.getCanopy();
         if (canopy == null) {
             canopy = new IrisTreeCanopy();
@@ -49,10 +49,30 @@ public final class TreeCanopyBuilder {
                 double[][] crown = new double[][]{layers[layers.length - 1]};
                 volumeCanopy(canvas, tree, crown, canopy, baseSeed, offsets);
             }
-            branchCanopy(canvas, tree, height, branches, baseSeed, offsets, branchEndpoints);
+            placeApexCap(canvas, tree, height, layers, offsets, baseSeed);
+            branchCanopy(canvas, tree, height, branches, branchStartY, baseSeed, offsets, branchEndpoints);
         } else {
             volumeCanopy(canvas, tree, layers, canopy, baseSeed, offsets);
         }
+    }
+
+    private static void placeApexCap(TreeBlockCanvas canvas, IrisProceduralTree tree, int height, double[][] layers,
+                                     double[][] offsets, long baseSeed) {
+        int ocx = 0;
+        int ocz = 0;
+        if (offsets != null && offsets.length > 0) {
+            ocx = (int) Math.round(offsets[offsets.length - 1][0]);
+            ocz = (int) Math.round(offsets[offsets.length - 1][1]);
+        }
+        double maxR = 2;
+        for (double[] layer : layers) {
+            maxR = Math.max(maxR, layer[1]);
+        }
+        int capRadius = Math.max(2, Math.min(3, (int) Math.round(maxR * 0.35)));
+        IrisTreeCanopy canopy = tree.getCanopy();
+        IrisTreeLeafMode mode = canopy != null ? canopy.getMode() : IrisTreeLeafMode.TRIMMED;
+        double density = canopy != null ? canopy.getLeafDensity() : 1.0;
+        placeLeafCluster(canvas, tree, ocx, height - 1, ocz, capRadius, mode, density, baseSeed + 5555L);
     }
 
     private static double[][] resolveLayers(IrisTreeCanopy canopy, IrisTreeProfile profile, int height, boolean branchDriven) {
@@ -118,12 +138,18 @@ public final class TreeCanopyBuilder {
 
     private static void placeLeafDisc(TreeBlockCanvas canvas, IrisProceduralTree tree, int cx, int cy, int cz,
                                       double radius, IrisTreeLeafMode mode, double density, long seed) {
+        double sx = stretchX(tree);
+        double sz = stretchZ(tree);
         RNG rng = new RNG(seed);
-        int ir = (int) Math.ceil(radius);
-        for (int dx = -ir; dx <= ir; dx++) {
-            for (int dz = -ir; dz <= ir; dz++) {
-                double dist = Math.sqrt(dx * dx + dz * dz);
-                if (!passesLeafTest(mode, dist, radius, density, rng, cx + dx, cy, cz + dz, seed, Math.abs(dx) == ir && Math.abs(dz) == ir)) {
+        int irx = (int) Math.ceil(radius * sx);
+        int irz = (int) Math.ceil(radius * sz);
+        for (int dx = -irx; dx <= irx; dx++) {
+            for (int dz = -irz; dz <= irz; dz++) {
+                double ddx = dx / sx;
+                double ddz = dz / sz;
+                double dist = Math.sqrt(ddx * ddx + ddz * ddz);
+                boolean corner = Math.abs(dx) == irx && Math.abs(dz) == irz;
+                if (!passesLeafTest(mode, dist, radius, density, rng, cx + dx, cy, cz + dz, seed, corner)) {
                     continue;
                 }
                 canvas.setLeaf(cx + dx, cy, cz + dz, resolveLeaf(tree, rng));
@@ -133,12 +159,18 @@ public final class TreeCanopyBuilder {
 
     private static void placeLeafCluster(TreeBlockCanvas canvas, IrisProceduralTree tree, int cx, int cy, int cz,
                                          int radius, IrisTreeLeafMode mode, double density, long seed) {
+        double sx = stretchX(tree);
+        double sz = stretchZ(tree);
         RNG rng = new RNG(seed);
-        for (int dx = -radius; dx <= radius; dx++) {
+        int irx = (int) Math.ceil(radius * sx);
+        int irz = (int) Math.ceil(radius * sz);
+        for (int dx = -irx; dx <= irx; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    boolean corner = Math.abs(dx) == radius && Math.abs(dz) == radius;
+                for (int dz = -irz; dz <= irz; dz++) {
+                    double ddx = dx / sx;
+                    double ddz = dz / sz;
+                    double dist = Math.sqrt(ddx * ddx + dy * dy + ddz * ddz);
+                    boolean corner = Math.abs(dx) == irx && Math.abs(dz) == irz;
                     if (!passesLeafTest(mode, dist, radius, density, rng, cx + dx, cy + dy, cz + dz, seed, corner)) {
                         continue;
                     }
@@ -146,6 +178,16 @@ public final class TreeCanopyBuilder {
                 }
             }
         }
+    }
+
+    private static double stretchX(IrisProceduralTree tree) {
+        IrisTreeCanopy c = tree.getCanopy();
+        return c == null ? 1.0 : Math.max(0.1, c.getCrownStretchX());
+    }
+
+    private static double stretchZ(IrisProceduralTree tree) {
+        IrisTreeCanopy c = tree.getCanopy();
+        return c == null ? 1.0 : Math.max(0.1, c.getCrownStretchZ());
     }
 
     private static boolean passesLeafTest(IrisTreeLeafMode mode, double dist, double radius, double density,
@@ -216,14 +258,15 @@ public final class TreeCanopyBuilder {
     }
 
     private static void branchCanopy(TreeBlockCanvas canvas, IrisProceduralTree tree, int height,
-                                     IrisTreeBranches branches, long baseSeed, double[][] offsets,
+                                     IrisTreeBranches branches, int branchStartY, long baseSeed, double[][] offsets,
                                      List<int[]> branchEndpoints) {
         long branchSeed = baseSeed + 9999;
         RNG branchRng = new RNG(branchSeed);
         IrisTreeSubBranches sub = branches.getSubBranches();
+        int depth = branches.getBranchDepth();
         int branchIndex = 0;
 
-        for (int y = 0; y < height; y++) {
+        for (int y = Math.max(0, branchStartY); y < height; y++) {
             double t = y / (double) Math.max(height - 1, 1);
             double p = TreeFunctions.branchProbability(branches, t, branchSeed);
             if (branchRng.nextDouble() > p) {
@@ -242,27 +285,34 @@ public final class TreeCanopyBuilder {
             double branchLen = TreeFunctions.branchLength(branches, t);
             double effElevation = branches.isLeafStartUp() ? Math.max(0.0, branches.getElevation()) : branches.getElevation();
             int[] end = branchEndpoint(ox, y, oz, az, effElevation, branchLen);
+            int[] tip = rasterizeBranch(canvas, ox, y, oz, end[0], end[1], end[2], branches.getSag());
 
-            rasterizeBranch(canvas, ox, y, oz, end[0], end[1], end[2]);
             if (branchEndpoints != null) {
-                branchEndpoints.add(new int[]{end[0], end[1], end[2], ox, oz});
+                branchEndpoints.add(new int[]{tip[0], tip[1], tip[2], ox, oz});
             }
-            placeLeafCluster(canvas, tree, end[0], end[1], end[2], branches.getClusterRadius(),
+            placeLeafCluster(canvas, tree, tip[0], tip[1], tip[2], branches.getClusterRadius(),
                     branches.getClusterMode(), branches.getClusterDensity(), branchSeed + y);
 
-            if (sub != null) {
-                int count = Math.max(1, sub.getCount());
-                for (int si = 0; si < count; si++) {
-                    double yawOffset = sub.getYawDelta() * (si - (count - 1) / 2.0);
-                    double subAz = az + yawOffset;
-                    double subEl = effElevation + sub.getPitchDelta();
-                    double subLen = branchLen * sub.getLengthScale();
-                    int[] subEnd = branchEndpoint(end[0], end[1], end[2], subAz, subEl, subLen);
-                    rasterizeBranch(canvas, end[0], end[1], end[2], subEnd[0], subEnd[1], subEnd[2]);
-                    placeLeafCluster(canvas, tree, subEnd[0], subEnd[1], subEnd[2], sub.getClusterRadius(),
-                            sub.getClusterMode(), sub.getClusterDensity(), branchSeed + y + si + 1000L);
-                }
-            }
+            growSubBranches(canvas, tree, tip[0], tip[1], tip[2], az, effElevation, branchLen, sub, depth, branchSeed + y + 1000L);
+        }
+    }
+
+    private static void growSubBranches(TreeBlockCanvas canvas, IrisProceduralTree tree, int ox, int oy, int oz,
+                                        double az, double el, double len, IrisTreeSubBranches sub, int depth, long seed) {
+        if (sub == null || depth <= 0) {
+            return;
+        }
+        int count = Math.max(1, sub.getCount());
+        for (int si = 0; si < count; si++) {
+            double yawOffset = sub.getYawDelta() * (si - (count - 1) / 2.0);
+            double subAz = az + yawOffset;
+            double subEl = el + sub.getPitchDelta();
+            double subLen = len * sub.getLengthScale();
+            int[] end = branchEndpoint(ox, oy, oz, subAz, subEl, subLen);
+            int[] tip = rasterizeBranch(canvas, ox, oy, oz, end[0], end[1], end[2], sub.getSag());
+            placeLeafCluster(canvas, tree, tip[0], tip[1], tip[2], sub.getClusterRadius(),
+                    sub.getClusterMode(), sub.getClusterDensity(), seed + si * 131L);
+            growSubBranches(canvas, tree, tip[0], tip[1], tip[2], subAz, subEl, subLen, sub, depth - 1, seed + si * 131L + 17L);
         }
     }
 
@@ -275,17 +325,27 @@ public final class TreeCanopyBuilder {
         return new int[]{ox + (int) Math.round(dx), oy + (int) Math.round(dy), oz + (int) Math.round(dz)};
     }
 
-    private static void rasterizeBranch(TreeBlockCanvas canvas, int ox, int oy, int oz, int ex, int ey, int ez) {
-        int steps = Math.max(Math.max(Math.abs(ex - ox), Math.abs(ey - oy)), Math.max(Math.abs(ez - oz), 1));
-        TreeBlockCanvas.Axis axis = TreeFunctions.logAxis(ex - ox, ey - oy, ez - oz);
+    private static int[] rasterizeBranch(TreeBlockCanvas canvas, int ox, int oy, int oz, int ex, int ey, int ez, double sag) {
+        int dx = ex - ox;
+        int dy = ey - oy;
+        int dz = ez - oz;
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        double sagBlocks = sag * horizontal;
+        int steps = Math.max(Math.max(Math.abs(dx), Math.abs(dz)),
+                Math.max((int) (Math.abs(dy) + Math.ceil(sagBlocks)), 1));
+        TreeBlockCanvas.Axis axis = TreeFunctions.logAxis(dx, dy, dz);
+
+        int[] tip = new int[]{ox, oy, oz};
         for (int i = 0; i <= steps; i++) {
             double t = i / (double) steps;
-            int x = (int) Math.round(ox + (ex - ox) * t);
-            int y = (int) Math.round(oy + (ey - oy) * t);
-            int z = (int) Math.round(oz + (ez - oz) * t);
+            int x = (int) Math.round(ox + dx * t);
+            int y = (int) Math.round(oy + dy * t - sagBlocks * t * t);
+            int z = (int) Math.round(oz + dz * t);
             if (!canvas.has(x, y, z)) {
                 canvas.setTrunk(x, y, z, TreeBlockCanvas.Role.TRUNK, axis);
             }
+            tip = new int[]{x, y, z};
         }
+        return tip;
     }
 }

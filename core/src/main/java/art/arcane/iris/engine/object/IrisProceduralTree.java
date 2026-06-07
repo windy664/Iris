@@ -208,8 +208,32 @@ public class IrisProceduralTree {
     @Desc("The normalized height where the secondary trunk band ends.")
     private double secondaryTrunkEnd = 1;
 
-    @Desc("If true, a tapering taproot and flared buttress legs extend below the base so the tree connects to the ground on uneven terrain.")
+    @Desc("If true, a root system extends below (and around) the base so the tree connects to the ground on uneven terrain.")
     private boolean roots = true;
+
+    @Desc("How the root system is built when roots is true.")
+    private IrisTreeRootStyle rootStyle = IrisTreeRootStyle.BUTTRESS;
+
+    @MinNumber(0)
+    @Desc("Override the root depth/reach in blocks. 0 means auto (scales with tree height).")
+    private int rootDepth = 0;
+
+    @MinNumber(0)
+    @Desc("Override the root flare radius in blocks. 0 means auto.")
+    private double rootFlare = 0;
+
+    @MinNumber(1)
+    @MaxNumber(6)
+    @Desc("How many separate trunks the tree splits into above forkHeight. 1 is a single trunk.")
+    private int trunkForks = 1;
+
+    @MinNumber(0)
+    @MaxNumber(1)
+    @Desc("The normalized height where the trunk splits into forks.")
+    private double forkHeight = 0.5;
+
+    @Desc("The outward lean angle in degrees of each fork.")
+    private double forkAngle = 25;
 
     @Desc("The leaf crown configuration.")
     private IrisTreeCanopy canopy = new IrisTreeCanopy();

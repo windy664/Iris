@@ -40,12 +40,16 @@ public final class ProceduralTreeGenerator {
         TreeBlockCanvas canvas = new TreeBlockCanvas();
         long baseSeed = rng.getSeed();
 
-        double[][] offsets = TreeTrunkBuilder.build(canvas, tree, height);
+        List<TreeTrunkBuilder.Limb> limbs = TreeTrunkBuilder.build(canvas, tree, height);
 
         boolean wantEndpoints = tree.getDecorators() != null && !tree.getDecorators().isEmpty();
         List<int[]> branchEndpoints = wantEndpoints ? new ArrayList<>() : null;
 
-        TreeCanopyBuilder.build(canvas, tree, height, offsets, baseSeed, branchEndpoints);
+        int limbIndex = 0;
+        for (TreeTrunkBuilder.Limb limb : limbs) {
+            TreeCanopyBuilder.build(canvas, tree, height, limb.offsets(), limb.branchStartY(), baseSeed + limbIndex * 131L, branchEndpoints);
+            limbIndex++;
+        }
 
         if (wantEndpoints) {
             TreeDecoratorApplier.apply(canvas, tree, baseSeed, branchEndpoints);
@@ -53,6 +57,10 @@ public final class ProceduralTreeGenerator {
 
         if (tree.isRoots()) {
             TreeRootBuilder.build(canvas, tree, height, baseSeed);
+        }
+
+        if (tree.isPlausible()) {
+            TreeSupport.ensureLeavesSupported(canvas, 24);
         }
 
         Map<TreeBlockCanvas.Vec, BlockData> resolved = new HashMap<>();

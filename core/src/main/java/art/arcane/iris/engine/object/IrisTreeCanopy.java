@@ -54,6 +54,14 @@ public class IrisTreeCanopy {
     @Desc("Fill probability used by the density and noise leaf modes.")
     private double leafDensity = 0.85;
 
+    @MinNumber(0.1)
+    @Desc("Horizontal X stretch of the crown for elliptical or wind-blown shapes. 1 is circular.")
+    private double crownStretchX = 1;
+
+    @MinNumber(0.1)
+    @Desc("Horizontal Z stretch of the crown for elliptical or wind-blown shapes. 1 is circular.")
+    private double crownStretchZ = 1;
+
     @ArrayType(min = 1, type = IrisTreeLayer.class)
     @Desc("Optional explicit crown discs. When provided these replace the profile-driven layers and let you sculpt the silhouette by hand.")
     private KList<IrisTreeLayer> layers = new KList<>();

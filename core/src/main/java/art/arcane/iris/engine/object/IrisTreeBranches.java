@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.Desc;
+import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.Snippet;
 import lombok.AllArgsConstructor;
@@ -100,6 +101,16 @@ public class IrisTreeBranches {
 
     @Desc("Elevation angle in degrees from horizontal. 0 is flat, positive points up, negative droops down.")
     private double elevation = 0;
+
+    @MinNumber(0)
+    @MaxNumber(1)
+    @Desc("How much each branch sags/droops along its length (catenary). 0 is a straight branch; higher values arc the branch and its tip downward.")
+    private double sag = 0;
+
+    @MinNumber(0)
+    @MaxNumber(6)
+    @Desc("How many recursive levels of sub-branches to grow. 0 is none, 1 is a single level, 2+ produces fractal branching.")
+    private int branchDepth = 1;
 
     @Desc("If true, branches are clamped to never droop below horizontal (useful for upright species).")
     private boolean leafStartUp = false;

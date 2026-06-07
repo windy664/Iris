@@ -26,23 +26,71 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TreeTrunkBuilder {
+    public record Limb(double[][] offsets, int branchStartY) {
+    }
+
     private TreeTrunkBuilder() {
     }
 
-    public static double[][] build(TreeBlockCanvas canvas, IrisProceduralTree tree, int height) {
+    public static List<Limb> build(TreeBlockCanvas canvas, IrisProceduralTree tree, int height) {
         boolean hasSecondary = hasSecondaryTrunk(tree);
+        double[][] mainOffsets = leanPath(tree, height);
+        int forks = Math.max(1, tree.getTrunkForks());
 
+        List<Limb> limbs = new ArrayList<>();
+        if (forks == 1) {
+            placeColumn(canvas, tree, mainOffsets, height, 0, height - 1, hasSecondary);
+            limbs.add(new Limb(mainOffsets, 0));
+            markExposedEnds(canvas);
+            return limbs;
+        }
+
+        int forkY = Math.max(1, Math.min(height - 2, (int) Math.round(tree.getForkHeight() * (height - 1))));
+        placeColumn(canvas, tree, mainOffsets, height, 0, forkY, hasSecondary);
+
+        double baseCx = mainOffsets[forkY][0];
+        double baseCz = mainOffsets[forkY][1];
+        double reachMax = (height - forkY) * Math.tan(Math.toRadians(tree.getForkAngle()));
+
+        for (int f = 0; f < forks; f++) {
+            double az = Math.toRadians((360.0 / forks) * f);
+            double[][] forkOffsets = new double[height][2];
+            for (int y = 0; y <= forkY; y++) {
+                forkOffsets[y][0] = mainOffsets[y][0];
+                forkOffsets[y][1] = mainOffsets[y][1];
+            }
+            for (int y = forkY + 1; y < height; y++) {
+                double p = (y - forkY) / (double) Math.max(1, height - 1 - forkY);
+                double reach = reachMax * p;
+                forkOffsets[y][0] = baseCx + reach * Math.sin(az);
+                forkOffsets[y][1] = baseCz + reach * Math.cos(az);
+            }
+            placeColumn(canvas, tree, forkOffsets, height, forkY + 1, height - 1, hasSecondary);
+            limbs.add(new Limb(forkOffsets, forkY));
+        }
+
+        markExposedEnds(canvas);
+        return limbs;
+    }
+
+    private static double[][] leanPath(IrisProceduralTree tree, int height) {
         double[][] offsets = new double[height][2];
-        double prevCx = 0.0;
-        double prevCz = 0.0;
-
         for (int y = 0; y < height; y++) {
             double[] lean = leanOffset(tree, y, height);
-            double cx = lean[0];
-            double cz = lean[1];
-            offsets[y][0] = cx;
-            offsets[y][1] = cz;
+            offsets[y][0] = lean[0];
+            offsets[y][1] = lean[1];
+        }
+        return offsets;
+    }
 
+    private static void placeColumn(TreeBlockCanvas canvas, IrisProceduralTree tree, double[][] offsets, int height,
+                                    int yStart, int yEnd, boolean hasSecondary) {
+        double prevCx = yStart > 0 ? offsets[yStart - 1][0] : 0.0;
+        double prevCz = yStart > 0 ? offsets[yStart - 1][1] : 0.0;
+
+        for (int y = yStart; y <= yEnd; y++) {
+            double cx = offsets[y][0];
+            double cz = offsets[y][1];
             int w = widthAt(tree, y, height);
             TreeBlockCanvas.Axis axis = TreeFunctions.logAxis(cx - prevCx, 1.0, cz - prevCz);
             TreeBlockCanvas.Role role = trunkRole(tree, hasSecondary, y, height);
@@ -51,19 +99,17 @@ public final class TreeTrunkBuilder {
                 canvas.setTrunk(xz[0], y, xz[1], role, axis);
             }
 
-            if (y > 0) {
-                double shift = Math.hypot(cx - prevCx, cz - prevCz);
-                if (shift > 1.0) {
-                    int steps = (int) Math.ceil(shift);
-                    for (int s = 1; s < steps; s++) {
-                        double tFill = s / (double) steps;
-                        double icx = prevCx + (cx - prevCx) * tFill;
-                        double icz = prevCz + (cz - prevCz) * tFill;
-                        int fillY = (int) Math.round(y - 1 + tFill);
-                        for (int[] xz : squarePositions(icx, icz, w)) {
-                            if (!canvas.has(xz[0], fillY, xz[1])) {
-                                canvas.setTrunk(xz[0], fillY, xz[1], role, axis);
-                            }
+            double shift = Math.hypot(cx - prevCx, cz - prevCz);
+            if (shift > 1.0) {
+                int steps = (int) Math.ceil(shift);
+                for (int s = 1; s < steps; s++) {
+                    double tFill = s / (double) steps;
+                    double icx = prevCx + (cx - prevCx) * tFill;
+                    double icz = prevCz + (cz - prevCz) * tFill;
+                    int fillY = (int) Math.round(y - 1 + tFill);
+                    for (int[] xz : squarePositions(icx, icz, w)) {
+                        if (!canvas.has(xz[0], fillY, xz[1])) {
+                            canvas.setTrunk(xz[0], fillY, xz[1], role, axis);
                         }
                     }
                 }
@@ -72,14 +118,10 @@ public final class TreeTrunkBuilder {
             prevCx = cx;
             prevCz = cz;
         }
-
-        markExposedEnds(canvas);
-        return offsets;
     }
 
     private static void markExposedEnds(TreeBlockCanvas canvas) {
-        List<TreeBlockCanvas.Vec> trunkPositions = new ArrayList<>(canvas.getTrunk());
-        for (TreeBlockCanvas.Vec v : trunkPositions) {
+        for (TreeBlockCanvas.Vec v : new ArrayList<>(canvas.getTrunk())) {
             if (!canvas.has(v.x(), v.y() + 1, v.z()) || !canvas.has(v.x(), v.y() - 1, v.z())) {
                 canvas.markExposed(v.x(), v.y(), v.z());
             }
