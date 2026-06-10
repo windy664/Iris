@@ -33,6 +33,7 @@ import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.common.data.VectorMap;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.iris.util.project.interpolation.IrisInterpolation;
+import art.arcane.iris.util.project.noise.SimplexNoise;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.volmlib.util.math.BlockPosition;
 import art.arcane.volmlib.util.math.Position2;
@@ -83,6 +84,7 @@ public class IrisObject extends IrisRegistrant {
     protected static final BlockData VAIR_DEBUG = B.get("COBWEB");
     protected static final BlockData[] SNOW_LAYERS = new BlockData[]{B.get("minecraft:snow[layers=1]"), B.get("minecraft:snow[layers=2]"), B.get("minecraft:snow[layers=3]"), B.get("minecraft:snow[layers=4]"), B.get("minecraft:snow[layers=5]"), B.get("minecraft:snow[layers=6]"), B.get("minecraft:snow[layers=7]"), B.get("minecraft:snow[layers=8]")};
     private static final long IMPLAUSIBLE_BEDROCK_WARN_THROTTLE_MS = 5000L;
+    private static final long VACUUM_WAVE_SEED = 7392113L;
     private static final java.util.concurrent.ConcurrentHashMap<String, Long> IMPLAUSIBLE_BEDROCK_WARNS = new java.util.concurrent.ConcurrentHashMap<>();
     protected transient final Lock readLock;
     protected transient final Lock writeLock;
@@ -1421,6 +1423,10 @@ public class IrisObject extends IrisRegistrant {
         double falloff = IrisObjectVacuum.resolveFalloff(settings);
         int jitter = settings != null ? Math.max(0, settings.getOrganicJitter()) : 4;
         boolean organicEdge = mode == ObjectPlaceMode.VACUUM_ORGANIC;
+        boolean wavyEdge = mode == ObjectPlaceMode.VACUUM_WAVY;
+        double waveAmplitude = IrisObjectVacuum.resolveWaveAmplitude(settings);
+        double waveScale = IrisObjectVacuum.resolveWaveScale(settings);
+        SimplexNoise waveNoise = (wavyEdge && waveAmplitude > 0) ? new SimplexNoise(VACUUM_WAVE_SEED) : null;
         int meetY = baseY - 1;
 
         IrisComplex complex = placer.getEngine().getComplex();
@@ -1439,6 +1445,13 @@ public class IrisObject extends IrisRegistrant {
                 }
                 int origY = placer.getHighest(cx, cz, getLoader(), true);
                 int targetY = IrisObjectVacuum.columnTargetY(dx, dz, lowX, highX, lowZ, highZ, effRadius, falloff, origY, meetY);
+                if (waveNoise != null) {
+                    int outX = IrisObjectVacuum.outset(dx, lowX, highX);
+                    int outZ = IrisObjectVacuum.outset(dz, lowZ, highZ);
+                    double waveDistance = Math.sqrt((double) (outX * outX) + (double) (outZ * outZ));
+                    double sample = waveNoise.noiseSigned(cx * waveScale, cz * waveScale);
+                    targetY += IrisObjectVacuum.waveOffset(waveDistance, effRadius, sample, waveAmplitude);
+                }
                 if (targetY == origY) {
                     continue;
                 }

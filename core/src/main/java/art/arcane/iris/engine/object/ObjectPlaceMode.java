@@ -90,6 +90,10 @@ public enum ObjectPlaceMode {
 
     VACUUM_ORGANIC,
 
+    @Desc("VACUUM whose terrain bend is bent by smooth coherent simplex noise so the surface meets the object with a gently rolling, wavy slope instead of the ragged white-noise edge of VACUUM_ORGANIC or a clean parabolic bowl. The object itself still seats flush; the waves fade to zero under the object and at the outer rim, peaking across the mid-slope. Tune with vacuum-settings (waveAmplitude, waveScale).")
+
+    VACUUM_WAVY,
+
     @Desc("Samples the height of the terrain at every x,z position of your object and pushes it down to the surface. It's pretty much like a melt function over the terrain.")
 
     PAINT,

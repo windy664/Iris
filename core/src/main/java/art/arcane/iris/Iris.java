@@ -71,6 +71,7 @@ import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.iris.util.common.misc.ServerProperties;
 import art.arcane.volmlib.util.scheduling.Queue;
 import art.arcane.volmlib.util.scheduling.ShurikenQueue;
+import io.papermc.lib.PaperLib;
 import lombok.NonNull;
 import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
@@ -872,7 +873,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
                         for (Player i : getServer().getOnlinePlayers()) {
                             final Runnable playerTask = () -> {
                                 i.setGameMode(GameMode.SPECTATOR);
-                                i.teleport(spawn);
+                                PaperLib.teleportAsync(i, spawn);
                             };
                             if (!J.runEntity(i, playerTask)) {
                                 playerTask.run();

@@ -19,6 +19,9 @@
 package art.arcane.iris.engine.object;
 
 public final class IrisObjectVacuum {
+    private static final double DEFAULT_WAVE_AMPLITUDE = 3.0;
+    private static final double DEFAULT_WAVE_SCALE = 5.0;
+
     private IrisObjectVacuum() {
     }
 
@@ -26,7 +29,8 @@ public final class IrisObjectVacuum {
         return mode == ObjectPlaceMode.VACUUM
                 || mode == ObjectPlaceMode.VACUUM_HIGH
                 || mode == ObjectPlaceMode.VACUUM_FAST
-                || mode == ObjectPlaceMode.VACUUM_ORGANIC;
+                || mode == ObjectPlaceMode.VACUUM_ORGANIC
+                || mode == ObjectPlaceMode.VACUUM_WAVY;
     }
 
     public static int resolveRadius(ObjectPlaceMode mode, IrisVacuumSettings settings) {
@@ -47,6 +51,21 @@ public final class IrisObjectVacuum {
 
     public static double resolveFalloff(IrisVacuumSettings settings) {
         return settings != null ? Math.max(0.25, settings.getFalloff()) : 2.0;
+    }
+
+    public static double resolveWaveAmplitude(IrisVacuumSettings settings) {
+        if (settings == null) {
+            return DEFAULT_WAVE_AMPLITUDE;
+        }
+        return Math.max(0, settings.getWaveAmplitude());
+    }
+
+    public static double resolveWaveScale(IrisVacuumSettings settings) {
+        if (settings == null) {
+            return DEFAULT_WAVE_SCALE;
+        }
+        double scale = settings.getWaveScale();
+        return scale > 0 ? scale : DEFAULT_WAVE_SCALE;
     }
 
     public static int footprintLow(int dimension) {
@@ -89,6 +108,17 @@ public final class IrisObjectVacuum {
         }
         double factor = Math.pow(t, Math.max(0.25, falloff));
         return (int) Math.round(originalY + ((meetY - originalY) * factor));
+    }
+
+    public static int waveOffset(double distance, double effectiveRadius, double signedNoise, double amplitude) {
+        if (amplitude <= 0 || effectiveRadius <= 0) {
+            return 0;
+        }
+        if (distance <= 0 || distance >= effectiveRadius) {
+            return 0;
+        }
+        double envelope = Math.sin(Math.PI * (distance / effectiveRadius));
+        return (int) Math.round(signedNoise * amplitude * envelope);
     }
 
     public static int carveFloorY(int targetY, int objectTopY, boolean insideFootprint) {

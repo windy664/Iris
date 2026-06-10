@@ -28,4 +28,12 @@ public class IrisVacuumSettings {
     @MaxNumber(64)
     @Desc("For VACUUM_ORGANIC: the maximum number of blocks the effective radius is randomly perturbed per column, giving the meeting edge an irregular organic outline instead of a clean circle.")
     private int organicJitter = 4;
+    @MinNumber(0)
+    @MaxNumber(64)
+    @Desc("For VACUUM_WAVY: the vertical amplitude (in blocks) of the rolling simplex wave applied across the terrain bend. The wave fades to zero under the object (so it stays flush) and at the outer radius (so it blends back to the surface), peaking across the mid-slope. 0 disables the wave.")
+    private int waveAmplitude = 3;
+    @MinNumber(0.1)
+    @MaxNumber(64)
+    @Desc("For VACUUM_WAVY: the frequency of the simplex wave. Higher values make tighter, choppier ripples; lower values make broad, gentle swells. The wavelength in blocks is roughly 100 / waveScale.")
+    private double waveScale = 5.0;
 }

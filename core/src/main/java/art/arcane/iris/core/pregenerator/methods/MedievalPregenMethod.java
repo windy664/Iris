@@ -28,6 +28,7 @@ import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.iris.util.common.scheduling.J;
+import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -124,6 +125,20 @@ public class MedievalPregenMethod implements PregeneratorMethod {
         }
 
         listener.onChunkGenerating(x, z);
+        if (J.isFolia()) {
+            // Folia: a synchronous world.getChunkAt() runs off the owning region
+            // thread and fails the TickThread check. Drive the chunk system
+            // asynchronously instead, which is region-safe.
+            futures.add(PaperLib.getChunkAtAsync(world, x, z, true).thenAccept(c -> {
+                if (c != null) {
+                    lastUse.put(c, M.ms());
+                }
+                listener.onChunkGenerated(x, z);
+                listener.onChunkCleaned(x, z);
+            }));
+            return;
+        }
+
         futures.add(J.sfut(() -> {
             world.getChunkAt(x, z);
             Chunk c = Bukkit.getWorld(world.getUID()).getChunkAt(x, z);

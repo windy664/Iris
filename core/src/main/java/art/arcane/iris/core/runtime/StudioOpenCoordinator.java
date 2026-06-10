@@ -126,6 +126,17 @@ public final class StudioOpenCoordinator {
             }
             t = logStudioPhase("resolveEntryAnchor", t, openStart);
 
+            updateStage(request, "load_entry_chunk", 0.80D);
+            int entryChunkX = entryAnchor.getBlockX() >> 4;
+            int entryChunkZ = entryAnchor.getBlockZ() >> 4;
+            try {
+                loadEntryChunk(world, entryChunkX, entryChunkZ).get(30L, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                throw new IllegalStateException("Studio entry chunk did not load in time at "
+                        + entryChunkX + "," + entryChunkZ + " — chunk system may be stalled.");
+            }
+            t = logStudioPhase("loadEntryChunk (generate spawn chunk to FULL)", t, openStart);
+
             updateStage(request, "resolve_safe_entry", 0.84D);
             Location safeEntry;
             try {
@@ -185,6 +196,31 @@ public final class StudioOpenCoordinator {
         long now = System.currentTimeMillis();
         Iris.debug("[Studio timing] " + phase + " = " + (now - t) + "ms  (cumulative " + (now - openStart) + "ms)");
         return now;
+    }
+
+    private CompletableFuture<Void> loadEntryChunk(World world, int chunkX, int chunkZ) {
+        // A freshly created studio world has no ticking region at the entry
+        // chunk. On Folia getChunkAtAsync only works from the owning region
+        // thread, and RegionScheduler.execute never fires for a chunk no region
+        // owns yet — which is why resolveSafeEntry (a region task) would stall
+        // and time out. A plugin chunk ticket force-loads the chunk and creates
+        // its ticking region; we then confirm via a region task that the region
+        // is live before resolving the safe entry / teleporting into it.
+        CompletableFuture<Void> loaded = new CompletableFuture<>();
+        J.s(() -> {
+            try {
+                world.addPluginChunkTicket(chunkX, chunkZ, Iris.instance);
+            } catch (Throwable t) {
+                loaded.completeExceptionally(t);
+                return;
+            }
+
+            if (!J.runRegion(world, chunkX, chunkZ, () -> loaded.complete(null))) {
+                loaded.completeExceptionally(new IllegalStateException(
+                        "Failed to confirm entry-chunk region at " + chunkX + "," + chunkZ + "."));
+            }
+        });
+        return loaded;
     }
 
     private StudioCloseResult closeWorld(

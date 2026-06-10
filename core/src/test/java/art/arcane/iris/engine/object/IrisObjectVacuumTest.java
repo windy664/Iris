@@ -101,6 +101,7 @@ public class IrisObjectVacuumTest {
         assertEquals(20, IrisObjectVacuum.resolveRadius(ObjectPlaceMode.VACUUM_HIGH, null));
         assertEquals(8, IrisObjectVacuum.resolveRadius(ObjectPlaceMode.VACUUM_FAST, null));
         assertEquals(12, IrisObjectVacuum.resolveRadius(ObjectPlaceMode.VACUUM_ORGANIC, null));
+        assertEquals(12, IrisObjectVacuum.resolveRadius(ObjectPlaceMode.VACUUM_WAVY, null));
 
         IrisVacuumSettings settings = new IrisVacuumSettings();
         settings.setRadius(30);
@@ -113,6 +114,7 @@ public class IrisObjectVacuumTest {
         assertEquals(1, IrisObjectVacuum.resolveStep(ObjectPlaceMode.VACUUM_HIGH));
         assertEquals(2, IrisObjectVacuum.resolveStep(ObjectPlaceMode.VACUUM_FAST));
         assertEquals(1, IrisObjectVacuum.resolveStep(ObjectPlaceMode.VACUUM_ORGANIC));
+        assertEquals(1, IrisObjectVacuum.resolveStep(ObjectPlaceMode.VACUUM_WAVY));
     }
 
     @Test
@@ -121,6 +123,7 @@ public class IrisObjectVacuumTest {
         assertTrue(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.VACUUM_HIGH));
         assertTrue(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.VACUUM_FAST));
         assertTrue(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.VACUUM_ORGANIC));
+        assertTrue(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.VACUUM_WAVY));
         assertFalse(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.CENTER_HEIGHT));
         assertFalse(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.STILT));
         assertFalse(IrisObjectVacuum.isVacuumMode(ObjectPlaceMode.PAINT));
@@ -142,5 +145,46 @@ public class IrisObjectVacuumTest {
         int ringFloor = IrisObjectVacuum.carveFloorY(meetY, topY, false);
         assertEquals("the ring carves down to the deformation target (the crater floor)", meetY + 1, ringFloor);
         assertTrue("ring crater is deeper than the object-protected inside floor", ringFloor < insideFloor);
+    }
+
+    @Test
+    public void wavyOffsetIsZeroAtSeatAndRimSoSeatStaysFlushAndEdgeBlends() {
+        assertEquals("directly under the object the wave must be zero so it seats flush", 0, IrisObjectVacuum.waveOffset(0.0, 12.0, 1.0, 3.0));
+        assertEquals("at the outer rim the wave must be zero so it blends to terrain", 0, IrisObjectVacuum.waveOffset(12.0, 12.0, 1.0, 3.0));
+        assertEquals("beyond the radius there is no wave", 0, IrisObjectVacuum.waveOffset(20.0, 12.0, 1.0, 3.0));
+        assertEquals("amplitude 0 disables the wave entirely", 0, IrisObjectVacuum.waveOffset(6.0, 12.0, 1.0, 0.0));
+    }
+
+    @Test
+    public void wavyOffsetIsSignedSymmetricAndPeaksMidSlope() {
+        int up = IrisObjectVacuum.waveOffset(6.0, 12.0, 1.0, 3.0);
+        int down = IrisObjectVacuum.waveOffset(6.0, 12.0, -1.0, 3.0);
+        assertEquals("peak noise at mid-slope lifts the full amplitude", 3, up);
+        assertEquals("negative noise pushes the slope down by the same amount", -3, down);
+        assertEquals("equal and opposite noise mirrors the offset", up, -down);
+        assertTrue("the wave never exceeds the configured amplitude", Math.abs(up) <= 3);
+
+        int nearSeat = IrisObjectVacuum.waveOffset(1.0, 12.0, 1.0, 3.0);
+        assertTrue("waves are strongest mid-slope and gentle near the flush seat", up > nearSeat);
+    }
+
+    @Test
+    public void resolveWaveAmplitudeAndScaleUseDefaultsAndHonorOverrides() {
+        assertEquals(3.0, IrisObjectVacuum.resolveWaveAmplitude(null), 0.0001);
+        assertEquals(5.0, IrisObjectVacuum.resolveWaveScale(null), 0.0001);
+
+        IrisVacuumSettings settings = new IrisVacuumSettings();
+        settings.setWaveAmplitude(6);
+        settings.setWaveScale(2.5);
+        assertEquals(6.0, IrisObjectVacuum.resolveWaveAmplitude(settings), 0.0001);
+        assertEquals(2.5, IrisObjectVacuum.resolveWaveScale(settings), 0.0001);
+
+        IrisVacuumSettings disabled = new IrisVacuumSettings();
+        disabled.setWaveAmplitude(0);
+        assertEquals("amplitude 0 disables the wave", 0.0, IrisObjectVacuum.resolveWaveAmplitude(disabled), 0.0001);
+
+        IrisVacuumSettings badScale = new IrisVacuumSettings();
+        badScale.setWaveScale(0);
+        assertEquals("non-positive scale falls back to the default", 5.0, IrisObjectVacuum.resolveWaveScale(badScale), 0.0001);
     }
 }

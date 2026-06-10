@@ -44,7 +44,9 @@ import art.arcane.iris.util.common.parallel.SyncExecutor;
 import art.arcane.iris.util.common.misc.ServerProperties;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
+import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -52,7 +54,6 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
 import java.util.ArrayDeque;
@@ -430,13 +431,14 @@ public class CommandIris implements DirectorExecutor {
             return;
         }
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                target.teleport(world.getSpawnLocation());
-                new VolmitSender(target).sendMessage(C.GREEN + "You have been teleported to " + world.getName() + ".");
-            }
-        }.runTask(Iris.instance);
+        final Location spawn = world.getSpawnLocation();
+        final Runnable teleportTask = () -> {
+            PaperLib.teleportAsync(target, spawn);
+            new VolmitSender(target).sendMessage(C.GREEN + "You have been teleported to " + world.getName() + ".");
+        };
+        if (!J.runEntity(target, teleportTask)) {
+            teleportTask.run();
+        }
     }
 
     @Director(description = "Print version information")
