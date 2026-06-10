@@ -454,9 +454,10 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
 
     private void processZone(Hunk<BlockData> output, MantleChunk<Matter> mc, Mantle<Matter> mantle, CaveZone zone, int rx, int rz, int xx, int zz, IrisDimensionCarvingResolver.State resolverState, Long2ObjectOpenHashMap<IrisBiome> caveBiomeCache) {
         int center = (zone.floor + zone.ceiling) / 2;
+        int maxY = output.getHeight();
         String customBiome = "";
 
-        if (B.isDecorant(output.getClosest(rx, zone.ceiling + 1, rz))) {
+        if (zone.ceiling + 1 < maxY && B.isDecorant(output.getRaw(rx, zone.ceiling + 1, rz))) {
             output.setRaw(rx, zone.ceiling + 1, rz, AIR);
         }
 
@@ -517,32 +518,31 @@ public class IrisCarveModifier extends EngineAssignedModifier<BlockData> {
 
         blocks = biome.generateCeilingLayers(getDimension(), xx, zz, rng, 3, zone.ceiling, getData(), getComplex());
 
-        if (zone.ceiling + 1 < mantle.getWorldHeight()) {
-            for (int i = 0; i < zone.ceiling + 1; i++) {
-                if (!blocks.hasIndex(i)) {
-                    break;
-                }
-
-                BlockData b = blocks.get(i);
-                BlockData up = output.getRaw(rx, zone.ceiling + i + 1, rz);
-
-                if (!B.isSolid(up)) {
-                    continue;
-                }
-
-                if (B.isOre(up)) {
-                    output.setRaw(rx, zone.ceiling + i + 1, rz, B.toDeepSlateOre(up, b));
-                    continue;
-                }
-
-                output.setRaw(rx, zone.ceiling + i + 1, rz, b);
+        for (int i = 0; i < blocks.size(); i++) {
+            int cy = zone.ceiling + i + 1;
+            if (cy >= maxY) {
+                break;
             }
+
+            BlockData b = blocks.get(i);
+            BlockData up = output.getRaw(rx, cy, rz);
+
+            if (!B.isSolid(up)) {
+                continue;
+            }
+
+            if (B.isOre(up)) {
+                output.setRaw(rx, cy, rz, B.toDeepSlateOre(up, b));
+                continue;
+            }
+
+            output.setRaw(rx, cy, rz, b);
         }
 
         for (IrisDecorator decorator : biome.getDecorators()) {
-            if (decorator.getPartOf().equals(IrisDecorationPart.NONE) && B.isSolid(output.getRaw(rx, zone.getFloor() - 1, rz))) {
+            if (decorator.getPartOf().equals(IrisDecorationPart.NONE) && zone.getFloor() > 0 && B.isSolid(output.getRaw(rx, zone.getFloor() - 1, rz))) {
                 decorant.getSurfaceDecorator().decorate(rx, rz, xx, xx, xx, zz, zz, zz, output, biome, zone.getFloor() - 1, zone.airThickness());
-            } else if (decorator.getPartOf().equals(IrisDecorationPart.CEILING) && B.isSolid(output.getRaw(rx, zone.getCeiling() + 1, rz))) {
+            } else if (decorator.getPartOf().equals(IrisDecorationPart.CEILING) && zone.getCeiling() + 1 < maxY && B.isSolid(output.getRaw(rx, zone.getCeiling() + 1, rz))) {
                 decorant.getCeilingDecorator().decorate(rx, rz, xx, xx, xx, zz, zz, zz, output, biome, zone.getCeiling(), zone.airThickness());
             }
         }
