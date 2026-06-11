@@ -74,11 +74,8 @@ public interface EngineMode extends Staged {
     default void generate(int x, int z, Hunk<PlatformBlockState> blocks, Hunk<PlatformBiome> biomes, boolean multicore) {
         IrisContext context = IrisContext.getOr(getEngine());
         boolean cacheContext = true;
-        if (J.isFolia()) {
-            org.bukkit.World world = getEngine().getWorld().realWorld();
-            if (world != null && shouldDisableContextCacheForMaintenance(world)) {
-                cacheContext = false;
-            }
+        if (J.isFolia() && getEngine().getWorld().hasRealWorld() && shouldDisableContextCacheForMaintenance()) {
+            cacheContext = false;
         }
         ChunkContext.PrefillPlan prefillPlan = cacheContext ? ChunkContext.PrefillPlan.NO_CAVE : ChunkContext.PrefillPlan.NONE;
         ChunkContext ctx = new ChunkContext(x, z, getComplex(), context.getGenerationSessionId(), cacheContext, prefillPlan, getEngine().getMetrics());
@@ -94,14 +91,14 @@ public interface EngineMode extends Staged {
         return maintenanceActive && !pregeneratorTargetsWorld;
     }
 
-    private boolean shouldDisableContextCacheForMaintenance(org.bukkit.World world) {
-        boolean maintenanceActive = IrisToolbelt.isWorldMaintenanceActive(world);
+    private boolean shouldDisableContextCacheForMaintenance() {
+        boolean maintenanceActive = IrisToolbelt.isWorldMaintenanceActive(getEngine().getWorld().realWorld());
         if (!maintenanceActive) {
             return false;
         }
 
         PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
-        boolean pregeneratorTargetsWorld = pregeneratorJob != null && pregeneratorJob.targetsWorld(world);
+        boolean pregeneratorTargetsWorld = pregeneratorJob != null && pregeneratorJob.targetsWorld(getEngine().getWorld().realWorld());
         return shouldDisableContextCacheForMaintenance(maintenanceActive, pregeneratorTargetsWorld);
     }
 }

@@ -164,7 +164,6 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         return getInitialSpawnLocation(world);
     }
 
-    @Override
     public Location getInitialSpawnLocation(World world) {
         int minY = world.getMinHeight() + 1;
         int maxY = world.getMaxHeight() - 2;
@@ -397,7 +396,6 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         return future;
     }
 
-    @Override
     public void touch(World world) {
         getEngine(world);
     }

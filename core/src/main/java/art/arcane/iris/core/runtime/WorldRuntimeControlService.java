@@ -7,6 +7,7 @@ import art.arcane.iris.core.lifecycle.ServerFamily;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.service.BoardSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
+import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.scheduling.J;
@@ -202,8 +203,8 @@ public final class WorldRuntimeControlService {
             return null;
         }
 
-        if (provider != null && provider.isStudio()) {
-            Location initialSpawn = provider.getInitialSpawnLocation(world);
+        if (provider != null && provider.isStudio() && provider instanceof BukkitChunkGenerator bukkitProvider) {
+            Location initialSpawn = bukkitProvider.getInitialSpawnLocation(world);
             if (initialSpawn != null) {
                 return initialSpawn.clone();
             }

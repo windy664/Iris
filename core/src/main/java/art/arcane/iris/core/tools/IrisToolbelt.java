@@ -31,6 +31,7 @@ import art.arcane.iris.core.pregenerator.methods.HybridPregenMethod;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisDimension;
+import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.iris.util.common.plugin.VolmitSender;
@@ -170,7 +171,9 @@ public class IrisToolbelt {
         }
 
         if (world.getGenerator() instanceof PlatformChunkGenerator f) {
-            f.touch(world);
+            if (f instanceof BukkitChunkGenerator bukkit) {
+                bukkit.touch(world);
+            }
             return true;
         }
 
@@ -204,7 +207,9 @@ public class IrisToolbelt {
                 if (activeProvider != null) {
                     World activeWorld = activeProvider.getTarget().getWorld().realWorld();
                     if (activeWorld != null && activeWorld.getName().equals(world.getName())) {
-                        activeProvider.touch(world);
+                        if (activeProvider instanceof BukkitChunkGenerator bukkit) {
+                            bukkit.touch(world);
+                        }
                         return activeProvider;
                     }
                 }

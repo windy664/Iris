@@ -18,6 +18,7 @@
 
 package art.arcane.iris.core.commands;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.edit.BlockSignal;
 import art.arcane.iris.core.nms.INMS;
@@ -159,7 +160,7 @@ public class CommandWhat implements DirectorExecutor {
             for (int xxx = c.getX() - 4; xxx <= c.getX() + 4; xxx++) {
                 for (int zzz = c.getZ() - 4; zzz <= c.getZ() + 4; zzz++) {
                     IrisToolbelt.access(c.getWorld()).getEngine().getMantle().findMarkers(xxx, zzz, new MatterMarker(marker))
-                            .convert((i) -> i.toLocation(c.getWorld())).forEach((i) -> {
+                            .convert((i) -> BukkitPlatform.toLocation(i, c.getWorld())).forEach((i) -> {
                                 BlockSignal.of(i.getWorld(), i.getBlockX(), i.getBlockY(), i.getBlockZ(), 100);
                                 v.incrementAndGet();
                             });

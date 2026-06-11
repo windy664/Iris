@@ -18,6 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
@@ -137,8 +138,8 @@ public class IrisObject extends IrisRegistrant {
 
     public static AxisAlignedBB getAABBFor(BlockVector size) {
         BlockVector center = new BlockVector(size.getX() / 2, size.getY() / 2, size.getZ() / 2);
-        return new AxisAlignedBB(new IrisPosition(new BlockVector(0, 0, 0).subtract(center).toBlockVector()),
-                new IrisPosition(new BlockVector(size.getX() - 1, size.getY() - 1, size.getZ() - 1).subtract(center).toBlockVector()));
+        return new AxisAlignedBB(BukkitPlatform.positionOf(new BlockVector(0, 0, 0).subtract(center).toBlockVector()),
+                BukkitPlatform.positionOf(new BlockVector(size.getX() - 1, size.getY() - 1, size.getZ() - 1).subtract(center).toBlockVector()));
     }
 
     public static BlockVector sampleSize(File file) throws IOException {

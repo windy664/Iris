@@ -56,6 +56,7 @@ import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.mantle.flag.MantleFlag;
 import art.arcane.volmlib.util.math.BlockPosition;
+import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.RNG;
@@ -64,10 +65,12 @@ import art.arcane.volmlib.util.matter.MatterCavern;
 import art.arcane.volmlib.util.matter.MatterUpdate;
 import art.arcane.iris.util.common.parallel.BurstExecutor;
 import art.arcane.iris.util.common.parallel.MultiBurst;
+import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.reflect.KeyedType;
 import art.arcane.iris.util.common.reflect.W;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;
 import art.arcane.iris.util.common.scheduling.J;
+import art.arcane.iris.util.common.scheduling.jobs.SingleJob;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import art.arcane.iris.util.project.stream.ProceduralStream;
 import io.papermc.lib.PaperLib;
@@ -75,7 +78,6 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -86,7 +88,9 @@ import java.awt.Color;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -106,7 +110,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
     int getBlockUpdatesPerSecond();
 
-    void printMetrics(CommandSender sender);
+    void printMetrics(VolmitSender sender);
 
     EngineMantle getMantle();
 
@@ -980,11 +984,100 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
     }
 
     default void gotoBiome(IrisBiome biome, Player player, boolean teleport) {
-        Locator.surfaceBiome(biome.getLoadKey()).find(player, teleport, "Biome " + biome.getName());
+        find(Locator.surfaceBiome(biome.getLoadKey()), player, teleport, "Biome " + biome.getName());
+    }
+
+    private static void find(Locator<?> locator, Player player, boolean teleport, String message) {
+        find(locator, player, 120_000, location -> {
+            if (location == null) {
+                player.sendMessage(C.RED + "Could not find " + message + " within search range.");
+                return;
+            }
+            if (teleport) {
+                J.runEntity(player, () -> teleportAsyncSafely(player, location));
+                player.sendMessage(C.GREEN + "Teleporting to " + message + "...");
+            } else {
+                player.sendMessage(C.GREEN + message + " at: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ());
+            }
+        });
+    }
+
+    private static void find(Locator<?> locator, Player player, long timeout, Consumer<Location> consumer) {
+        AtomicLong checks = new AtomicLong();
+        long ms = M.ms();
+        new SingleJob("Searching", () -> {
+            try {
+                World world = player.getWorld();
+                Engine engine = IrisToolbelt.access(world).getEngine();
+                Position2 at = locator.find(engine, new Position2(player.getLocation().getBlockX() >> 4, player.getLocation().getBlockZ() >> 4), timeout, checks::set).get();
+
+                if (at != null) {
+                    int bx = (at.getX() << 4) + 8;
+                    int bz = (at.getZ() << 4) + 8;
+                    consumer.accept(new Location(world, bx,
+                            world.getHighestBlockYAt(bx, bz) + 2,
+                            bz));
+                } else {
+                    consumer.accept(null);
+                }
+            } catch (WrongEngineBroException | InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }) {
+            @Override
+            public String getName() {
+                return "Searched " + Form.f(checks.get()) + " Chunks";
+            }
+
+            @Override
+            public int getTotalWork() {
+                return (int) timeout;
+            }
+
+            @Override
+            public int getWorkCompleted() {
+                return (int) Math.min(M.ms() - ms, timeout - 1);
+            }
+        }.execute(new VolmitSender(player));
+    }
+
+    private static void teleportAsyncSafely(Player player, Location location) {
+        if (player == null || location == null) {
+            return;
+        }
+
+        if (invokeNativeTeleportAsync(player, location)) {
+            return;
+        }
+
+        try {
+            CompletableFuture<Boolean> teleportFuture = PaperLib.teleportAsync(player, location);
+            if (teleportFuture != null) {
+                teleportFuture.exceptionally(throwable -> {
+                    Iris.reportError(throwable);
+                    return false;
+                });
+            }
+        } catch (Throwable throwable) {
+            Iris.reportError(throwable);
+        }
+    }
+
+    private static boolean invokeNativeTeleportAsync(Player player, Location location) {
+        try {
+            Method teleportAsyncMethod = player.getClass().getMethod("teleportAsync", Location.class);
+            teleportAsyncMethod.invoke(player, location);
+            return true;
+        } catch (NoSuchMethodException ignored) {
+            return false;
+        } catch (Throwable throwable) {
+            Iris.reportError(throwable);
+            return false;
+        }
     }
 
     default void gotoObject(String s, Player player, boolean teleport) {
-        Locator.object(s).find(player, teleport, "Object " + s);
+        find(Locator.object(s), player, teleport, "Object " + s);
     }
 
     default boolean hasObjectPlacement(String objectKey) {
@@ -1011,15 +1104,15 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
             return;
         }
 
-        Locator.region(r.getLoadKey()).find(player, teleport, "Region " + r.getName());
+        find(Locator.region(r.getLoadKey()), player, teleport, "Region " + r.getName());
     }
 
     default void gotoPOI(String type, Player p, boolean teleport) {
-        Locator.poi(type).find(p, teleport, "POI " + type);
+        find(Locator.poi(type), p, teleport, "POI " + type);
     }
 
     default void gotoStructure(String key, Player player, boolean teleport) {
-        Locator.structure(key).find(player, teleport, "Structure " + key);
+        find(Locator.structure(key), player, teleport, "Structure " + key);
     }
 
     private static boolean containsObjectPlacement(KList<IrisObjectPlacement> placements, String normalizedObjectKey) {

@@ -24,10 +24,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.util.BlockVector;
-import org.bukkit.util.Vector;
 
 @Snippet("position-3d")
 @Accessors(chain = true)
@@ -45,18 +41,6 @@ public class IrisPosition {
     @Desc("The z position")
     private int z = 0;
 
-    public IrisPosition(BlockVector bv) {
-        this(bv.getBlockX(), bv.getBlockY(), bv.getBlockZ());
-    }
-
-    public IrisPosition(Location l) {
-        this(l.getBlockX(), l.getBlockY(), l.getBlockZ());
-    }
-
-    public IrisPosition(Vector v) {
-        this(v.getBlockX(), v.getBlockY(), v.getBlockZ());
-    }
-
     public IrisPosition(double x, double y, double z) {
         this((int) x, (int) y, (int) z);
     }
@@ -70,10 +54,6 @@ public class IrisPosition {
         return new IrisPosition(x - relativePosition.x, y - relativePosition.y, z - relativePosition.z);
     }
 
-    public Location toLocation(World world) {
-        return new Location(world, x, y, z);
-    }
-
     public IrisPosition copy() {
         return new IrisPosition(x, y, z);
     }
@@ -85,9 +65,5 @@ public class IrisPosition {
 
     public boolean isLongerThan(IrisPosition s, int maxLength) {
         return Math.abs(Math.pow(s.x - x, 2) + Math.pow(s.y - y, 2) + Math.pow(s.z - z, 2)) > maxLength * maxLength;
-    }
-
-    public Vector toVector() {
-        return new Vector(x, y, z);
     }
 }

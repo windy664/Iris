@@ -49,12 +49,10 @@ import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.matter.IrisMatter;
 import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.matter.MatterSlice;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.util.common.parallel.HyperLock;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 import lombok.*;
-import org.bukkit.World;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Entity;
 
 import java.io.File;
 import java.io.IOException;
@@ -230,19 +228,7 @@ public class IrisEngineMantle implements EngineMantle {
 
             @Override
             public Class<?> classifyValue(Object value) {
-                if (value instanceof World) {
-                    return World.class;
-                }
-
-                if (value instanceof BlockData) {
-                    return BlockData.class;
-                }
-
-                if (value instanceof Entity) {
-                    return Entity.class;
-                }
-
-                return value.getClass();
+                return BukkitPlatform.classifyMantleValue(value);
             }
 
             @Override

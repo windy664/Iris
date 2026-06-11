@@ -18,6 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Snippet;
@@ -387,7 +388,7 @@ public class IrisObjectRotation {
     }
 
     public IrisPosition rotate(IrisPosition b, int spinx, int spiny, int spinz) {
-        return new IrisPosition(rotate(new BlockVector(b.getX(), b.getY(), b.getZ()), spinx, spiny, spinz));
+        return BukkitPlatform.positionOf(rotate(new BlockVector(b.getX(), b.getY(), b.getZ()), spinx, spiny, spinz));
     }
 
     public BlockVector rotate(BlockVector b, int spinx, int spiny, int spinz) {

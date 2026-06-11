@@ -30,8 +30,8 @@ import art.arcane.iris.engine.object.IrisObjectRotation;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.JigsawJoint;
 import art.arcane.volmlib.util.collection.KList;
+import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.volmlib.util.math.RNG;
-import org.bukkit.util.BlockVector;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -126,23 +126,23 @@ public final class StructureAssembler {
                 IrisDirection needed = c.facing.reverse();
                 for (int yDeg : rotationCandidates(cb.getJoint(), rng)) {
                     IrisObjectRotation rot = IrisObjectRotation.of(0, yDeg, 0);
-                    IrisDirection rotatedFace = rotateDirection(rot, cb.getDirection());
+                    IrisDirection rotatedFace = rot.rotate(cb.getDirection());
                     if (rotatedFace != needed) {
                         continue;
                     }
 
-                    BlockVector centerB = centerOf(object);
-                    BlockVector crB = new BlockVector(
-                            cb.getPosition().getX() - centerB.getBlockX(),
-                            cb.getPosition().getY() - centerB.getBlockY(),
-                            cb.getPosition().getZ() - centerB.getBlockZ());
-                    BlockVector rcrB = rot.rotate(crB.clone(), 0, 0, 0);
+                    IrisPosition center = centerOf(object);
+                    IrisPosition cr = new IrisPosition(
+                            cb.getPosition().getX() - center.getX(),
+                            cb.getPosition().getY() - center.getY(),
+                            cb.getPosition().getZ() - center.getZ());
+                    IrisPosition rcr = rot.rotate(cr, 0, 0, 0);
                     int wcx = c.wx + c.facing.toVector().getBlockX();
                     int wcy = c.wy + c.facing.toVector().getBlockY();
                     int wcz = c.wz + c.facing.toVector().getBlockZ();
-                    int px = wcx - rcrB.getBlockX();
-                    int py = wcy - rcrB.getBlockY();
-                    int pz = wcz - rcrB.getBlockZ();
+                    int px = wcx - rcr.getX();
+                    int py = wcy - rcr.getY();
+                    int pz = wcz - rcr.getZ();
 
                     PlacedStructurePiece candidate = build(piece, object, px, py, pz, rot);
                     if (!withinRadius(candidate) || collides(placed, candidate)) {
@@ -158,30 +158,30 @@ public final class StructureAssembler {
     }
 
     private void enqueueConnectors(Deque<OpenConnector> open, PlacedStructurePiece p, IrisObject object, int depth, IrisJigsawConnector skip) {
-        BlockVector center = centerOf(object);
+        IrisPosition center = centerOf(object);
         for (IrisJigsawConnector con : p.getPiece().getConnectors()) {
             if (con == skip) {
                 continue;
             }
-            BlockVector cr = new BlockVector(
-                    con.getPosition().getX() - center.getBlockX(),
-                    con.getPosition().getY() - center.getBlockY(),
-                    con.getPosition().getZ() - center.getBlockZ());
-            BlockVector rcr = p.getRotation().rotate(cr.clone(), 0, 0, 0);
-            IrisDirection facing = rotateDirection(p.getRotation(), con.getDirection());
+            IrisPosition cr = new IrisPosition(
+                    con.getPosition().getX() - center.getX(),
+                    con.getPosition().getY() - center.getY(),
+                    con.getPosition().getZ() - center.getZ());
+            IrisPosition rcr = p.getRotation().rotate(cr, 0, 0, 0);
+            IrisDirection facing = p.getRotation().rotate(con.getDirection());
             open.add(new OpenConnector(
-                    p.getX() + rcr.getBlockX(),
-                    p.getY() + rcr.getBlockY(),
-                    p.getZ() + rcr.getBlockZ(),
+                    p.getX() + rcr.getX(),
+                    p.getY() + rcr.getY(),
+                    p.getZ() + rcr.getZ(),
                     facing, con.getPool(), con.getName(), con.getTargetName(), con.getJoint(), depth));
         }
     }
 
     private PlacedStructurePiece build(IrisJigsawPiece piece, IrisObject object, int x, int y, int z, IrisObjectRotation rot) {
-        BlockVector rotated = rot.rotate(new BlockVector(object.getW(), object.getH(), object.getD()), 0, 0, 0);
-        int rw = Math.abs(rotated.getBlockX());
-        int rh = Math.abs(rotated.getBlockY());
-        int rd = Math.abs(rotated.getBlockZ());
+        IrisPosition rotated = rot.rotate(new IrisPosition(object.getW(), object.getH(), object.getD()), 0, 0, 0);
+        int rw = Math.abs(rotated.getX());
+        int rh = Math.abs(rotated.getY());
+        int rd = Math.abs(rotated.getZ());
         int hx = rw / 2;
         int hy = rh / 2;
         int hz = rd / 2;
@@ -217,14 +217,8 @@ public final class StructureAssembler {
         return shuffled;
     }
 
-    private IrisDirection rotateDirection(IrisObjectRotation rot, IrisDirection direction) {
-        BlockVector v = direction.toVector().toBlockVector();
-        BlockVector r = rot.rotate(v.clone(), 0, 0, 0);
-        return IrisDirection.getDirection(r);
-    }
-
-    private BlockVector centerOf(IrisObject object) {
-        return new BlockVector(object.getW() / 2, object.getH() / 2, object.getD() / 2);
+    private IrisPosition centerOf(IrisObject object) {
+        return new IrisPosition(object.getW() / 2, object.getH() / 2, object.getD() / 2);
     }
 
     private IrisJigsawPiece pickPiece(IrisJigsawPool pool, RNG rng) {

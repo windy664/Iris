@@ -23,7 +23,6 @@ import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
-import org.bukkit.block.data.BlockData;
 
 public interface EngineDecorator extends EngineComponent {
 
@@ -41,6 +40,6 @@ public interface EngineDecorator extends EngineComponent {
             return false;
         }
 
-        return B.canPlaceOnto(((BlockData) decorant.nativeHandle()).getMaterial(), ((BlockData) atop.nativeHandle()).getMaterial());
+        return B.canPlaceOnto(decorant, atop);
     }
 }

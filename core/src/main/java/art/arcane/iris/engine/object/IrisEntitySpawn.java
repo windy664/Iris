@@ -18,6 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.data.cache.AtomicCache;
@@ -82,7 +83,7 @@ public class IrisEntitySpawn implements IRare {
                             yield new Location(c.getWorld(), x, h + 1, z);
                         }
                         yield gen.getMantle().findMarkers(c.getX(), c.getZ(), MarkerMatter.CAVE_FLOOR)
-                                .convert((i) -> i.toLocation(c.getWorld()).add(0, 1, 0)).getRandom(rng);
+                                .convert((i) -> BukkitPlatform.toLocation(i, c.getWorld()).add(0, 1, 0)).getRandom(rng);
                     }
                     case UNDERWATER, BEACH -> new Location(c.getWorld(), x, rng.i(h + 1, hf), z);
                 };
@@ -126,7 +127,7 @@ public class IrisEntitySpawn implements IRare {
             }
 
             for (int id = 0; id < spawns; id++) {
-                Location l = c.toLocation(world).add(0, 1, 0);
+                Location l = BukkitPlatform.toLocation(c, world).add(0, 1, 0);
 
                 if (referenceSpawner.getAllowedLightLevels().getMin() > 0 || referenceSpawner.getAllowedLightLevels().getMax() < 15) {
                     if (referenceSpawner.getAllowedLightLevels().contains(l.getBlock().getLightLevel())) {

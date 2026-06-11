@@ -20,6 +20,7 @@ package art.arcane.iris.platform.bukkit;
 
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.nms.INMS;
+import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.iris.spi.IrisPlatform;
 import art.arcane.iris.spi.LogLevel;
 import art.arcane.iris.spi.PlatformCapabilities;
@@ -27,6 +28,12 @@ import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
 import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Entity;
+import org.bukkit.event.Listener;
+import org.bukkit.util.Vector;
 
 import java.io.File;
 
@@ -37,6 +44,40 @@ public final class BukkitPlatform implements IrisPlatform {
     private final BukkitRegistries registries = new BukkitRegistries();
     private final BukkitScheduler scheduler = new BukkitScheduler();
     private final PlatformCapabilities capabilities = new BukkitCapabilities();
+
+    public static Class<?> classifyMantleValue(Object value) {
+        if (value instanceof World) {
+            return World.class;
+        }
+
+        if (value instanceof BlockData) {
+            return BlockData.class;
+        }
+
+        if (value instanceof Entity) {
+            return Entity.class;
+        }
+
+        return value.getClass();
+    }
+
+    public static void unregisterListener(Object candidate) {
+        if (candidate instanceof Listener listener) {
+            Iris.instance.unregisterListener(listener);
+        }
+    }
+
+    public static IrisPosition positionOf(Location location) {
+        return new IrisPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
+
+    public static IrisPosition positionOf(Vector vector) {
+        return new IrisPosition(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ());
+    }
+
+    public static Location toLocation(IrisPosition position, World world) {
+        return new Location(world, position.getX(), position.getY(), position.getZ());
+    }
 
     @Override
     public String platformName() {

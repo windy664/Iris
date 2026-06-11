@@ -148,6 +148,10 @@ public class B {
         return BASE.canPlaceOnto(mat, onto);
     }
 
+    public static boolean canPlaceOnto(art.arcane.iris.spi.PlatformBlockState mat, art.arcane.iris.spi.PlatformBlockState onto) {
+        return BASE.canPlaceOnto(((BlockData) mat.nativeHandle()).getMaterial(), ((BlockData) onto.nativeHandle()).getMaterial());
+    }
+
     public static boolean isFoliagePlantable(BlockData d) {
         return BASE.isFoliagePlantable(d);
     }
@@ -239,6 +243,10 @@ public class B {
 
     public static boolean isAirOrFluid(BlockData d) {
         return BASE.isAirOrFluid(d);
+    }
+
+    public static boolean isAirOrFluid(art.arcane.iris.spi.PlatformBlockState state) {
+        return BASE.isAirOrFluid((BlockData) state.nativeHandle());
     }
 
     public static boolean isAir(BlockData d) {

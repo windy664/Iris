@@ -18,6 +18,7 @@
 
 package art.arcane.iris.util.common.math;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.volmlib.util.math.AlignedPoint;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.volmlib.util.data.Cuboid;
@@ -87,6 +88,6 @@ public class AxisAlignedBB {
     }
 
     public Cuboid toCuboid(World world) {
-        return new Cuboid(min().toLocation(world), max().toLocation(world));
+        return new Cuboid(BukkitPlatform.toLocation(min(), world), BukkitPlatform.toLocation(max(), world));
     }
 }

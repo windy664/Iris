@@ -32,7 +32,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.bukkit.World;
 
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
@@ -91,13 +90,12 @@ public class IrisSpawner extends IrisRegistrant {
         };
     }
 
-    public boolean isValid(World world) {
-        PlatformWorld platformWorld = new BukkitWorld(world);
-        return timeBlock.isWithin(platformWorld) && weather.is(platformWorld);
+    public boolean isValid(PlatformWorld world) {
+        return timeBlock.isWithin(world) && weather.is(world);
     }
 
     public boolean canSpawn(Engine engine) {
-        if (!isValid(engine.getWorld().realWorld()))
+        if (!isValid(new BukkitWorld(engine.getWorld().realWorld())))
             return false;
 
         var rate = getMaximumRate();

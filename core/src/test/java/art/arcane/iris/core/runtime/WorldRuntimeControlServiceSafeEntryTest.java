@@ -1,5 +1,6 @@
 package art.arcane.iris.core.runtime;
 
+import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
@@ -18,7 +19,7 @@ public class WorldRuntimeControlServiceSafeEntryTest {
     @Test
     public void resolvesStudioEntryAnchorFromGeneratorInsteadOfMutableWorldSpawn() {
         World world = mock(World.class);
-        PlatformChunkGenerator provider = mock(PlatformChunkGenerator.class);
+        BukkitChunkGenerator provider = mock(BukkitChunkGenerator.class);
         Location initialSpawn = new Location(world, 0.5D, 96D, 0.5D);
         Location mutableWorldSpawn = new Location(world, 128.5D, 80D, -64.5D);
 

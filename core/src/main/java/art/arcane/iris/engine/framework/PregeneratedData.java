@@ -24,7 +24,6 @@ import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.hunk.Hunk;
 import lombok.Data;
-import org.bukkit.block.data.BlockData;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -56,7 +55,7 @@ public class PregeneratedData {
         });
 
         if (postMod.get()) {
-            return () -> Hunk.view(tc).insertSoftly(0, 0, 0, post, (b) -> b == null || B.isAirOrFluid((BlockData) b.nativeHandle()));
+            return () -> Hunk.view(tc).insertSoftly(0, 0, 0, post, (b) -> b == null || B.isAirOrFluid(b));
         }
 
         return () -> {

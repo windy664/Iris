@@ -38,7 +38,8 @@ import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.*;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.object.*;
-import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.util.common.data.B;
+import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.atomics.AtomicRollingSequence;
@@ -60,9 +61,6 @@ import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.command.CommandSender;
 
 import java.io.File;
 import java.io.IOException;
@@ -515,7 +513,7 @@ public class IrisEngine implements Engine {
         return buds.get();
     }
 
-    public void printMetrics(CommandSender sender) {
+    public void printMetrics(VolmitSender sender) {
         KMap<String, Double> totals = new KMap<>();
         KMap<String, Double> weights = new KMap<>();
         double masterWallClock = wallClock.getAverage();
@@ -665,9 +663,10 @@ public class IrisEngine implements Engine {
             Hunk<PlatformBlockState> blocks = vblocks.listen((xx, y, zz, t) -> catchBlockUpdates(x + xx, y, z + zz, t));
 
             if (getDimension().isDebugChunkCrossSections() && ((x >> 4) % getDimension().getDebugCrossSectionsMod() == 0 || (z >> 4) % getDimension().getDebugCrossSectionsMod() == 0)) {
+                PlatformBlockState crossSection = B.getState("CRYING_OBSIDIAN");
                 for (int i = 0; i < 16; i++) {
                     for (int j = 0; j < 16; j++) {
-                        blocks.set(i, 0, j, BukkitBlockState.of(Material.CRYING_OBSIDIAN.createBlockData()));
+                        blocks.set(i, 0, j, crossSection);
                     }
                 }
             } else {
@@ -675,8 +674,7 @@ public class IrisEngine implements Engine {
                 activeMode.generate(x, z, blocks, vbiomes, multicore);
             }
 
-            World realWorld = getWorld().realWorld();
-            boolean skipRealFlag = J.isFolia() && realWorld != null && IrisToolbelt.isWorldMaintenanceBypassingMantleStages(realWorld);
+            boolean skipRealFlag = J.isFolia() && getWorld().hasRealWorld() && IrisToolbelt.isWorldMaintenanceBypassingMantleStages(getWorld().realWorld());
             if (!skipRealFlag) {
                 getMantle().getMantle().flag(x >> 4, z >> 4, MantleFlag.REAL, true);
             }

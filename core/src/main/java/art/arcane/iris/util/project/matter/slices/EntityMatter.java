@@ -18,6 +18,7 @@
 
 package art.arcane.iris.util.project.matter.slices;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.volmlib.util.collection.KList;
@@ -111,7 +112,7 @@ public class EntityMatter extends RawMatter<MatterEntityGroup> {
         entityCache = new KMap<>();
 
         for (Entity i : ((World) w).getNearbyEntities(new BoundingBox(x, y, z, x + getWidth(), y + getHeight(), z + getHeight()))) {
-            entityCache.computeIfAbsent(new IrisPosition(i.getLocation()),
+            entityCache.computeIfAbsent(BukkitPlatform.positionOf(i.getLocation()),
                     k -> new KList<>()).add(i);
         }
 

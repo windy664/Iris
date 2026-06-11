@@ -1,5 +1,6 @@
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.engine.framework.Engine;
 import org.bukkit.block.data.BlockData;
 import art.arcane.iris.engine.object.annotations.*;
@@ -45,7 +46,7 @@ public class IrisCaveShape {
             var rotated = new KSet<IrisPosition>();
             engine.getData().getObjectLoader().load(object).getBlocks().forEach((vector, data) -> {
                 if (((BlockData) data.nativeHandle()).getMaterial().isAir()) return;
-                rotated.add(new IrisPosition(objectRotation.rotate(vector, pos.getX(), pos.getY(), pos.getZ())));
+                rotated.add(BukkitPlatform.positionOf(objectRotation.rotate(vector, pos.getX(), pos.getY(), pos.getZ())));
             });
             return rotated;
         });

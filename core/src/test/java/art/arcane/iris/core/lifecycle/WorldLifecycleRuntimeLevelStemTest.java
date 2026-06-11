@@ -5,7 +5,6 @@ import art.arcane.iris.core.nms.INMSBinding;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineTarget;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
-import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.generator.ChunkGenerator;
 import org.junit.Test;
@@ -115,17 +114,8 @@ public class WorldLifecycleRuntimeLevelStemTest {
         }
 
         @Override
-        public void touch(World world) {
-        }
-
-        @Override
         public CompletableFuture<Integer> getSpawnChunks() {
             return CompletableFuture.completedFuture(0);
-        }
-
-        @Override
-        public Location getInitialSpawnLocation(World world) {
-            return null;
         }
 
         @Override

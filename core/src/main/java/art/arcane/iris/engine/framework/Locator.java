@@ -18,41 +18,25 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.nms.container.BlockPos;
 import art.arcane.iris.core.nms.container.Pair;
-import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.util.project.context.IrisContext;
 import art.arcane.iris.util.project.context.ChunkContext;
-import art.arcane.iris.util.common.format.C;
-import art.arcane.volmlib.util.format.Form;
-import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.Spiraler;
 import art.arcane.volmlib.util.matter.MatterCavern;
 import art.arcane.iris.util.common.parallel.BurstExecutor;
 import art.arcane.iris.util.common.parallel.MultiBurst;
-import art.arcane.iris.util.common.plugin.VolmitSender;
-import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
-import art.arcane.iris.util.common.scheduling.jobs.SingleJob;
-import io.papermc.lib.PaperLib;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
 
-import java.lang.reflect.Method;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -117,64 +101,6 @@ public interface Locator<T> {
 
     boolean matches(Engine engine, Position2 chunk);
 
-    default void find(Player player, boolean teleport, String message) {
-        find(player, 120_000, location -> {
-            if (location == null) {
-                player.sendMessage(C.RED + "Could not find " + message + " within search range.");
-                return;
-            }
-            if (teleport) {
-                J.runEntity(player, () -> teleportAsyncSafely(player, location));
-                player.sendMessage(C.GREEN + "Teleporting to " + message + "...");
-            } else {
-                player.sendMessage(C.GREEN + message + " at: " + location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ());
-            }
-        });
-    }
-
-    default void find(Player player, Consumer<Location> consumer) {
-        find(player, 120_000, consumer);
-    }
-
-    default void find(Player player, long timeout, Consumer<Location> consumer) {
-        AtomicLong checks = new AtomicLong();
-        long ms = M.ms();
-        new SingleJob("Searching", () -> {
-            try {
-                World world = player.getWorld();
-                Engine engine = IrisToolbelt.access(world).getEngine();
-                Position2 at = find(engine, new Position2(player.getLocation().getBlockX() >> 4, player.getLocation().getBlockZ() >> 4), timeout, checks::set).get();
-
-                if (at != null) {
-                    int bx = (at.getX() << 4) + 8;
-                    int bz = (at.getZ() << 4) + 8;
-                    consumer.accept(new Location(world, bx,
-                            world.getHighestBlockYAt(bx, bz) + 2,
-                            bz));
-                } else {
-                    consumer.accept(null);
-                }
-            } catch (WrongEngineBroException | InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        }) {
-            @Override
-            public String getName() {
-                return "Searched " + Form.f(checks.get()) + " Chunks";
-            }
-
-            @Override
-            public int getTotalWork() {
-                return (int) timeout;
-            }
-
-            @Override
-            public int getWorkCompleted() {
-                return (int) Math.min(M.ms() - ms, timeout - 1);
-            }
-        }.execute(new VolmitSender(player));
-    }
-
     default Future<Position2> find(Engine engine, Position2 pos, long timeout, Consumer<Integer> checks) throws WrongEngineBroException {
         if (engine.isClosed()) {
             throw new WrongEngineBroException();
@@ -225,40 +151,5 @@ public interface Locator<T> {
 
             return null;
         });
-    }
-
-    static void teleportAsyncSafely(Player player, Location location) {
-        if (player == null || location == null) {
-            return;
-        }
-
-        if (invokeNativeTeleportAsync(player, location)) {
-            return;
-        }
-
-        try {
-            CompletableFuture<Boolean> teleportFuture = PaperLib.teleportAsync(player, location);
-            if (teleportFuture != null) {
-                teleportFuture.exceptionally(throwable -> {
-                    Iris.reportError(throwable);
-                    return false;
-                });
-            }
-        } catch (Throwable throwable) {
-            Iris.reportError(throwable);
-        }
-    }
-
-    static boolean invokeNativeTeleportAsync(Player player, Location location) {
-        try {
-            Method teleportAsyncMethod = player.getClass().getMethod("teleportAsync", Location.class);
-            teleportAsyncMethod.invoke(player, location);
-            return true;
-        } catch (NoSuchMethodException ignored) {
-            return false;
-        } catch (Throwable throwable) {
-            Iris.reportError(throwable);
-            return false;
-        }
     }
 }
