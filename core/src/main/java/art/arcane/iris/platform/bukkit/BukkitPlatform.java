@@ -69,6 +69,11 @@ public final class BukkitPlatform implements IrisPlatform {
     }
 
     @Override
+    public void dispatchConsoleCommand(String command) {
+        Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
+    }
+
+    @Override
     public void log(LogLevel level, String message) {
         switch (level) {
             case DEBUG -> Iris.debug(message);

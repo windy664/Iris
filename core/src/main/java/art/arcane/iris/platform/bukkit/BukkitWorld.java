@@ -75,6 +75,21 @@ public final class BukkitWorld implements PlatformWorld {
     }
 
     @Override
+    public long getTime() {
+        return world.getTime();
+    }
+
+    @Override
+    public boolean isStorming() {
+        return world.hasStorm();
+    }
+
+    @Override
+    public boolean isThundering() {
+        return world.isThundering();
+    }
+
+    @Override
     public Object nativeHandle() {
         return world;
     }

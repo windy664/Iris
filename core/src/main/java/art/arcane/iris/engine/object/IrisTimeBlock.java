@@ -20,8 +20,8 @@ package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Snippet;
+import art.arcane.iris.spi.PlatformWorld;
 import lombok.Data;
-import org.bukkit.World;
 
 @Snippet("time-block")
 @Data
@@ -33,7 +33,7 @@ public class IrisTimeBlock {
     @Desc("The ending hour. Set both to the same number for any time. If they are both set to -1, it will always be not allowed.")
     private double endHour = 0;
 
-    public boolean isWithin(World world) {
+    public boolean isWithin(PlatformWorld world) {
         return isWithin(((world.getTime() / 1000D) + 6) % 24);
     }
 

@@ -22,6 +22,8 @@ import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.ArrayType;
 import art.arcane.iris.engine.object.annotations.Desc;
+import art.arcane.iris.platform.bukkit.BukkitWorld;
+import art.arcane.iris.spi.PlatformWorld;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.iris.util.common.plugin.VolmitSender;
@@ -90,7 +92,8 @@ public class IrisSpawner extends IrisRegistrant {
     }
 
     public boolean isValid(World world) {
-        return timeBlock.isWithin(world) && weather.is(world);
+        PlatformWorld platformWorld = new BukkitWorld(world);
+        return timeBlock.isWithin(platformWorld) && weather.is(platformWorld);
     }
 
     public boolean canSpawn(Engine engine) {

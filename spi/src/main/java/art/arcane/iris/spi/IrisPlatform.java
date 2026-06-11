@@ -36,5 +36,7 @@ public interface IrisPlatform {
 
     File dataFolder();
 
+    void dispatchConsoleCommand(String command);
+
     void log(LogLevel level, String message);
 }

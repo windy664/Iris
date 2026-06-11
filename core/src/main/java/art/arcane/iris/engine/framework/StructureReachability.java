@@ -20,8 +20,8 @@ package art.arcane.iris.engine.framework;
 
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
+import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.volmlib.util.collection.KList;
-import org.bukkit.World;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -79,12 +79,12 @@ public final class StructureReachability {
     }
 
     private static Set<String> build(Engine engine) {
-        World world = engine.getWorld() == null ? null : engine.getWorld().realWorld();
-        if (world == null) {
+        IrisWorld world = engine.getWorld();
+        if (world == null || world.realWorld() == null) {
             return Collections.emptySet();
         }
         Set<String> reachable = new LinkedHashSet<>();
-        for (String key : INMS.get().getReachableStructureKeys(world)) {
+        for (String key : INMS.get().getReachableStructureKeys(world.realWorld())) {
             if (key != null && !key.isEmpty()) {
                 reachable.add(key.toLowerCase());
             }
@@ -102,12 +102,12 @@ public final class StructureReachability {
         if (engine == null || structureKey == null || structureKey.isEmpty()) {
             return missing;
         }
-        World world = engine.getWorld() == null ? null : engine.getWorld().realWorld();
-        if (world == null) {
+        IrisWorld world = engine.getWorld();
+        if (world == null || world.realWorld() == null) {
             return missing;
         }
         Set<String> possible = new LinkedHashSet<>();
-        for (String key : INMS.get().getPossibleBiomeKeys(world)) {
+        for (String key : INMS.get().getPossibleBiomeKeys(world.realWorld())) {
             if (key != null) {
                 possible.add(key.toLowerCase());
             }

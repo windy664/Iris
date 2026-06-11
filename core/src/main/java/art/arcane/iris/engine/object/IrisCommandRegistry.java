@@ -19,6 +19,8 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.platform.bukkit.BukkitWorld;
+import art.arcane.iris.spi.PlatformWorld;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
 import lombok.Data;
@@ -67,12 +69,13 @@ public class IrisCommandRegistry {
 
     public void run(Player p) {
         if (rawCommands.isNotEmpty()) {
+            PlatformWorld world = new BukkitWorld(p.getWorld());
             Location part = p.getLocation().clone().add(
                     commandRandomAltX ? RNG.r.d(-commandOffsetX, commandOffsetX) : commandOffsetX,
                     commandRandomAltY ? RNG.r.d(-commandOffsetY, commandOffsetY) : commandOffsetY,
                     commandRandomAltZ ? RNG.r.d(-commandOffsetZ, commandOffsetZ) : commandOffsetZ);
             for (IrisCommand rawCommand : rawCommands) {
-                rawCommand.run(part);
+                rawCommand.run(world, part.getBlockX(), part.getBlockY(), part.getBlockZ());
                 if (commandAllRandomLocations) {
                     part = p.getLocation().clone().add(
                             commandRandomAltX ? RNG.r.d(-commandOffsetX, commandOffsetX) : commandOffsetX,

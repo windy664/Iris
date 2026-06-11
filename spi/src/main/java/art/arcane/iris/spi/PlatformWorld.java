@@ -38,5 +38,11 @@ public interface PlatformWorld {
 
     boolean isChunkLoaded(int chunkX, int chunkZ);
 
+    long getTime();
+
+    boolean isStorming();
+
+    boolean isThundering();
+
     Object nativeHandle();
 }

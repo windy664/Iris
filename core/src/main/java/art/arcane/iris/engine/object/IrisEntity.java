@@ -26,6 +26,8 @@ import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.platform.bukkit.BukkitWorld;
+import art.arcane.iris.spi.PlatformWorld;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.json.JSONObject;
@@ -338,7 +340,8 @@ public class IrisEntity extends IrisRegistrant {
 
         if (rawCommands.isNotEmpty()) {
             final Location fat = at;
-            rawCommands.forEach(r -> r.run(fat));
+            final PlatformWorld commandWorld = new BukkitWorld(fat.getWorld());
+            rawCommands.forEach(r -> r.run(commandWorld, fat.getBlockX(), fat.getBlockY(), fat.getBlockZ()));
         }
 
         Location finalAt1 = at;

@@ -19,7 +19,7 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.engine.object.annotations.Desc;
-import org.bukkit.World;
+import art.arcane.iris.spi.PlatformWorld;
 
 @Desc("Represents a weather type")
 public enum IrisWeather {
@@ -35,11 +35,11 @@ public enum IrisWeather {
     @Desc("Any weather")
     ANY;
 
-    public boolean is(World world) {
+    public boolean is(PlatformWorld world) {
         return switch (this) {
-            case NONE -> world.isClearWeather();
-            case DOWNFALL -> world.hasStorm();
-            case DOWNFALL_WITH_THUNDER -> world.hasStorm() && world.isThundering();
+            case NONE -> !world.isStorming() && !world.isThundering();
+            case DOWNFALL -> world.isStorming();
+            case DOWNFALL_WITH_THUNDER -> world.isStorming() && world.isThundering();
             case ANY -> true;
         };
     }
