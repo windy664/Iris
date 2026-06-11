@@ -547,6 +547,23 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         instance = this;
         BukkitPlatform.hostPlugin(this);
         BukkitPlatform.hostConsoleSender(Iris::getSender);
+        BukkitPlatform.hostBridge(new BukkitPlatform.HostBridge(
+                (level, message) -> {
+                    switch (level) {
+                        case DEBUG -> Iris.debug(message);
+                        case INFO -> Iris.info(message);
+                        case WARN -> Iris.warn(message);
+                        case ERROR -> Iris.error(message);
+                    }
+                },
+                Iris::msg,
+                Iris::reportError,
+                (event) -> Iris.callEvent((org.bukkit.event.Event) event),
+                () -> Iris.instance.getDataFolder(),
+                (path) -> Iris.instance.getDataFile(path),
+                () -> Iris.instance.getJarFile(),
+                () -> Iris.instance.getIrisVersion(),
+                () -> Iris.instance.getMCVersion()));
         SlimJar.load();
     }
 

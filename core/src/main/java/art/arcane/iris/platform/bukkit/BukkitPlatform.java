@@ -18,7 +18,6 @@
 
 package art.arcane.iris.platform.bukkit;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.iris.spi.IrisPlatform;
@@ -44,7 +43,6 @@ import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.event.Event;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
@@ -61,6 +59,31 @@ public final class BukkitPlatform implements IrisPlatform {
     private static volatile Plugin PLUGIN;
     private static volatile Bindings.Adventure AUDIENCES;
     private static volatile Supplier<VolmitSender> CONSOLE;
+    private static volatile HostBridge BRIDGE;
+
+    public record HostBridge(
+            java.util.function.BiConsumer<LogLevel, String> logSink,
+            java.util.function.Consumer<String> msgSink,
+            java.util.function.Consumer<Throwable> errorSink,
+            java.util.function.Consumer<Object> eventSink,
+            Supplier<File> dataFolder,
+            java.util.function.Function<String[], File> dataFile,
+            Supplier<File> pluginJar,
+            java.util.function.IntSupplier irisVersion,
+            java.util.function.IntSupplier minecraftVersion) {
+    }
+
+    public static void hostBridge(HostBridge bridge) {
+        BRIDGE = bridge;
+    }
+
+    private static HostBridge bridge() {
+        HostBridge bridge = BRIDGE;
+        if (bridge == null) {
+            throw new IllegalStateException("No Iris host bridge is hosted");
+        }
+        return bridge;
+    }
 
     private final BukkitRegistries registries = new BukkitRegistries();
     private final BukkitScheduler scheduler = new BukkitScheduler();
@@ -142,7 +165,7 @@ public final class BukkitPlatform implements IrisPlatform {
 
     public static void unregisterListener(Object candidate) {
         if (candidate instanceof Listener listener) {
-            Iris.instance.unregisterListener(listener);
+            volmitPlugin().unregisterListener(listener);
         }
     }
 
@@ -223,32 +246,32 @@ public final class BukkitPlatform implements IrisPlatform {
 
     @Override
     public File dataFolder() {
-        return Iris.instance.getDataFolder();
+        return bridge().dataFolder().get();
     }
 
     @Override
     public File dataFile(String... path) {
-        return Iris.instance.getDataFile(path);
+        return bridge().dataFile().apply(path);
     }
 
     @Override
     public File pluginJar() {
-        return Iris.instance.getJarFile();
+        return bridge().pluginJar().get();
     }
 
     @Override
     public int irisVersionNumber() {
-        return Iris.instance.getIrisVersion();
+        return bridge().irisVersion().getAsInt();
     }
 
     @Override
     public int minecraftVersionNumber() {
-        return Iris.instance.getMCVersion();
+        return bridge().minecraftVersion().getAsInt();
     }
 
     @Override
     public void callEvent(Object event) {
-        Iris.callEvent((Event) event);
+        bridge().eventSink().accept(event);
     }
 
     @Override
@@ -258,22 +281,17 @@ public final class BukkitPlatform implements IrisPlatform {
 
     @Override
     public void log(LogLevel level, String message) {
-        switch (level) {
-            case DEBUG -> Iris.debug(message);
-            case INFO -> Iris.info(message);
-            case WARN -> Iris.warn(message);
-            case ERROR -> Iris.error(message);
-        }
+        bridge().logSink().accept(level, message);
     }
 
     @Override
     public void msg(String message) {
-        Iris.msg(message);
+        bridge().msgSink().accept(message);
     }
 
     @Override
     public void reportError(Throwable error) {
-        Iris.reportError(error);
+        bridge().errorSink().accept(error);
     }
 
     private static final class BukkitCapabilities implements PlatformCapabilities {
