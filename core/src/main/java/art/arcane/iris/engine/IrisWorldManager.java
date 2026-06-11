@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.gui.PregeneratorJob;
 import art.arcane.iris.core.loader.IrisData;
@@ -771,7 +770,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                         chunkFuture.get();
                     } catch (InterruptedException ex) {
                         Thread.currentThread().interrupt();
-                        Iris.verbose("Chunk warmup interrupted while loading async teleport chunk.");
+                        IrisLogging.debug("Chunk warmup interrupted while loading async teleport chunk.");
                     } catch (ExecutionException ex) {
                         IrisLogging.reportError(ex);
                     }

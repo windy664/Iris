@@ -41,6 +41,7 @@ import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.event.Event;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
@@ -169,6 +170,31 @@ public final class BukkitPlatform implements IrisPlatform {
     }
 
     @Override
+    public File dataFile(String... path) {
+        return Iris.instance.getDataFile(path);
+    }
+
+    @Override
+    public File pluginJar() {
+        return Iris.instance.getJarFile();
+    }
+
+    @Override
+    public int irisVersionNumber() {
+        return Iris.instance.getIrisVersion();
+    }
+
+    @Override
+    public int minecraftVersionNumber() {
+        return Iris.instance.getMCVersion();
+    }
+
+    @Override
+    public void callEvent(Object event) {
+        Iris.callEvent((Event) event);
+    }
+
+    @Override
     public void dispatchConsoleCommand(String command) {
         Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
     }
@@ -181,6 +207,11 @@ public final class BukkitPlatform implements IrisPlatform {
             case WARN -> Iris.warn(message);
             case ERROR -> Iris.error(message);
         }
+    }
+
+    @Override
+    public void msg(String message) {
+        Iris.msg(message);
     }
 
     @Override

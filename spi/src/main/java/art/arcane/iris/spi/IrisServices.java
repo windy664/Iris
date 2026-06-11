@@ -18,43 +18,27 @@
 
 package art.arcane.iris.spi;
 
-import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Root platform service provided by each adapter; the single entry point core uses to reach the host platform.
- */
-public interface IrisPlatform {
-    String platformName();
+public final class IrisServices {
+    private static final ConcurrentHashMap<Class<?>, Object> SERVICES = new ConcurrentHashMap<>();
 
-    String minecraftVersion();
+    private IrisServices() {
+    }
 
-    PlatformRegistries registries();
+    public static void register(Class<?> type, Object implementation) {
+        SERVICES.put(type, type.cast(implementation));
+    }
 
-    PlatformScheduler scheduler();
+    public static <T> T get(Class<T> type) {
+        Object implementation = SERVICES.get(type);
+        if (implementation == null) {
+            throw new IllegalStateException("No Iris service registered for " + type.getName());
+        }
+        return type.cast(implementation);
+    }
 
-    PlatformCapabilities capabilities();
-
-    PlatformStructureHooks structureHooks();
-
-    PlatformBiomeWriter biomeWriter();
-
-    File dataFolder();
-
-    File dataFile(String... path);
-
-    File pluginJar();
-
-    int irisVersionNumber();
-
-    int minecraftVersionNumber();
-
-    void callEvent(Object event);
-
-    void dispatchConsoleCommand(String command);
-
-    void log(LogLevel level, String message);
-
-    void msg(String message);
-
-    void reportError(Throwable error);
+    public static void clear() {
+        SERVICES.clear();
+    }
 }

@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.events.IrisLootEvent;
 import art.arcane.iris.core.gui.components.RenderType;
@@ -386,7 +386,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
             Runnable customTask = () -> {
                 chunk.iterate(Identifier.class, (x, y, z, v) -> {
-                    Iris.service(ExternalDataSVC.class).processUpdate(this, c.getBlock(x & 15, y + getWorld().minHeight(), z & 15), v);
+                    IrisServices.get(ExternalDataSVC.class).processUpdate(this, c.getBlock(x & 15, y + getWorld().minHeight(), z & 15), v);
                 });
             };
 

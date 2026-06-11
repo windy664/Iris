@@ -51,6 +51,7 @@ import art.arcane.iris.core.safeguard.IrisSafeguard;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -554,7 +555,10 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         services = new KMap<>();
         setupAudience();
         Bindings.setupSentry();
-        initialize("art.arcane.iris.core.service").forEach((i) -> services.put((Class<? extends IrisService>) i.getClass(), (IrisService) i));
+        initialize("art.arcane.iris.core.service").forEach((i) -> {
+            services.put((Class<? extends IrisService>) i.getClass(), (IrisService) i);
+            IrisServices.register(i.getClass(), i);
+        });
         IO.delete(new File("iris"));
         compat = IrisCompat.configured(getDataFile("compat.json"));
         ServerConfigurator.configure();
@@ -927,6 +931,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         if (services != null) {
             services.values().forEach(IrisService::onDisable);
         }
+        IrisServices.clear();
         if (configHotloadEngine != null) {
             configHotloadEngine.clear();
             configHotloadEngine = null;

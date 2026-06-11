@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Required;
@@ -60,7 +60,7 @@ public class IrisCompatabilityItemFilter {
                 return null;
             }
 
-            Iris.verbose("Compat: Using " + supplement + " in place of " + when + " since this server doesnt support '" + supplement + "'");
+            IrisLogging.debug("Compat: Using " + supplement + " in place of " + when + " since this server doesnt support '" + supplement + "'");
 
             return b;
         });

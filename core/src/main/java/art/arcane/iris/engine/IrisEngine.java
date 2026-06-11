@@ -21,7 +21,8 @@ package art.arcane.iris.engine;
 import art.arcane.iris.spi.IrisLogging;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
@@ -391,7 +392,7 @@ public class IrisEngine implements Engine {
     @Override
     public void hotload() {
         hotloadSilently();
-        Iris.callEvent(new IrisEngineHotloadEvent(this));
+        IrisPlatforms.get().callEvent(new IrisEngineHotloadEvent(this));
     }
 
     public void hotloadComplex() {
@@ -433,9 +434,9 @@ public class IrisEngine implements Engine {
 
             if (data == null) {
                 data = new IrisEngineData();
-                data.getStatistics().setVersion(Iris.instance.getIrisVersion());
-                data.getStatistics().setMCVersion(Iris.instance.getMCVersion());
-                data.getStatistics().setUpgradedVersion(Iris.instance.getIrisVersion());
+                data.getStatistics().setVersion(IrisPlatforms.get().irisVersionNumber());
+                data.getStatistics().setMCVersion(IrisPlatforms.get().minecraftVersionNumber());
+                data.getStatistics().setUpgradedVersion(IrisPlatforms.get().irisVersionNumber());
                 if (data.getStatistics().getVersion() == -1 || data.getStatistics().getMCVersion() == -1 ) {
                     IrisLogging.error("Failed to setup Engine Data!");
                 }
@@ -601,7 +602,7 @@ public class IrisEngine implements Engine {
         worldManager = null;
         getData().dump();
         getData().clearLists();
-        Iris.service(PreservationSVC.class).dereference();
+        IrisServices.get(PreservationSVC.class).dereference();
         IrisLogging.debug("Engine Fully Shutdown!");
     }
 
@@ -756,8 +757,8 @@ public class IrisEngine implements Engine {
         // Todo: this has potential if done right
         int EngineMCVersion = getEngineData().getStatistics().getMCVersion();
         int EngineIrisVersion = getEngineData().getStatistics().getVersion();
-        int MinecraftVersion = Iris.instance.getMCVersion();
-        int IrisVersion = Iris.instance.getIrisVersion();
+        int MinecraftVersion = IrisPlatforms.get().minecraftVersionNumber();
+        int IrisVersion = IrisPlatforms.get().irisVersionNumber();
         if (EngineIrisVersion != IrisVersion) {
             return false;
         }

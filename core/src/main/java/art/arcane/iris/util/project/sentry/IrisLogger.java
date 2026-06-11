@@ -1,6 +1,6 @@
 package art.arcane.iris.util.project.sentry;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import io.sentry.ILogger;
 import io.sentry.SentryLevel;
 import org.jetbrains.annotations.NotNull;
@@ -12,7 +12,7 @@ import java.io.StringWriter;
 public class IrisLogger implements ILogger {
     @Override
     public void log(@NotNull SentryLevel level, @NotNull String message, @Nullable Object... args) {
-        Iris.msg(String.format("%s: %s", level, String.format(message, args)));
+        IrisLogging.msg(String.format("%s: %s", level, String.format(message, args)));
     }
 
     @Override
@@ -20,7 +20,7 @@ public class IrisLogger implements ILogger {
         if (throwable == null) {
             log(level, message);
         } else {
-            Iris.msg(String.format("%s: %s\n%s", level, String.format(message, throwable), captureStackTrace(throwable)));
+            IrisLogging.msg(String.format("%s: %s\n%s", level, String.format(message, throwable), captureStackTrace(throwable)));
         }
     }
 
@@ -29,7 +29,7 @@ public class IrisLogger implements ILogger {
         if (throwable == null) {
             log(level, message, args);
         } else {
-            Iris.msg(String.format("%s: %s\n%s", level, String.format(message, throwable), captureStackTrace(throwable)));
+            IrisLogging.msg(String.format("%s: %s\n%s", level, String.format(message, throwable), captureStackTrace(throwable)));
         }
     }
 

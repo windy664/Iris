@@ -40,6 +40,15 @@ public final class IrisLogging {
         emit(LogLevel.ERROR, safeFormat(format, args));
     }
 
+    public static void msg(String message) {
+        if (IrisPlatforms.isBound()) {
+            IrisPlatforms.get().msg(message);
+            return;
+        }
+
+        System.out.println("[Iris] " + message);
+    }
+
     public static void reportError(Throwable error) {
         if (IrisPlatforms.isBound()) {
             IrisPlatforms.get().reportError(error);

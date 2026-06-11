@@ -1,6 +1,6 @@
 package art.arcane.iris.util.project.context;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.framework.EngineMetrics;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -98,7 +98,7 @@ public class ChunkContext {
     }
 
     static boolean shouldPrefillAsync(int fillTaskCount) {
-        if (fillTaskCount <= 1 || Iris.instance == null) {
+        if (fillTaskCount <= 1 || !IrisPlatforms.isBound()) {
             return false;
         }
 

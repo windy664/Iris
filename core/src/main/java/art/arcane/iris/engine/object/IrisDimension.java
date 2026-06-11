@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator.DimensionHeight;
 import art.arcane.iris.core.loader.IrisData;
@@ -488,7 +487,7 @@ public class IrisDimension extends IrisRegistrant {
 
                 synchronized (biomes) {
                     if (!biomes.add(customBiomeId)) {
-                        Iris.verbose("Duplicate Data Pack Biome: " + getLoadKey() + "/" + customBiomeId);
+                        IrisLogging.debug("Duplicate Data Pack Biome: " + getLoadKey() + "/" + customBiomeId);
                         continue;
                     }
                 }
@@ -496,7 +495,7 @@ public class IrisDimension extends IrisRegistrant {
                 for (File datapacks : folders) {
                     File output = new File(datapacks, "iris/data/" + namespace + "/worldgen/biome/" + customBiomeId + ".json");
 
-                    Iris.verbose("    Installing Data Pack Biome: " + output.getPath());
+                    IrisLogging.debug("    Installing Data Pack Biome: " + output.getPath());
                     output.getParentFile().mkdirs();
                     try {
                         IO.writeAll(output, json);
@@ -556,7 +555,7 @@ public class IrisDimension extends IrisRegistrant {
         String json = type.toJson(fixer);
         String dimensionTypeKey = getDimensionTypeKey();
 
-        Iris.verbose("    Installing Data Pack Dimension Type: \"iris:" + dimensionTypeKey + '"');
+        IrisLogging.debug("    Installing Data Pack Dimension Type: \"iris:" + dimensionTypeKey + '"');
         for (File datapacks : folders) {
             File output = new File(datapacks, "iris/data/iris/dimension_type/" + dimensionTypeKey + ".json");
             output.getParentFile().mkdirs();
@@ -585,7 +584,7 @@ public class IrisDimension extends IrisRegistrant {
     }
 
     public static void writeShared(KList<File> folders, DimensionHeight height) {
-        Iris.verbose("    Installing Data Pack Vanilla Dimension Types");
+        IrisLogging.debug("    Installing Data Pack Vanilla Dimension Types");
         String[] jsonStrings = height.jsonStrings();
         for (File datapacks : folders) {
             write(datapacks, "overworld", jsonStrings[0]);
@@ -612,7 +611,7 @@ public class IrisDimension extends IrisRegistrant {
                 IrisLogging.reportError(e);
                 e.printStackTrace();
             }
-            Iris.verbose("    Installing Data Pack MCMeta: " + mcm.getPath());
+            IrisLogging.debug("    Installing Data Pack MCMeta: " + mcm.getPath());
         }
     }
 

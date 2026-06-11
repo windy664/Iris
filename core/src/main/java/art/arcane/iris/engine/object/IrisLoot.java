@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.data.cache.AtomicCache;
@@ -148,7 +148,7 @@ public class IrisLoot {
     // TODO Better Third Party Item Acquisition
     private ItemStack getItemStack(RNG rng) {
         if (!type.startsWith("minecraft:") && type.contains(":")) {
-            Optional<ItemStack> opt = Iris.service(ExternalDataSVC.class).getItemStack(Identifier.fromString(type), customNbt);
+            Optional<ItemStack> opt = IrisServices.get(ExternalDataSVC.class).getItemStack(Identifier.fromString(type), customNbt);
             if (opt.isEmpty()) {
                 IrisLogging.warn("Unknown Material: " + type);
                 return new ItemStack(Material.AIR);

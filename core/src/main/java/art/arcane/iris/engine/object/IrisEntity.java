@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.loader.IrisRegistrant;
@@ -251,7 +251,7 @@ public class IrisEntity extends IrisRegistrant {
                 l.setLootTable(new LootTable() {
                     @Override
                     public NamespacedKey getKey() {
-                        return new NamespacedKey(Iris.instance, "loot-" + IrisEntity.this.hashCode());
+                        return new NamespacedKey("iris", "loot-" + IrisEntity.this.hashCode());
                     }
 
                     @Override
@@ -447,7 +447,7 @@ public class IrisEntity extends IrisRegistrant {
         }
 
         if (isSpecialType()) {
-            return Iris.service(ExternalDataSVC.class).spawnMob(at, Identifier.fromString(specialType));
+            return IrisServices.get(ExternalDataSVC.class).spawnMob(at, Identifier.fromString(specialType));
         }
 
 

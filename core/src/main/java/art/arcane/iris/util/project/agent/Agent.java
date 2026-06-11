@@ -1,6 +1,6 @@
 package art.arcane.iris.util.project.agent;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.IrisLogging;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
@@ -13,7 +13,7 @@ import java.nio.file.StandardCopyOption;
 
 public class Agent {
     private static final String NAME = "art.arcane.iris.util.project.agent.Installer";
-    public static final File AGENT_JAR = new File(Iris.instance.getDataFolder(), "agent.jar");
+    public static final File AGENT_JAR = new File(IrisPlatforms.get().dataFolder(), "agent.jar");
 
     public static ClassReloadingStrategy installed() {
         return ClassReloadingStrategy.of(getInstrumentation());
@@ -75,11 +75,6 @@ public class Agent {
     }
 
     private static InputStream openBundledAgentJar() {
-        InputStream stream = Iris.instance.getResource("agent.jar");
-        if (stream != null) {
-            return stream;
-        }
-
         return Agent.class.getClassLoader().getResourceAsStream("agent.jar");
     }
 

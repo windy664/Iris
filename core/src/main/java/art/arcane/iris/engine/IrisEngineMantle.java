@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.EnginePanic;
@@ -275,7 +275,7 @@ public class IrisEngineMantle implements EngineMantle {
         return new MantleHooks() {
             @Override
             public void onBeforeReadSection(int index) {
-                Iris.addPanic("read.section", "Section[" + index + "]");
+                EnginePanic.add("read.section", "Section[" + index + "]");
             }
 
             @Override
@@ -285,17 +285,17 @@ public class IrisEngineMantle implements EngineMantle {
                                              art.arcane.volmlib.util.io.CountingDataInputStream din,
                                              IOException error) {
                 IrisLogging.error("Failed to read chunk section, skipping it.");
-                Iris.addPanic("read.byte.range", start + " " + end);
-                Iris.addPanic("read.byte.current", din.count() + "");
+                EnginePanic.add("read.byte.range", start + " " + end);
+                EnginePanic.add("read.byte.current", din.count() + "");
                 IrisLogging.reportError(error);
                 error.printStackTrace();
-                Iris.panic();
+                EnginePanic.panic();
                 TectonicPlate.addError();
             }
 
             @Override
             public void onBeforeReadChunk(int index) {
-                Iris.addPanic("read-chunk", "Chunk[" + index + "]");
+                EnginePanic.add("read-chunk", "Chunk[" + index + "]");
             }
 
             @Override
@@ -310,11 +310,11 @@ public class IrisEngineMantle implements EngineMantle {
                                            art.arcane.volmlib.util.io.CountingDataInputStream din,
                                            Throwable error) {
                 IrisLogging.error("Failed to read chunk, creating a new chunk instead.");
-                Iris.addPanic("read.byte.range", start + " " + end);
-                Iris.addPanic("read.byte.current", din.count() + "");
+                EnginePanic.add("read.byte.range", start + " " + end);
+                EnginePanic.add("read.byte.current", din.count() + "");
                 IrisLogging.reportError(error);
                 error.printStackTrace();
-                Iris.panic();
+                EnginePanic.panic();
             }
 
             @Override
@@ -373,7 +373,7 @@ public class IrisEngineMantle implements EngineMantle {
                             TectonicPlate.read(worldHeight, in, regionName.startsWith("pv."), adapter, hooks));
                 } finally {
                     if (TectonicPlate.hasError() && IrisSettings.get().getGeneral().isDumpMantleOnError()) {
-                        File dump = Iris.instance.getDataFolder("dump", name + ".bin");
+                        File dump = IrisPlatforms.get().dataFile("dump", name + ".bin");
                         worker.dumpDecoded(name, dump.toPath());
                     } else {
                         IrisLogging.debug("Read Tectonic Plate " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(stopwatch.getMilliseconds(), 2));
