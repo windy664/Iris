@@ -73,6 +73,7 @@ public class StudioSVC implements IrisService {
                 if (pack.equals("overworld")) {
                     Iris.info("Downloading Default Pack " + pack + " (latest on master)");
                     Iris.service(StudioSVC.class).downloadBranch(Iris.getSender(), "IrisDimensions/overworld", "master", false);
+                    ServerConfigurator.installDataPacksIfChanged(true);
                 } else {
                     Iris.warn("Default pack '" + pack + "' is not installed. Please download it manually with /iris download " + pack);
                 }

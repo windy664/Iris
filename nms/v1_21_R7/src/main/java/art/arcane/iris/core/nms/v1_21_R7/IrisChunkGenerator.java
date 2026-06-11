@@ -58,7 +58,7 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
     }
 
     private IrisChunkGenerator(ChunkGenerator delegate, Engine engine, World world, CustomBiomeSource customBiomeSource) {
-        super(((CraftWorld) world).getHandle(), edit(delegate, customBiomeSource), null);
+        super(((CraftWorld) world).getHandle(), edit(delegate, customBiomeSource), world.getGenerator());
         this.delegate = delegate;
         this.engine = engine;
         this.customBiomeSource = customBiomeSource;
@@ -105,6 +105,8 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
         try {
             return delegate.findNearestMapStructure(level, reachable, pos, radius, findUnexplored);
         } catch (Throwable e) {
+            Iris.error("Vanilla structure locate failed near " + pos.getX() + ", " + pos.getZ() + ": " + e);
+            Iris.reportError(e);
             return null;
         }
     }
@@ -159,7 +161,7 @@ public class IrisChunkGenerator extends CustomChunkGenerator {
         if (!importedControl().active()) {
             return;
         }
-        delegate.createStructures(registryAccess, structureState, structureManager, access, templateManager, levelKey);
+        super.createStructures(registryAccess, structureState, structureManager, access, templateManager, levelKey);
     }
 
     private IrisImportedStructureControl importedControl() {

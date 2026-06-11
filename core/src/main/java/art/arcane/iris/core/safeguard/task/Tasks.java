@@ -107,14 +107,6 @@ public final class Tasks {
     });
 
     private static final Task INJECTION = Task.of("injection", () -> {
-        if (!isPaperPreferredServer() && !Agent.isInstalled()) {
-            return withDiagnostics(Mode.WARNING,
-                    Diagnostic.Logger.WARN.create("Java Agent"),
-                    Diagnostic.Logger.WARN.create("- Skipping dynamic Java agent attach on Spigot/Bukkit to avoid runtime agent warnings."),
-                    Diagnostic.Logger.WARN.create("- For full runtime injection support, run with -javaagent:"
-                            + Agent.AGENT_JAR.getPath() + " or use Canvas/Folia/Paper/Purpur."));
-        }
-
         if (!Agent.install()) {
             return withDiagnostics(Mode.UNSTABLE,
                     Diagnostic.Logger.ERROR.create("Java Agent"),
@@ -191,15 +183,6 @@ public final class Tasks {
 
     private static Server server() {
         return Bukkit.getServer();
-    }
-
-    private static boolean isPaperPreferredServer() {
-        String name = server().getName().toLowerCase(Locale.ROOT);
-        return isCanvasServer()
-                || name.contains("folia")
-                || name.contains("paper")
-                || name.contains("purpur")
-                || name.contains("pufferfish");
     }
 
     private static boolean isCanvasServer() {

@@ -61,7 +61,7 @@ public enum Mode {
     }
 
     public void splash() {
-        String padd = Form.repeat(" ", 8);
+        String padd = Form.repeat(" ", 4);
         String padd2 = Form.repeat(" ", 4);
         String version = Iris.instance.getDescription().getVersion();
         String releaseTrain = getReleaseTrain(version);
@@ -98,10 +98,8 @@ public enum Mode {
         double headThickness = 3.7 + random.nextDouble() * 0.6;
         double tipReach = 19.0 + random.nextDouble() * 4.0;
         double notchX = 3.5 + random.nextDouble() * 1.5;
-        double streamReach = 22.0 + random.nextDouble() * 3.0;
         double[][][] spines = splashFinSpines(tipReach);
         double[][][] voids = splashNotchVoids(notchX);
-        double[][][] streams = splashStreamSpines(notchX, streamReach);
         String[] lines = new String[SPLASH_HEIGHT];
         for (int y = 0; y < SPLASH_HEIGHT; y++) {
             StringBuilder line = new StringBuilder();
@@ -109,7 +107,7 @@ public enum Mode {
             for (int x = 0; x < SPLASH_WIDTH; x++) {
                 char glyph = splashEyeGlyph(x, y);
                 if (glyph == 0) {
-                    glyph = splashFinGlyph(x, y, spines, voids, streams, headThickness);
+                    glyph = splashFinGlyph(x, y, spines, voids, headThickness);
                 }
                 if (glyph == 0 || glyph == ' ') {
                     line.append(' ');
@@ -160,7 +158,7 @@ public enum Mode {
         return 0;
     }
 
-    private char splashFinGlyph(int x, int y, double[][][] spines, double[][][] voids, double[][][] streams, double headThickness) {
+    private char splashFinGlyph(int x, int y, double[][][] spines, double[][][] voids, double headThickness) {
         if (splashEyeRadius(x, y) <= 1.26) {
             return 0;
         }
@@ -181,7 +179,6 @@ public enum Mode {
         }
         double best = Double.MAX_VALUE;
         double bestT = 0.0;
-        double bestSpineY = 0.0;
         for (double[][] spine : spines) {
             for (int i = 0; i < spine.length; i++) {
                 double t = i / (double) (spine.length - 1);
@@ -192,7 +189,6 @@ public enum Mode {
                 if (distance < best) {
                     best = distance;
                     bestT = t;
-                    bestSpineY = spine[i][1];
                 }
             }
         }
@@ -200,41 +196,20 @@ public enum Mode {
                 + Math.max(0.0, 3.0 - Math.min(x, SPLASH_WIDTH - 1 - x)) * 0.12
                 + Math.max(0.0, 0.10 - bestT) * 1.5
                 + Math.max(0.0, 1.30 - voidDistance) * 0.15;
-        if (shade <= 1.0) {
-            int level = shade <= 0.70 ? 0 : shade <= 0.90 ? 1 : 2;
-            if (bestT > 0.97) {
-                level += 2;
-            } else if (bestT > 0.88) {
-                level += 1;
-            }
-            return switch (Math.min(level, 2)) {
-                case 0 -> '#';
-                case 1 -> '=';
-                default -> '-';
-            };
+        if (shade > 1.0) {
+            return 0;
         }
-        if (bestT < 0.25 && Math.abs(bestSpineY - SPLASH_CENTER_Y) > 2.5 && shade <= 1.25) {
-            return '-';
+        int level = shade <= 0.70 ? 0 : shade <= 0.90 ? 1 : 2;
+        if (bestT > 0.97) {
+            level += 2;
+        } else if (bestT > 0.88) {
+            level += 1;
         }
-        if (bestT > 0.88 && shade <= 1.45) {
-            return '-';
-        }
-        double streamBest = Double.MAX_VALUE;
-        for (double[][] stream : streams) {
-            for (double[] sample : stream) {
-                double thickness = Math.max(0.4, 0.85 - 0.4 * sample[2]);
-                double dx = (x - sample[0]) / SPLASH_ASPECT;
-                double dy = y - sample[1];
-                double distance = Math.sqrt(dx * dx + dy * dy) / thickness;
-                if (distance < streamBest) {
-                    streamBest = distance;
-                }
-            }
-        }
-        if (streamBest <= 1.0) {
-            return '-';
-        }
-        return 0;
+        return switch (Math.min(level, 2)) {
+            case 0 -> '#';
+            case 1 -> '=';
+            default -> '-';
+        };
     }
 
     private double splashEyeRadius(int x, int y) {
@@ -248,26 +223,6 @@ public enum Mode {
     private double[][][] splashNotchVoids(double notchX) {
         double[][] control = {{notchX + 0.8, 12.0}, {notchX, 9.6}, {notchX - 1.4, 7.8}};
         int samples = 31;
-        double[][] left = new double[samples][3];
-        double[][] right = new double[samples][3];
-        for (int i = 0; i < samples; i++) {
-            double t = i / (double) (samples - 1);
-            double u = 1.0 - t;
-            double bx = u * u * control[0][0] + 2.0 * u * t * control[1][0] + t * t * control[2][0];
-            double by = u * u * control[0][1] + 2.0 * u * t * control[1][1] + t * t * control[2][1];
-            left[i][0] = bx;
-            left[i][1] = by;
-            left[i][2] = t;
-            right[i][0] = (SPLASH_WIDTH - 1.0) - bx;
-            right[i][1] = (SPLASH_HEIGHT - 1.0) - by;
-            right[i][2] = t;
-        }
-        return new double[][][]{left, right};
-    }
-
-    private double[][][] splashStreamSpines(double notchX, double streamReach) {
-        double[][] control = {{notchX + 2.5, 10.2}, {13.0, 10.4}, {streamReach, 10.9}};
-        int samples = 41;
         double[][] left = new double[samples][3];
         double[][] right = new double[samples][3];
         for (int i = 0; i < samples; i++) {

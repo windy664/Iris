@@ -21,6 +21,7 @@ package art.arcane.iris.core.commands;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
+import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.service.StudioSVC;
@@ -468,6 +469,7 @@ public class CommandIris implements DirectorExecutor {
         } else {
             Iris.service(StudioSVC.class).downloadSearch(sender(), "IrisDimensions/" + pack + "/" + branch, overwrite);
         }
+        ServerConfigurator.installDataPacksIfChanged(true);
     }
 
     @Director(description = "Get metrics for your world", aliases = "measure", origin = DirectorOrigin.PLAYER)

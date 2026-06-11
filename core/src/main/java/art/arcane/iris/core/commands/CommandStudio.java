@@ -100,7 +100,7 @@ public class CommandStudio implements DirectorExecutor {
 
     @Director(description = "Open a new studio world", aliases = "o", sync = true)
     public void open(
-            @Param(defaultValue = "default", description = "The dimension to open a studio for", aliases = "dim", customHandler = DimensionHandler.class)
+            @Param(description = "The dimension pack to open a studio for", aliases = "dim", customHandler = DimensionHandler.class)
             IrisDimension dimension,
             @Param(defaultValue = "1337", description = "The seed to generate the studio with", aliases = "s")
             long seed) {
@@ -186,7 +186,7 @@ public class CommandStudio implements DirectorExecutor {
 
     @Director(description = "Create a new studio project", aliases = "+", sync = true)
     public void create(
-            @Param(description = "The name of this new Iris Project.")
+            @Param(description = "The name of this new Iris Project.", defaultValue = "studio")
             String name,
             @Param(
                     description = "Copy the contents of an existing project in your packs folder and use it as a template in this new project.",
@@ -194,10 +194,19 @@ public class CommandStudio implements DirectorExecutor {
                     customHandler = NullableDimensionHandler.class
             )
             IrisDimension template) {
+        String projectName = name;
+        if (name.equals("studio")) {
+            File workspace = Iris.service(StudioSVC.class).getWorkspaceFolder();
+            int suffix = 2;
+            while (new File(workspace, projectName).exists()) {
+                projectName = "studio" + suffix++;
+            }
+        }
+
         if (template != null) {
-            Iris.service(StudioSVC.class).create(sender(), name, template.getLoadKey());
+            Iris.service(StudioSVC.class).create(sender(), projectName, template.getLoadKey());
         } else {
-            Iris.service(StudioSVC.class).create(sender(), name);
+            Iris.service(StudioSVC.class).create(sender(), projectName);
         }
     }
 

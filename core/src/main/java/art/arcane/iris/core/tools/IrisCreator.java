@@ -223,6 +223,10 @@ public class IrisCreator {
             if (J.isFolia() && containsCreateWorldUnsupportedOperation(e)) {
                 throw new IrisException("Runtime world creation is blocked and the selected world lifecycle backend could not create the world.", e);
             }
+            if (containsMissingDimensionTypes(e)) {
+                throw new IrisException("The dimension types for pack \"" + dimension() + "\" are not loaded on this server yet. "
+                        + "Iris installed its datapack files - restart the server, then run the command again.", e);
+            }
             throw new IrisException("Failed to create world with backend family " + WorldLifecycleService.get().capabilities().serverFamily().id() + "!", e);
         }
 
@@ -383,6 +387,17 @@ public class IrisCreator {
                         return true;
                     }
                 }
+            }
+            cursor = cursor.getCause();
+        }
+        return false;
+    }
+
+    private static boolean containsMissingDimensionTypes(Throwable throwable) {
+        Throwable cursor = throwable;
+        while (cursor != null) {
+            if (cursor instanceof IllegalStateException && String.valueOf(cursor.getMessage()).contains("Missing dimension types")) {
+                return true;
             }
             cursor = cursor.getCause();
         }

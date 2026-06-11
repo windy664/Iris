@@ -60,6 +60,13 @@ public class CustomBiomeSource extends BiomeSource {
         }
 
         for (IrisBiome i : engine.getAllBiomes()) {
+            Holder<Biome> vanillaHolder = NMSBinding.biomeToBiomeBase(registry, i.getVanillaDerivative());
+            if (vanillaHolder != null) {
+                biomes.add(vanillaHolder);
+            } else if (!i.isCustom() && fallback != null) {
+                biomes.add(fallback);
+            }
+
             if (i.isCustom()) {
                 for (IrisBiomeCustom j : i.getCustomDerivitives()) {
                     Holder<Biome> customHolder = resolveCustomBiomeHolder(customRegistry, engine, j.getId());
@@ -68,13 +75,6 @@ public class CustomBiomeSource extends BiomeSource {
                     } else if (fallback != null) {
                         biomes.add(fallback);
                     }
-                }
-            } else {
-                Holder<Biome> vanillaHolder = NMSBinding.biomeToBiomeBase(registry, i.getVanillaDerivative());
-                if (vanillaHolder != null) {
-                    biomes.add(vanillaHolder);
-                } else if (fallback != null) {
-                    biomes.add(fallback);
                 }
             }
         }
@@ -219,13 +219,13 @@ public class CustomBiomeSource extends BiomeSource {
             return getFallbackBiome();
         }
 
-        if (resolution.irisBiome.isCustom()) {
-            return resolveCustomHolder(resolution);
-        }
-
         Holder<Biome> holder = NMSBinding.biomeToBiomeBase(biomeRegistry, resolution.irisBiome.getVanillaDerivative());
         if (holder != null) {
             return holder;
+        }
+
+        if (resolution.irisBiome.isCustom()) {
+            return resolveCustomHolder(resolution);
         }
 
         return getFallbackBiome();

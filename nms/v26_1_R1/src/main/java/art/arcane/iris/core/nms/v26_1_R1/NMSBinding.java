@@ -65,6 +65,7 @@ import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
+import net.minecraft.world.level.levelgen.structure.StructureCheck;
 import net.minecraft.world.level.levelgen.feature.AbstractHugeMushroomFeature;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.FallenTreeFeature;
@@ -853,11 +854,28 @@ public class NMSBinding implements INMSBinding {
             Iris.error("Loaded world %s with unknown dimension type! expected=%s", world.getName(), expectedDimensionType);
         }
 
+        IrisChunkGenerator irisGenerator = new IrisChunkGenerator(worldGenContext.generator(), seed, engine, world);
         var newContext = new WorldGenContext(
-                worldGenContext.level(), new IrisChunkGenerator(worldGenContext.generator(), seed, engine, world),
+                worldGenContext.level(), irisGenerator,
                 worldGenContext.structureManager(), worldGenContext.lightEngine(), worldGenContext.mainThreadExecutor(), worldGenContext.unsavedListener());
 
         worldGenContextField.set(chunkMap, newContext);
+        retargetStructureCheck(((CraftWorld) world).getHandle(), irisGenerator);
+    }
+
+    private static void retargetStructureCheck(ServerLevel level, IrisChunkGenerator generator) throws NoSuchFieldException, IllegalAccessException {
+        Field structureCheckField = getField(level.getClass(), StructureCheck.class);
+        structureCheckField.setAccessible(true);
+        Object structureCheck = structureCheckField.get(level);
+        if (structureCheck == null) {
+            return;
+        }
+        Field generatorField = getField(structureCheck.getClass(), net.minecraft.world.level.chunk.ChunkGenerator.class);
+        generatorField.setAccessible(true);
+        generatorField.set(structureCheck, generator);
+        Field biomeSourceField = getField(structureCheck.getClass(), BiomeSource.class);
+        biomeSourceField.setAccessible(true);
+        biomeSourceField.set(structureCheck, generator.getBiomeSource());
     }
 
     public Vector3d getBoundingbox(org.bukkit.entity.EntityType entity) {
