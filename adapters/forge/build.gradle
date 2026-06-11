@@ -1,0 +1,17 @@
+group = 'art.arcane'
+version = rootProject.version
+
+dependencies {
+    implementation(project(':spi'))
+}
+
+processResources {
+    inputs.property('version', project.version)
+    filesMatching('META-INF/mods.toml') {
+        expand('version': project.version)
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    archiveFileName.set("Iris-${project.version}-forge-skeleton.jar")
+}

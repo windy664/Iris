@@ -136,6 +136,14 @@ tasks.register('buildFabric', Copy) {
     into(layout.projectDirectory.dir('dist'))
 }
 
+tasks.register('buildForge', Copy) {
+    group = 'iris'
+    dependsOn(':adapters:forge:jar')
+    from(project(':adapters:forge').layout.buildDirectory.file("libs/Iris-${project.version}-forge-skeleton.jar"))
+    rename { "Iris-${project.version}+mc${minecraftVersion}-forge-skeleton.jar" }
+    into(layout.projectDirectory.dir('dist'))
+}
+
 tasks.register('buildNeoforge', Copy) {
     group = 'iris'
     dependsOn(':adapters:neoforge:jar')
@@ -146,7 +154,7 @@ tasks.register('buildNeoforge', Copy) {
 
 tasks.register('buildAll') {
     group = 'iris'
-    dependsOn('buildBukkit', 'buildFabric', 'buildNeoforge', ':spi:jar')
+    dependsOn('buildBukkit', 'buildFabric', 'buildForge', 'buildNeoforge', ':spi:jar')
     doLast {
         File dist = layout.projectDirectory.dir('dist').asFile
         File[] jars = dist.listFiles((java.io.FileFilter) { File f -> f.name.endsWith('.jar') })

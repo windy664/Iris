@@ -1,0 +1,10 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "irisworldgen"
+version = "${version}"
+displayName = "Iris"
+description = "Iris World Generation Engine (Forge adapter - SKELETON, worldgen not yet wired)"
+authors = "Arcane Arts (Volmit Software)"
