@@ -279,6 +279,17 @@ public class IrisProceduralTree implements IrisProceduralPlacement {
                 baked.add(object);
             }
 
+            if (new java.io.File("plugins/Iris/goldendebug.txt").isFile()) {
+                for (IrisObject object : baked) {
+                    long digest = 0L;
+                    for (java.util.Map.Entry<org.bukkit.util.BlockVector, art.arcane.iris.spi.PlatformBlockState> entry : object.getBlocks()) {
+                        long position = ((long) entry.getKey().getBlockX() << 40) ^ ((long) entry.getKey().getBlockY() << 20) ^ entry.getKey().getBlockZ();
+                        digest ^= Long.rotateLeft(position * 0x9E3779B97F4A7C15L ^ entry.getValue().key().hashCode(), (int) (position & 63));
+                    }
+                    art.arcane.iris.Iris.info("Goldendebug bake: " + object.getLoadKey() + " blocks=" + object.getBlocks().size() + " digest=" + Long.toHexString(digest));
+                }
+            }
+
             return baked;
         });
     }

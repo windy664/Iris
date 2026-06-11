@@ -67,6 +67,45 @@ public class MantleObjectComponent extends IrisMantleComponent {
     private static final int SURFACE_HEIGHT_CHUNK_FILL_THRESHOLD = 128;
     private static final Map<String, CaveRejectLogState> CAVE_REJECT_LOG_STATE = new ConcurrentHashMap<>();
     private static final Set<String> MISSING_LOAD_KEY_WARNED = ConcurrentHashMap.newKeySet();
+    private static final int[] GOLDEN_DEBUG_TARGET = parseGoldenDebugTarget(resolveGoldenDebugSpec());
+    private static final boolean GOLDEN_DEBUG = GOLDEN_DEBUG_TARGET != null;
+
+    private static String resolveGoldenDebugSpec() {
+        String property = System.getProperty("iris.goldendebug");
+        if (property != null && !property.isBlank()) {
+            return property;
+        }
+        try {
+            java.io.File marker = new java.io.File("plugins/Iris/goldendebug.txt");
+            if (marker.isFile()) {
+                return java.nio.file.Files.readString(marker.toPath()).trim();
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static int[] parseGoldenDebugTarget(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String[] parts = raw.split(",");
+        if (parts.length != 2 && parts.length != 3) {
+            return null;
+        }
+        try {
+            int radius = parts.length == 3 ? Integer.parseInt(parts[2].trim()) : 0;
+            return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()), radius};
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static boolean isGoldenDebugChunk(int x, int z) {
+        return GOLDEN_DEBUG
+                && Math.abs(GOLDEN_DEBUG_TARGET[0] - x) <= GOLDEN_DEBUG_TARGET[2]
+                && Math.abs(GOLDEN_DEBUG_TARGET[1] - z) <= GOLDEN_DEBUG_TARGET[2];
+    }
 
     public MantleObjectComponent(EngineMantle engineMantle) {
         super(engineMantle, ReservedFlag.OBJECT, 1);
@@ -377,8 +416,16 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
         int blockX = x << 4;
         int blockZ = z << 4;
+        boolean golden = isGoldenDebugChunk(x, z);
         for (IrisProceduralPlacement p : proceduralObjects.getAllPlacements()) {
-            if (!rng.chance(p.getChance() + rng.d(-0.005, 0.005))) {
+            boolean chancePassed = rng.chance(p.getChance() + rng.d(-0.005, 0.005));
+            if (golden) {
+                Iris.info("Goldendebug procedural chance: chunk=" + x + "," + z
+                        + " scope=" + scope
+                        + " placement=" + p.getName()
+                        + " passed=" + chancePassed);
+            }
+            if (!chancePassed) {
                 continue;
             }
 
@@ -388,20 +435,49 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 placement.setMode(ObjectPlaceMode.FAST_MIN_HEIGHT);
             }
             IObjectPlacer placer = p.isPlausible() ? new DecayControlPlacer(writer) : writer;
+            if (golden) {
+                placer = new GoldenDebugPlacer(placer, scope + "/" + p.getName());
+            }
             int density = Math.max(1, p.getDensity());
             for (int i = 0; i < density; i++) {
                 IrisObject variant = p.getVariantObject(getData(), rng);
                 if (variant == null) {
+                    if (golden) {
+                        Iris.info("Goldendebug procedural pick: chunk=" + x + "," + z
+                                + " placement=" + p.getName()
+                                + " densityIndex=" + i
+                                + " variant=null");
+                    }
                     continue;
                 }
                 int xx = rng.i(blockX, blockX + 15);
                 int zz = rng.i(blockZ, blockZ + 15);
                 int id = rng.i(0, Integer.MAX_VALUE);
+                if (golden) {
+                    KList<IrisObject> pool = p.getVariantObjects(getData());
+                    Iris.info("Goldendebug procedural pick: chunk=" + x + "," + z
+                            + " placement=" + p.getName()
+                            + " densityIndex=" + i
+                            + " variant=" + variant.getLoadKey()
+                            + " variantIndex=" + pool.indexOf(variant) + "/" + pool.size()
+                            + " xx=" + xx
+                            + " zz=" + zz
+                            + " mode=" + placement.getMode()
+                            + " carving=" + carving);
+                }
                 try {
+                    int placeResult = -1;
                     if (carving) {
                         int caveFloorY = findNearestCaveFloor(writer, xx, zz);
+                        if (golden) {
+                            Iris.info("Goldendebug procedural caveFloor: chunk=" + x + "," + z
+                                    + " placement=" + p.getName()
+                                    + " xx=" + xx
+                                    + " zz=" + zz
+                                    + " caveFloorY=" + caveFloorY);
+                        }
                         if (caveFloorY > 0) {
-                            variant.place(xx, caveFloorY, zz, placer, placement, rng, (b, data) -> {
+                            placeResult = variant.place(xx, caveFloorY, zz, placer, placement, rng, (b, data) -> {
                                 String marker = placementMarker(variant, id, "procedural");
                                 if (marker != null) {
                                     writer.setData(b.getX(), b.getY(), b.getZ(), marker);
@@ -409,12 +485,20 @@ public class MantleObjectComponent extends IrisMantleComponent {
                             }, null, getData());
                         }
                     } else {
-                        variant.place(xx, -1, zz, placer, placement, rng, (b, data) -> {
+                        placeResult = variant.place(xx, -1, zz, placer, placement, rng, (b, data) -> {
                             String marker = placementMarker(variant, id, "procedural");
                             if (marker != null) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                             }
                         }, null, getData());
+                    }
+                    if (golden) {
+                        Iris.info("Goldendebug procedural result: chunk=" + x + "," + z
+                                + " placement=" + p.getName()
+                                + " variant=" + variant.getLoadKey()
+                                + " xx=" + xx
+                                + " zz=" + zz
+                                + " resultY=" + placeResult);
                     }
                 } catch (Throwable e) {
                     Iris.reportError(e);
@@ -446,6 +530,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
         int nullObjects = 0;
         int errors = 0;
         int density = objectPlacement.getDensity(rng, x, z, getData());
+        boolean golden = isGoldenDebugChunk(chunkX, chunkZ);
 
         for (int i = 0; i < density; i++) {
             attempts++;
@@ -471,6 +556,19 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (effectivePlacement.getMode() == ObjectPlaceMode.FLOATING) {
                 overCave = false;
             }
+            IObjectPlacer placePlacer = golden ? new GoldenDebugPlacer(writer, scope + "/" + v.getLoadKey()) : writer;
+            if (golden) {
+                Iris.info("Goldendebug object attempt: chunk=" + chunkX + "," + chunkZ
+                        + " scope=" + scope
+                        + " object=" + v.getLoadKey()
+                        + " densityIndex=" + i
+                        + " xx=" + xx
+                        + " zz=" + zz
+                        + " overCave=" + overCave
+                        + " exclusionDepth=" + surfaceObjectExclusionDepth
+                        + " exclusionRadius=" + surfaceObjectExclusionRadius
+                        + " mode=" + effectivePlacement.getMode());
+            }
             try {
                 int result = -1;
                 String fallbackPath = "surface";
@@ -480,7 +578,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     if (caveFloorY > 0) {
                         IrisObjectPlacement floorPlacement = effectivePlacement.toPlacement(v.getLoadKey());
                         floorPlacement.setMode(ObjectPlaceMode.FAST_MIN_HEIGHT);
-                        result = v.place(xx, caveFloorY, zz, writer, floorPlacement, rng, (b, data) -> {
+                        result = v.place(xx, caveFloorY, zz, placePlacer, floorPlacement, rng, (b, data) -> {
                             String marker = placementMarker(v, id, "cave-floor");
                             if (marker != null) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), marker);
@@ -495,7 +593,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     if (result < 0) {
                         IrisObjectPlacement stiltPlacement = effectivePlacement.toPlacement(v.getLoadKey());
                         stiltPlacement.setMode(ObjectPlaceMode.FAST_MIN_STILT);
-                        result = v.place(xx, -1, zz, writer, stiltPlacement, rng, (b, data) -> {
+                        result = v.place(xx, -1, zz, placePlacer, stiltPlacement, rng, (b, data) -> {
                             String marker = placementMarker(v, id, "stilt");
                             if (marker != null) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), marker);
@@ -507,7 +605,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                         fallbackPath = "stilt";
                     }
                 } else {
-                    result = v.place(xx, -1, zz, writer, effectivePlacement, rng, (b, data) -> {
+                    result = v.place(xx, -1, zz, placePlacer, effectivePlacement, rng, (b, data) -> {
                         String marker = placementMarker(v, id, "surface");
                         if (marker != null) {
                             writer.setData(b.getX(), b.getY(), b.getZ(), marker);
@@ -522,6 +620,14 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     placed++;
                 } else {
                     rejected++;
+                }
+
+                if (golden) {
+                    Iris.info("Goldendebug object result: chunk=" + chunkX + "," + chunkZ
+                            + " scope=" + scope
+                            + " object=" + v.getLoadKey()
+                            + " resultY=" + result
+                            + " fallback=" + fallbackPath);
                 }
 
                 if (traceRegen) {
@@ -1016,6 +1122,94 @@ public class MantleObjectComponent extends IrisMantleComponent {
             }
         }
         return maxScan;
+    }
+
+    private static final class GoldenDebugPlacer implements IObjectPlacer {
+        private final IObjectPlacer delegate;
+        private final String tag;
+
+        private GoldenDebugPlacer(IObjectPlacer delegate, String tag) {
+            this.delegate = delegate;
+            this.tag = tag;
+        }
+
+        @Override
+        public int getHighest(int x, int z, IrisData data) {
+            int result = delegate.getHighest(x, z, data);
+            Iris.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ")=" + result);
+            return result;
+        }
+
+        @Override
+        public int getHighest(int x, int z, IrisData data, boolean ignoreFluid) {
+            int result = delegate.getHighest(x, z, data, ignoreFluid);
+            Iris.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ",ignoreFluid=" + ignoreFluid + ")=" + result);
+            return result;
+        }
+
+        @Override
+        public void set(int x, int y, int z, PlatformBlockState d) {
+            delegate.set(x, y, z, d);
+        }
+
+        @Override
+        public PlatformBlockState get(int x, int y, int z) {
+            return delegate.get(x, y, z);
+        }
+
+        @Override
+        public boolean isPreventingDecay() {
+            return delegate.isPreventingDecay();
+        }
+
+        @Override
+        public boolean isCarved(int x, int y, int z) {
+            boolean result = delegate.isCarved(x, y, z);
+            Iris.info("Goldendebug query: tag=" + tag + " isCarved(" + x + "," + y + "," + z + ")=" + result);
+            return result;
+        }
+
+        @Override
+        public boolean isSolid(int x, int y, int z) {
+            boolean result = delegate.isSolid(x, y, z);
+            Iris.info("Goldendebug query: tag=" + tag + " isSolid(" + x + "," + y + "," + z + ")=" + result);
+            return result;
+        }
+
+        @Override
+        public boolean isUnderwater(int x, int z) {
+            return delegate.isUnderwater(x, z);
+        }
+
+        @Override
+        public int getFluidHeight() {
+            return delegate.getFluidHeight();
+        }
+
+        @Override
+        public boolean isDebugSmartBore() {
+            return delegate.isDebugSmartBore();
+        }
+
+        @Override
+        public <T> void setData(int xx, int yy, int zz, T data) {
+            delegate.setData(xx, yy, zz, data);
+        }
+
+        @Override
+        public <T> T getData(int xx, int yy, int zz, Class<T> t) {
+            return delegate.getData(xx, yy, zz, t);
+        }
+
+        @Override
+        public void setTile(int xx, int yy, int zz, TileData tile) {
+            delegate.setTile(xx, yy, zz, tile);
+        }
+
+        @Override
+        public Engine getEngine() {
+            return delegate.getEngine();
+        }
     }
 
     private static final class CeilingClampedPlacer implements IObjectPlacer {
