@@ -23,6 +23,8 @@ import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.iris.spi.IrisPlatform;
 import art.arcane.iris.spi.LogLevel;
+import art.arcane.iris.spi.PlatformBiome;
+import art.arcane.iris.spi.PlatformBiomeWriter;
 import art.arcane.iris.spi.PlatformCapabilities;
 import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
@@ -32,6 +34,7 @@ import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.Listener;
@@ -47,9 +50,14 @@ public final class BukkitPlatform implements IrisPlatform {
     private final BukkitScheduler scheduler = new BukkitScheduler();
     private final PlatformCapabilities capabilities = new BukkitCapabilities();
     private final BukkitStructureHooks structureHooks = new BukkitStructureHooks();
+    private final BukkitBiomeWriter biomeWriter = new BukkitBiomeWriter();
 
     public static World unwrapWorld(PlatformWorld world) {
         return (World) world.nativeHandle();
+    }
+
+    public static PlatformBiome wrapBiome(Object biome) {
+        return BukkitBiome.of((Biome) biome);
     }
 
     public static Class<?> classifyMantleValue(Object value) {
@@ -114,6 +122,11 @@ public final class BukkitPlatform implements IrisPlatform {
     @Override
     public PlatformStructureHooks structureHooks() {
         return structureHooks;
+    }
+
+    @Override
+    public PlatformBiomeWriter biomeWriter() {
+        return biomeWriter;
     }
 
     @Override

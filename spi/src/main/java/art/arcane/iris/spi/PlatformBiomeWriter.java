@@ -18,29 +18,13 @@
 
 package art.arcane.iris.spi;
 
-import java.io.File;
+import java.util.List;
 
 /**
- * Root platform service provided by each adapter; the single entry point core uses to reach the host platform.
+ * Resolves pack biome keys to platform biome ids for mantle injection and enumerates the platform's biome registry.
  */
-public interface IrisPlatform {
-    String platformName();
+public interface PlatformBiomeWriter {
+    int biomeIdFor(String key);
 
-    String minecraftVersion();
-
-    PlatformRegistries registries();
-
-    PlatformScheduler scheduler();
-
-    PlatformCapabilities capabilities();
-
-    PlatformStructureHooks structureHooks();
-
-    PlatformBiomeWriter biomeWriter();
-
-    File dataFolder();
-
-    void dispatchConsoleCommand(String command);
-
-    void log(LogLevel level, String message);
+    List<PlatformBiome> allBiomes();
 }

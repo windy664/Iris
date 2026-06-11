@@ -20,7 +20,6 @@ package art.arcane.iris.engine.modifier;
 
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
-import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.decorator.FloatingDecorator;
 import art.arcane.iris.engine.decorator.IrisSeaSurfaceDecorator;
@@ -47,6 +46,7 @@ import art.arcane.volmlib.util.matter.MatterBiomeInject;
 import art.arcane.volmlib.util.matter.slices.BiomeInjectMatter;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.PlatformBlockState;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
@@ -403,7 +403,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
     private MatterBiomeInject createSkyBiomeMatter(IrisBiome target, int wx, int wz) {
         if (target.isCustom()) {
             IrisBiomeCustom custom = target.getCustomBiome(rng, wx, 0, wz);
-            return BiomeInjectMatter.get(INMS.get().getBiomeBaseIdForKey(getDimension().getLoadKey() + ":" + custom.getId()));
+            return BiomeInjectMatter.get(IrisPlatforms.get().biomeWriter().biomeIdFor(getDimension().getLoadKey() + ":" + custom.getId()));
         }
 
         Biome v = target.getSkyBiome(rng, wx, 0, wz);

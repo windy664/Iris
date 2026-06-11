@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.actuator;
 
-import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedActuator;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -31,6 +30,7 @@ import art.arcane.volmlib.util.matter.MatterBiomeInject;
 import art.arcane.volmlib.util.matter.slices.BiomeInjectMatter;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.PlatformBiome;
 import org.bukkit.block.Biome;
 
@@ -56,7 +56,7 @@ public class IrisBiomeActuator extends EngineAssignedActuator<PlatformBiome> {
 
                     if (ib.isCustom()) {
                         IrisBiomeCustom custom = ib.getCustomBiome(rng, x, 0, z);
-                        matter = BiomeInjectMatter.get(INMS.get().getBiomeBaseIdForKey(getDimension().getLoadKey() + ":" + custom.getId()));
+                        matter = BiomeInjectMatter.get(IrisPlatforms.get().biomeWriter().biomeIdFor(getDimension().getLoadKey() + ":" + custom.getId()));
                     } else {
                         Biome v = ib.getSkyBiome(rng, x, 0, z);
                         matter = BiomeInjectMatter.get(v);
