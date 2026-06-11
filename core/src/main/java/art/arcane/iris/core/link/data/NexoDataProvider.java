@@ -1,5 +1,7 @@
 package art.arcane.iris.core.link.data;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import com.nexomc.nexo.api.NexoBlocks;
 import com.nexomc.nexo.api.NexoFurniture;
 import com.nexomc.nexo.api.NexoItems;
@@ -12,7 +14,6 @@ import art.arcane.iris.core.nms.container.BlockProperty;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import org.bukkit.Color;
 import org.bukkit.block.Block;
@@ -51,7 +52,7 @@ public class NexoDataProvider extends ExternalDataProvider {
                 throw new MissingResourceException("Failed to find BlockData!", blockId.namespace(), blockId.key());
             return IrisCustomData.of(data, blockState);
         } else if (NexoFurniture.isFurniture(blockId.key())) {
-            return IrisCustomData.of(B.getAir(), blockState);
+            return IrisCustomData.of(BukkitBlockResolution.getAir(), blockState);
         }
 
         throw new MissingResourceException("Failed to find BlockData!", blockId.namespace(), blockId.key());

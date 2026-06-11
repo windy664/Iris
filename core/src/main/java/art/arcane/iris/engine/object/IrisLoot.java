@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.service.ExternalDataSVC;
@@ -27,7 +29,6 @@ import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.math.RNG;
@@ -108,7 +109,7 @@ public class IrisLoot {
     private KMap<String, Object> customNbt;
 
     public Material getType() {
-        return B.getMaterial(type);
+        return BukkitBlockResolution.getMaterial(type);
     }
 
     public ItemStack get(boolean debug, RNG rng) {

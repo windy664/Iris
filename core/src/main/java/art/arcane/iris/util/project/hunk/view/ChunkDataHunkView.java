@@ -18,9 +18,10 @@
 
 package art.arcane.iris.util.project.hunk.view;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.PlatformBlockState;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.project.hunk.Hunk;
 import org.bukkit.block.data.BlockData;
@@ -28,7 +29,7 @@ import org.bukkit.generator.ChunkGenerator.ChunkData;
 
 @SuppressWarnings("ClassCanBeRecord")
 public class ChunkDataHunkView implements Hunk<PlatformBlockState> {
-    private static final BlockData AIR = B.getAir();
+    private static final BlockData AIR = BukkitBlockResolution.getAir();
 
     private final art.arcane.volmlib.util.hunk.view.ChunkDataHunkView view;
 

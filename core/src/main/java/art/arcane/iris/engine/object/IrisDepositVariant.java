@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
@@ -25,7 +27,6 @@ import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.Required;
 import art.arcane.iris.engine.object.annotations.Snippet;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.collection.KMap;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -75,8 +76,8 @@ public class IrisDepositVariant {
         KMap<Material, BlockData> out = new KMap<>();
 
         for (java.util.Map.Entry<String, String> entry : remap.entrySet()) {
-            BlockData source = B.getOrNull(entry.getKey(), false);
-            BlockData target = B.getOrNull(entry.getValue(), true);
+            BlockData source = BukkitBlockResolution.getOrNull(entry.getKey(), false);
+            BlockData target = BukkitBlockResolution.getOrNull(entry.getValue(), true);
 
             if (source == null || target == null) {
                 continue;

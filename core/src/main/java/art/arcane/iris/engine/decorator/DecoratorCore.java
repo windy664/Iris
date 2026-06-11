@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.decorator;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -26,7 +28,6 @@ import art.arcane.iris.engine.object.IrisDecorator;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.Material;
@@ -103,7 +104,7 @@ final class DecoratorCore {
             BlockData top = rawBd.clone();
             ((Bisected) top).setHalf(Bisected.Half.TOP);
             try {
-                if (!caveSkipFluid || !B.isFluid(unwrap(data.get(x, height + 2, z)))) {
+                if (!caveSkipFluid || !BukkitBlockResolution.isFluid(unwrap(data.get(x, height + 2, z)))) {
                     data.set(x, height + 2, z, BukkitBlockState.of(top));
                 }
             } catch (Throwable e) {
@@ -114,7 +115,7 @@ final class DecoratorCore {
             bd = BukkitBlockState.of(bottom);
         }
 
-        if (B.isAir(unwrap(data.get(x, height + 1, z)))) {
+        if (BukkitBlockResolution.isAir(unwrap(data.get(x, height + 1, z)))) {
             data.set(x, height + 1, z, fixFacesForHunk(bd, data, x, z, realX, height + 1, realZ, mantle));
         }
     }
@@ -132,7 +133,7 @@ final class DecoratorCore {
         }
 
         if (decorator.getForceBlock() != null) {
-            if (caveSkipFluid && B.isFluid(unwrap(bdx))) {
+            if (caveSkipFluid && BukkitBlockResolution.isFluid(unwrap(bdx))) {
                 return;
             }
             data.set(x, height, z, fixFacesForHunk(
@@ -156,7 +157,7 @@ final class DecoratorCore {
             BlockData top = rawBd.clone();
             ((Bisected) top).setHalf(Bisected.Half.TOP);
             try {
-                if (!caveSkipFluid || !B.isFluid(unwrap(data.get(x, height + 2, z)))) {
+                if (!caveSkipFluid || !BukkitBlockResolution.isFluid(unwrap(data.get(x, height + 2, z)))) {
                     data.set(x, height + 2, z, BukkitBlockState.of(top));
                 }
             } catch (Throwable e) {
@@ -167,7 +168,7 @@ final class DecoratorCore {
             bd = BukkitBlockState.of(bottom);
         }
 
-        if (B.isAir(unwrap(data.get(x, height + 1, z)))) {
+        if (BukkitBlockResolution.isAir(unwrap(data.get(x, height + 1, z)))) {
             data.set(x, height + 1, z, fixFacesForHunk(bd, data, x, z, realX, height + 1, realZ, mantle));
         }
     }
@@ -196,7 +197,7 @@ final class DecoratorCore {
         int stack = computeStack(decorator, rng, realX, realZ, irisData, effectiveMax);
 
         if (stack == 1) {
-            if (opts.caveSkipFluid && B.isFluid(unwrap(data.get(x, height, z)))) {
+            if (opts.caveSkipFluid && BukkitBlockResolution.isFluid(unwrap(data.get(x, height, z)))) {
                 return;
             }
             data.set(x, height, z, decorator.pickBlockDataTop(rng, irisData, realX, realZ));
@@ -224,7 +225,7 @@ final class DecoratorCore {
                 break;
             }
 
-            if (opts.caveSkipFluid && B.isFluid(unwrap(data.get(x, height + 1 + i, z)))) {
+            if (opts.caveSkipFluid && BukkitBlockResolution.isFluid(unwrap(data.get(x, height + 1 + i, z)))) {
                 break;
             }
 
@@ -242,7 +243,7 @@ final class DecoratorCore {
         int stack = computeStack(decorator, rng, realX, realZ, irisData, max);
 
         if (stack == 1) {
-            if (opts.caveSkipFluid && B.isFluid(unwrap(data.get(x, height, z)))) {
+            if (opts.caveSkipFluid && BukkitBlockResolution.isFluid(unwrap(data.get(x, height, z)))) {
                 return;
             }
             data.set(x, height, z, fixFacesForHunk(
@@ -266,7 +267,7 @@ final class DecoratorCore {
                 bd = BukkitBlockState.of(dripstoneBlock(stack, i, BlockFace.DOWN));
             }
 
-            if (opts.caveSkipFluid && B.isFluid(unwrap(data.get(x, h, z)))) {
+            if (opts.caveSkipFluid && BukkitBlockResolution.isFluid(unwrap(data.get(x, h, z)))) {
                 break;
             }
             data.set(x, h, z, fixFacesForHunk(bd, data, x, z, realX, h, realZ, mantle));
@@ -336,7 +337,7 @@ final class DecoratorCore {
     static PlatformBlockState fixFacesForHunk(PlatformBlockState b, Hunk<PlatformBlockState> hunk, int rX, int rZ,
                                               int x, int y, int z, EngineMantle mantle) {
         BlockData rawB = unwrap(b);
-        if (!B.isVineBlock(rawB)) {
+        if (!BukkitBlockResolution.isVineBlock(rawB)) {
             return b;
         }
         MultipleFacing data = (MultipleFacing) rawB.clone();

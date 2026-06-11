@@ -18,6 +18,8 @@
 
 package art.arcane.iris.core.commands;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.edit.BlockSignal;
@@ -26,7 +28,6 @@ import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.director.DirectorExecutor;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
@@ -119,31 +120,31 @@ public class CommandWhat implements DirectorExecutor {
             sender().sendMessage("Material: " + C.GREEN + bd.getMaterial().name());
             sender().sendMessage("Full: " + C.WHITE + bd.getAsString(true));
 
-            if (B.isStorage(bd)) {
+            if (BukkitBlockResolution.isStorage(bd)) {
                 sender().sendMessage(C.YELLOW + "* Storage Block (Loot Capable)");
             }
 
-            if (B.isLit(bd)) {
+            if (BukkitBlockResolution.isLit(bd)) {
                 sender().sendMessage(C.YELLOW + "* Lit Block (Light Capable)");
             }
 
-            if (B.isFoliage(bd)) {
+            if (BukkitBlockResolution.isFoliage(bd)) {
                 sender().sendMessage(C.YELLOW + "* Foliage Block");
             }
 
-            if (B.isDecorant(bd)) {
+            if (BukkitBlockResolution.isDecorant(bd)) {
                 sender().sendMessage(C.YELLOW + "* Decorant Block");
             }
 
-            if (B.isFluid(bd)) {
+            if (BukkitBlockResolution.isFluid(bd)) {
                 sender().sendMessage(C.YELLOW + "* Fluid Block");
             }
 
-            if (B.isFoliagePlantable(bd)) {
+            if (BukkitBlockResolution.isFoliagePlantable(bd)) {
                 sender().sendMessage(C.YELLOW + "* Plantable Foliage Block");
             }
 
-            if (B.isSolid(bd)) {
+            if (BukkitBlockResolution.isSolid(bd)) {
                 sender().sendMessage(C.YELLOW + "* Solid Block");
             }
         }

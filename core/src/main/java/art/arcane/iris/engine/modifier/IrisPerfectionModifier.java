@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
 import art.arcane.iris.util.project.context.ChunkContext;
@@ -103,7 +105,7 @@ public class IrisPerfectionModifier extends EngineAssignedModifier<PlatformBlock
                         for (int k = top; k >= 0; k--) {
                             PlatformBlockState b = output.get(finalI, k, j);
                             BlockData rawB = unwrap(b);
-                            boolean now = b != null && !(B.isAir(rawB) || B.isFluid(rawB));
+                            boolean now = b != null && !(BukkitBlockResolution.isAir(rawB) || BukkitBlockResolution.isFluid(rawB));
 
                             if (now != inside) {
                                 inside = now;
@@ -127,16 +129,16 @@ public class IrisPerfectionModifier extends EngineAssignedModifier<PlatformBlock
                             boolean remove2 = false;
 
                             BlockData rawTip = (BlockData) tip.nativeHandle();
-                            if (B.isDecorant(rawTip)) {
+                            if (BukkitBlockResolution.isDecorant(rawTip)) {
                                 BlockData bel = unwrap(output.get(finalI, k - 1, j));
 
                                 if (bel == null) {
                                     remove = true;
-                                } else if (!B.canPlaceOnto(rawTip.getMaterial(), bel.getMaterial())) {
+                                } else if (!BukkitBlockResolution.canPlaceOnto(rawTip.getMaterial(), bel.getMaterial())) {
                                     remove = true;
                                 } else if (bel instanceof Bisected) {
                                     BlockData bb = unwrap(output.get(finalI, k - 2, j));
-                                    if (bb == null || !B.canPlaceOnto(bel.getMaterial(), bb.getMaterial())) {
+                                    if (bb == null || !BukkitBlockResolution.canPlaceOnto(bel.getMaterial(), bb.getMaterial())) {
                                         remove = true;
                                         remove2 = true;
                                     }
@@ -191,7 +193,7 @@ public class IrisPerfectionModifier extends EngineAssignedModifier<PlatformBlock
 
             if (b != null) {
                 BlockData rawB = (BlockData) b.nativeHandle();
-                if (!B.isAir(rawB) && !B.isFluid(rawB)) {
+                if (!BukkitBlockResolution.isAir(rawB) && !BukkitBlockResolution.isFluid(rawB)) {
                     return i;
                 }
             }

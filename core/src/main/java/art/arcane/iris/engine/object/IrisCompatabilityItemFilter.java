@@ -18,11 +18,12 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Required;
-import art.arcane.iris.util.common.data.B;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -48,13 +49,13 @@ public class IrisCompatabilityItemFilter {
     }
 
     public Material getFind() {
-        return findData.aquire(() -> B.getMaterial(when));
+        return findData.aquire(() -> BukkitBlockResolution.getMaterial(when));
     }
 
     public Material getReplace() {
         return replaceData.aquire(() ->
         {
-            Material b = B.getMaterialOrNull(supplement);
+            Material b = BukkitBlockResolution.getMaterialOrNull(supplement);
 
             if (b == null) {
                 return null;

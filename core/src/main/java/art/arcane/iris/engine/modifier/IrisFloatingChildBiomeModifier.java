@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.decorator.FloatingDecorator;
@@ -260,9 +262,9 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                 IrisFloatingChildBiomes entry = sample.entry;
                 Integer localFluidHeight = entry.getLocalFluidHeight();
                 if (localFluidHeight != null && localFluidHeight > 0) {
-                    BlockData rawFluid = B.get(entry.getFluidBlock());
+                    BlockData rawFluid = BukkitBlockResolution.get(entry.getFluidBlock());
                     if (rawFluid == null) {
-                        rawFluid = B.get("minecraft:water");
+                        rawFluid = BukkitBlockResolution.get("minecraft:water");
                     }
                     PlatformBlockState fluid = BukkitBlockState.of(rawFluid);
                     int fluidCap = Math.min(sample.thickness - 1, localFluidHeight);
@@ -323,7 +325,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                 int max = Math.max(1, chunkHeight - topY);
                 if (topY + 1 < chunkHeight) {
                     PlatformBlockState above = output.get(xf, topY + 1, zf);
-                    if (above == null || B.isAir((BlockData) above.nativeHandle())) {
+                    if (above == null || BukkitBlockResolution.isAir((BlockData) above.nativeHandle())) {
                         try {
                             RNG colRng = rng.nextParallelRNG((int) FloatingIslandSample.columnSeed(baseSeed, wx, wz));
                             FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng, NOOP_DECORATION_MISS);
@@ -356,7 +358,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                             fluidTopY = y;
                         }
                     }
-                    if (fluidTopY > 0 && fluidTopY + 1 < chunkHeight && B.isAir(unwrap(output.get(xf, fluidTopY + 1, zf)))) {
+                    if (fluidTopY > 0 && fluidTopY + 1 < chunkHeight && BukkitBlockResolution.isAir(unwrap(output.get(xf, fluidTopY + 1, zf)))) {
                         try {
                             seaSurfaceDecorator.decorate(xf, zf, wx, wx + 1, wx - 1, wz, wz + 1, wz - 1, output, target, fluidTopY, chunkHeight);
                         } catch (Throwable e) {

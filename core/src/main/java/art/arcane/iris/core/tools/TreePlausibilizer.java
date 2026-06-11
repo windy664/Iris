@@ -18,8 +18,9 @@
 
 package art.arcane.iris.core.tools;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.engine.object.IrisObject;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.VectorMap;
 import org.bukkit.Axis;
 import org.bukkit.Tag;
@@ -47,8 +48,8 @@ public final class TreePlausibilizer {
             {0, 1, 0}, {0, -1, 0},
             {0, 0, 1}, {0, 0, -1}
     };
-    private static final BlockData FALLBACK_LOG = B.get("minecraft:oak_log[axis=y]");
-    private static final BlockData FALLBACK_LEAF = B.get("minecraft:oak_leaves[distance=1,persistent=false,waterlogged=false]");
+    private static final BlockData FALLBACK_LOG = BukkitBlockResolution.get("minecraft:oak_log[axis=y]");
+    private static final BlockData FALLBACK_LEAF = BukkitBlockResolution.get("minecraft:oak_leaves[distance=1,persistent=false,waterlogged=false]");
 
     private TreePlausibilizer() {
     }

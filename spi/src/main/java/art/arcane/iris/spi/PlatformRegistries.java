@@ -26,6 +26,14 @@ import java.util.List;
 public interface PlatformRegistries {
     PlatformBlockState block(String key);
 
+    PlatformBlockState blockOrNull(String key);
+
+    PlatformBlockState blockOrNull(String key, boolean warn);
+
+    PlatformBlockState air();
+
+    PlatformBlockState deepSlateOre(PlatformBlockState block, PlatformBlockState ore);
+
     PlatformBiome biome(String key);
 
     PlatformItem item(String key);

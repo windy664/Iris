@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -128,10 +130,10 @@ public class IrisPostModifier extends EngineAssignedModifier<PlatformBlockState>
                 BlockData bc = (BlockData) getPostBlock(x, hc, z, currentPostX, currentPostZ, currentData).nativeHandle();
                 BlockData bd = (BlockData) getPostBlock(x, hd, z, currentPostX, currentPostZ, currentData).nativeHandle();
                 g = 0;
-                g = B.isSolid(ba) ? g + 1 : g;
-                g = B.isSolid(bb) ? g + 1 : g;
-                g = B.isSolid(bc) ? g + 1 : g;
-                g = B.isSolid(bd) ? g + 1 : g;
+                g = BukkitBlockResolution.isSolid(ba) ? g + 1 : g;
+                g = BukkitBlockResolution.isSolid(bb) ? g + 1 : g;
+                g = BukkitBlockResolution.isSolid(bc) ? g + 1 : g;
+                g = BukkitBlockResolution.isSolid(bd) ? g + 1 : g;
 
                 if (g >= 3) {
                     setPostBlock(x, h + 1, z, getPostBlock(x, h, z, currentPostX, currentPostZ, currentData), currentPostX, currentPostZ, currentData);
@@ -183,7 +185,7 @@ public class IrisPostModifier extends EngineAssignedModifier<PlatformBlockState>
 
                 if (d != null) {
                     BlockData rawD = (BlockData) d.nativeHandle();
-                    boolean cancel = B.isAir(rawD);
+                    boolean cancel = BukkitBlockResolution.isAir(rawD);
 
                     if (rawD.getMaterial().equals(Material.SNOW) && h + 1 <= getDimension().getFluidHeight()) {
                         cancel = true;
@@ -229,23 +231,23 @@ public class IrisPostModifier extends EngineAssignedModifier<PlatformBlockState>
         // Foliage
         b = (BlockData) getPostBlock(x, h + 1, z, currentPostX, currentPostZ, currentData).nativeHandle();
 
-        if (B.isVineBlock(b) && b instanceof MultipleFacing) {
+        if (BukkitBlockResolution.isVineBlock(b) && b instanceof MultipleFacing) {
             MultipleFacing f = (MultipleFacing) b.clone();
             int finalH = h + 1;
 
             f.getAllowedFaces().forEach(face -> {
                 BlockData d = (BlockData) getPostBlock(x + face.getModX(), finalH + face.getModY(), z + face.getModZ(), currentPostX, currentPostZ, currentData).nativeHandle();
-                f.setFace(face, !B.isAir(d) && !B.isVineBlock(d));
+                f.setFace(face, !BukkitBlockResolution.isAir(d) && !BukkitBlockResolution.isVineBlock(d));
             });
             if (!f.equals(b)) {
                 setPostBlock(x, h + 1, z, BukkitBlockState.of(f), currentPostX, currentPostZ, currentData);
             }
         }
 
-        if (B.isFoliage(b) || b.getMaterial().equals(Material.DEAD_BUSH)) {
+        if (BukkitBlockResolution.isFoliage(b) || b.getMaterial().equals(Material.DEAD_BUSH)) {
             Material onto = ((BlockData) getPostBlock(x, h, z, currentPostX, currentPostZ, currentData).nativeHandle()).getMaterial();
 
-            if (!B.canPlaceOnto(b.getMaterial(), onto) && !B.isDecorant(b)) {
+            if (!BukkitBlockResolution.canPlaceOnto(b.getMaterial(), onto) && !BukkitBlockResolution.isDecorant(b)) {
                 setPostBlock(x, h + 1, z, AIR, currentPostX, currentPostZ, currentData);
             }
         }
@@ -263,7 +265,7 @@ public class IrisPostModifier extends EngineAssignedModifier<PlatformBlockState>
 
     public boolean isSolid(int x, int y, int z, int currentPostX, int currentPostZ, Hunk<PlatformBlockState> currentData) {
         BlockData d = (BlockData) getPostBlock(x, y, z, currentPostX, currentPostZ, currentData).nativeHandle();
-        return d.getMaterial().isSolid() && !B.isVineBlock(d);
+        return d.getMaterial().isSolid() && !BukkitBlockResolution.isVineBlock(d);
     }
 
     public boolean isSolidNonSlab(int x, int y, int z, int currentPostX, int currentPostZ, Hunk<PlatformBlockState> currentData) {

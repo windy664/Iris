@@ -24,7 +24,6 @@ import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.spi.PlatformEntityType;
 import art.arcane.iris.spi.PlatformItem;
 import art.arcane.iris.spi.PlatformRegistries;
-import art.arcane.iris.util.common.data.B;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -41,8 +40,30 @@ import java.util.List;
 public final class BukkitRegistries implements PlatformRegistries {
     @Override
     public PlatformBlockState block(String key) {
-        BlockData data = B.get(key);
+        BlockData data = BukkitBlockResolution.get(key);
         return data == null ? null : BukkitBlockState.of(data);
+    }
+
+    @Override
+    public PlatformBlockState blockOrNull(String key) {
+        BlockData data = BukkitBlockResolution.getOrNull(key);
+        return data == null ? null : BukkitBlockState.of(data);
+    }
+
+    @Override
+    public PlatformBlockState blockOrNull(String key, boolean warn) {
+        BlockData data = BukkitBlockResolution.getOrNull(key, warn);
+        return data == null ? null : BukkitBlockState.of(data);
+    }
+
+    @Override
+    public PlatformBlockState air() {
+        return BukkitBlockState.of(BukkitBlockResolution.getAir());
+    }
+
+    @Override
+    public PlatformBlockState deepSlateOre(PlatformBlockState block, PlatformBlockState ore) {
+        return BukkitBlockState.of(BukkitBlockResolution.toDeepSlateOre((BlockData) block.nativeHandle(), (BlockData) ore.nativeHandle()));
     }
 
     @Override

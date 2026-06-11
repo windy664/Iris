@@ -1,5 +1,7 @@
 package art.arcane.iris.engine.framework.placer;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -14,7 +16,6 @@ import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.MatterCavern;
@@ -59,7 +60,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
 
         if (y <= world.getMinHeight() || block.getType() == Material.BEDROCK) return;
         InventorySlotType slot = null;
-        if (B.isStorageChest(d)) {
+        if (BukkitBlockResolution.isStorageChest(d)) {
             slot = InventorySlotType.STORAGE;
         }
 

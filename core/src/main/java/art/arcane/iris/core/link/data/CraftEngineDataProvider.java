@@ -1,12 +1,13 @@
 package art.arcane.iris.core.link.data;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.nms.container.BlockProperty;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.math.RNG;
@@ -89,7 +90,7 @@ public class CraftEngineDataProvider extends ExternalDataProvider {
             throw new MissingResourceException("Failed to find BlockData!", blockId.namespace(), blockId.key());
         }
 
-        return IrisCustomData.of(B.getAir(), ExternalDataSVC.buildState(blockId, state));
+        return IrisCustomData.of(BukkitBlockResolution.getAir(), ExternalDataSVC.buildState(blockId, state));
     }
 
     @Override

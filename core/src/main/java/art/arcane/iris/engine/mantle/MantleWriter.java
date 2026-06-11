@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.mantle;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.matter.TileWrapper;
 import com.google.common.collect.ImmutableList;
@@ -32,7 +34,6 @@ import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.iris.engine.object.TileData;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.function.Function3;
@@ -299,7 +300,7 @@ public class MantleWriter implements IObjectPlacer, AutoCloseable {
 
     @Override
     public boolean isSolid(int x, int y, int z) {
-        return B.isSolid((BlockData) get(x, y, z).nativeHandle());
+        return BukkitBlockResolution.isSolid((BlockData) get(x, y, z).nativeHandle());
     }
 
     @Override

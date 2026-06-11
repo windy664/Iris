@@ -1,6 +1,7 @@
 package art.arcane.iris.core.tools;
 
-import art.arcane.iris.util.common.data.B;
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
@@ -19,7 +20,7 @@ public class IrisReflectiveAPI {
     }
 
     public static void registerCustomBlockData(String namespace, String key, BlockData blockData) {
-        B.registerCustomBlockData(namespace, key, blockData);
+        BukkitBlockResolution.registerCustomBlockData(namespace, key, blockData);
     }
 
     public static void retainMantleData(String classname) {

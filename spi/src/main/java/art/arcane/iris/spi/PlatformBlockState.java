@@ -30,6 +30,40 @@ public interface PlatformBlockState {
 
     boolean isSolid();
 
+    boolean isFluid();
+
+    boolean isWater();
+
+    boolean isWaterLogged();
+
+    boolean isLit();
+
+    boolean isUpdatable();
+
+    boolean isFoliage();
+
+    boolean isFoliagePlantable();
+
+    boolean isDecorant();
+
+    boolean isStorage();
+
+    boolean isStorageChest();
+
+    boolean isOre();
+
+    boolean isDeepSlate();
+
+    boolean isVineBlock();
+
+    boolean canPlaceOnto(PlatformBlockState onto);
+
+    boolean matches(PlatformBlockState state);
+
+    default boolean isAirOrFluid() {
+        return isAir() || isFluid();
+    }
+
     boolean hasTileEntity();
 
     PlatformBlockState withProperty(String name, String value);

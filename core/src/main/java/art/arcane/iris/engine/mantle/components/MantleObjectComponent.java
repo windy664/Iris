@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.mantle.components;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.IrisComplex;
@@ -35,7 +37,6 @@ import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.project.context.ChunkedDoubleDataCache;
 import art.arcane.iris.util.project.context.ChunkContext;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.stream.ProceduralStream;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
@@ -583,7 +584,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                             if (marker != null) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                             }
-                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(unwrap(data))) {
+                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && BukkitBlockResolution.isStorageChest(unwrap(data))) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
                             }
                         }, null, getData());
@@ -598,7 +599,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                             if (marker != null) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                             }
-                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(unwrap(data))) {
+                            if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && BukkitBlockResolution.isStorageChest(unwrap(data))) {
                                 writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
                             }
                         }, null, getData());
@@ -610,7 +611,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                         if (marker != null) {
                             writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                         }
-                        if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(unwrap(data))) {
+                        if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && BukkitBlockResolution.isStorageChest(unwrap(data))) {
                             writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
                         }
                     }, null, getData());
@@ -807,7 +808,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     if (marker != null) {
                         writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                     }
-                    if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && B.isStorageChest(unwrap(data))) {
+                    if (effectivePlacement.isDolphinTarget() && effectivePlacement.isUnderwater() && BukkitBlockResolution.isStorageChest(unwrap(data))) {
                         writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
                     }
                 }, null, getData());
@@ -987,7 +988,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 if (marker != null) {
                     writer.setData(b.getX(), b.getY(), b.getZ(), marker);
                 }
-                if (placement.isDolphinTarget() && placement.isUnderwater() && B.isStorageChest(unwrap(data))) {
+                if (placement.isDolphinTarget() && placement.isUnderwater() && BukkitBlockResolution.isStorageChest(unwrap(data))) {
                     writer.setData(b.getX(), b.getY(), b.getZ(), MatterStructurePOI.BURIED_TREASURE);
                 }
             }, null, getData());

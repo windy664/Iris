@@ -18,6 +18,8 @@
 
 package art.arcane.iris.core.link.data;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
@@ -27,7 +29,6 @@ import art.arcane.iris.core.nms.container.BlockProperty;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.bukkit.utils.serialize.Chroma;
@@ -72,7 +73,7 @@ public class MythicCrucibleDataProvider extends ExternalDataProvider {
         CustomBlockItemContext blockItemContext = crucibleItem.getBlockData();
         FurnitureItemContext furnitureItemContext = crucibleItem.getFurnitureData();
         if (furnitureItemContext != null) {
-            return IrisCustomData.of(B.getAir(), ExternalDataSVC.buildState(blockId, state));
+            return IrisCustomData.of(BukkitBlockResolution.getAir(), ExternalDataSVC.buildState(blockId, state));
         } else if (blockItemContext != null) {
             return blockItemContext.getBlockData();
         }

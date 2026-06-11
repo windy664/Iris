@@ -1,11 +1,12 @@
 package art.arcane.iris.core.link.data;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import me.kryniowesegryderiusz.kgenerators.Main;
 import me.kryniowesegryderiusz.kgenerators.api.KGeneratorsAPI;
@@ -48,7 +49,7 @@ public class KGeneratorsDataProvider extends ExternalDataProvider {
         if (block.getType() != Material.STRUCTURE_VOID) return;
         var existing = KGeneratorsAPI.getLoadedGeneratorLocation(block.getLocation());
         if (existing != null) return;
-        block.setBlockData(B.getAir(), false);
+        block.setBlockData(BukkitBlockResolution.getAir(), false);
         var gen = Main.getGenerators().get(blockId.key());
         if (gen == null) return;
         var loc = new GeneratorLocation(-1, gen, block.getLocation(), Main.getPlacedGenerators().getChunkInfo(block.getChunk()), null, null);

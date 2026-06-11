@@ -18,10 +18,11 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import com.google.gson.Gson;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.io.IO;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.iris.util.common.scheduling.J;
@@ -266,7 +267,7 @@ public class IrisCompat {
         String buf = n;
         int err = 16;
 
-        BlockData tx = B.getOrNull(buf, false);
+        BlockData tx = BukkitBlockResolution.getOrNull(buf, false);
 
         if (tx != null) {
             return tx;
@@ -276,7 +277,7 @@ public class IrisCompat {
         while (true) {
             if (err-- <= 0) {
                 IrisLogging.error("Can't find block data for " + n);
-                return B.getNoCompat("STONE");
+                return BukkitBlockResolution.getNoCompat("STONE");
             }
             String m = buf;
             if (m.contains("[")) {
@@ -300,14 +301,14 @@ public class IrisCompat {
             }
 
             IrisLogging.error("Can't find block data for " + n);
-            return B.getNoCompat("STONE");
+            return BukkitBlockResolution.getNoCompat("STONE");
         }
     }
 
     public Material getItem(String n) {
         String buf = n;
         int err = 16;
-        Material txf = B.getMaterialOrNull(buf);
+        Material txf = BukkitBlockResolution.getMaterialOrNull(buf);
 
         if (txf != null) {
             return txf;
@@ -318,7 +319,7 @@ public class IrisCompat {
         searching:
         while (true) {
             if (nomore < 0) {
-                return B.getMaterial("STONE");
+                return BukkitBlockResolution.getMaterial("STONE");
             }
 
             nomore--;
@@ -343,7 +344,7 @@ public class IrisCompat {
         }
 
         buf = n;
-        BlockData tx = B.getOrNull(buf, false);
+        BlockData tx = BukkitBlockResolution.getOrNull(buf, false);
 
         if (tx != null) {
             return tx.getMaterial();
@@ -353,13 +354,13 @@ public class IrisCompat {
         searching:
         while (true) {
             if (nomore < 0) {
-                return B.getMaterial("STONE");
+                return BukkitBlockResolution.getMaterial("STONE");
             }
 
             nomore--;
 
             if (err-- <= 0) {
-                return B.getMaterial("STONE");
+                return BukkitBlockResolution.getMaterial("STONE");
             }
 
             for (IrisCompatabilityBlockFilter i : blockFilters) {
@@ -375,7 +376,7 @@ public class IrisCompat {
                 }
             }
 
-            return B.getMaterial("STONE");
+            return BukkitBlockResolution.getMaterial("STONE");
         }
     }
 }

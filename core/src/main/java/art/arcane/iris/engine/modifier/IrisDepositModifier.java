@@ -18,11 +18,12 @@
 
 package art.arcane.iris.engine.modifier;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.util.project.context.ChunkContext;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.data.HeightMap;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
@@ -141,7 +142,7 @@ public class IrisDepositModifier extends EngineAssignedModifier<PlatformBlockSta
                     PlatformBlockState remapped = resolveDepositVariant(cx, cz, nx, ny, nz, ore, dimension, context);
                     PlatformBlockState finalBlock = remapped != null
                             ? remapped
-                            : BukkitBlockState.of(B.toDeepSlateOre(unwrap(data.get(nx, ny, nz)), unwrap(ore)));
+                            : BukkitBlockState.of(BukkitBlockResolution.toDeepSlateOre(unwrap(data.get(nx, ny, nz)), unwrap(ore)));
                     data.set(nx, ny, nz, finalBlock);
                 }
             }

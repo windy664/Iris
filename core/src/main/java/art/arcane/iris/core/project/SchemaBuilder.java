@@ -18,6 +18,8 @@
 
 package art.arcane.iris.core.project;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.link.Identifier;
@@ -31,7 +33,6 @@ import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.json.JSONArray;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.iris.util.common.reflect.KeyedType;
@@ -275,7 +276,7 @@ public class SchemaBuilder {
                             ja.put(i);
                         }
 
-                        for (String i : B.getBlockTypes()) {
+                        for (String i : BukkitBlockResolution.getBlockTypes()) {
                             ja.put(i);
                         }
 
@@ -330,7 +331,7 @@ public class SchemaBuilder {
 
                     if (!definitions.containsKey(key)) {
                         JSONObject j = new JSONObject();
-                        j.put("enum", B.getItemTypes());
+                        j.put("enum", BukkitBlockResolution.getItemTypes());
                         definitions.put(key, j);
                     }
 
@@ -438,7 +439,7 @@ public class SchemaBuilder {
                     JSONArray any = new JSONArray();
                     prop.put("anyOf", any);
 
-                    B.getBlockStates().forEach((blocks, properties) -> {
+                    BukkitBlockResolution.getBlockStates().forEach((blocks, properties) -> {
                         if (blocks.isEmpty()) return;
 
                         String raw = blocks.getFirst().replace(':', '_');
@@ -570,7 +571,7 @@ public class SchemaBuilder {
                                         ja.put(i);
                                     }
 
-                                    for (String i : B.getBlockTypes()) {
+                                    for (String i : BukkitBlockResolution.getBlockTypes()) {
                                         ja.put(i);
                                     }
 
@@ -588,7 +589,7 @@ public class SchemaBuilder {
 
                                 if (!definitions.containsKey(key)) {
                                     JSONObject j = new JSONObject();
-                                    j.put("enum", B.getItemTypes());
+                                    j.put("enum", BukkitBlockResolution.getItemTypes());
                                     definitions.put(key, j);
                                 }
 

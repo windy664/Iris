@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.framework;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.events.IrisLootEvent;
@@ -46,7 +48,6 @@ import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.iris.util.project.context.IrisContext;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.DataProvider;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
@@ -328,7 +329,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
         }
 
         BlockData blockData = (BlockData) data.nativeHandle();
-        if (B.isUpdatable(blockData)) {
+        if (BukkitBlockResolution.isUpdatable(blockData)) {
             getMantle().updateBlock(x, y, z);
         }
         if (blockData instanceof IrisCustomData) {
@@ -405,14 +406,14 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                     x &= 15;
                     z &= 15;
                     Block block = c.getBlock(x, y, z);
-                    if (!B.isFluid(block.getBlockData())) {
+                    if (!BukkitBlockResolution.isFluid(block.getBlockData())) {
                         return;
                     }
-                    boolean u = B.isAir(block.getRelative(BlockFace.DOWN).getBlockData())
-                            || B.isAir(block.getRelative(BlockFace.WEST).getBlockData())
-                            || B.isAir(block.getRelative(BlockFace.EAST).getBlockData())
-                            || B.isAir(block.getRelative(BlockFace.SOUTH).getBlockData())
-                            || B.isAir(block.getRelative(BlockFace.NORTH).getBlockData());
+                    boolean u = BukkitBlockResolution.isAir(block.getRelative(BlockFace.DOWN).getBlockData())
+                            || BukkitBlockResolution.isAir(block.getRelative(BlockFace.WEST).getBlockData())
+                            || BukkitBlockResolution.isAir(block.getRelative(BlockFace.EAST).getBlockData())
+                            || BukkitBlockResolution.isAir(block.getRelative(BlockFace.SOUTH).getBlockData())
+                            || BukkitBlockResolution.isAir(block.getRelative(BlockFace.NORTH).getBlockData());
 
                     if (u) grid[x][z] = Math.max(grid[x][z], y);
                 });
@@ -511,11 +512,11 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
         Block block = c.getBlock(x, y, z);
         BlockData data = block.getBlockData();
         blockUpdatedMetric();
-        if (B.isStorage(data)) {
+        if (BukkitBlockResolution.isStorage(data)) {
             RNG rx = rf.nextParallelRNG(BlockPosition.toLong(x, y, z));
             InventorySlotType slot = null;
 
-            if (B.isStorageChest(data)) {
+            if (BukkitBlockResolution.isStorageChest(data)) {
                 slot = InventorySlotType.STORAGE;
             }
 
@@ -608,7 +609,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
         PlacedObject po = getObjectPlacement(rx, ry, rz, mc);
         if (po != null && po.getPlacement() != null) {
-            if (B.isStorageChest(b.getBlockData())) {
+            if (BukkitBlockResolution.isStorageChest(b.getBlockData())) {
                 IrisLootTable table = po.getPlacement().getTable(BukkitBlockState.of(b.getBlockData()), getData());
                 if (table != null) {
                     tables.add(table);

@@ -18,12 +18,13 @@
 
 package art.arcane.iris.engine.object.tree;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.object.IrisMaterialPalette;
 import art.arcane.iris.engine.object.IrisProceduralTree;
 import art.arcane.iris.engine.object.IrisTreeDecorator;
 import art.arcane.iris.spi.PlatformBlockState;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.Axis;
 import org.bukkit.Material;
@@ -106,10 +107,10 @@ public final class TreeBlockResolver {
         }
         if (tree.getWeightedSecondaryLeaves() != null && !tree.getWeightedSecondaryLeaves().isEmpty()) {
             String picked = pickWeighted(tree, posRng);
-            return picked == null ? null : cloneOrNull(B.getOrNull(picked, false));
+            return picked == null ? null : cloneOrNull(BukkitBlockResolution.getOrNull(picked, false));
         }
         if (tree.getSecondaryLeaves() != null && !tree.getSecondaryLeaves().isEmpty()) {
-            return cloneOrNull(B.getOrNull(tree.getSecondaryLeaves(), false));
+            return cloneOrNull(BukkitBlockResolution.getOrNull(tree.getSecondaryLeaves(), false));
         }
         return null;
     }
@@ -139,7 +140,7 @@ public final class TreeBlockResolver {
             return state == null ? null : ((BlockData) state.nativeHandle()).clone();
         }
         if (block != null && !block.isEmpty()) {
-            return cloneOrNull(B.getOrNull(block, false));
+            return cloneOrNull(BukkitBlockResolution.getOrNull(block, false));
         }
         return null;
     }

@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.mantle.components;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -37,7 +39,6 @@ import art.arcane.iris.engine.object.IrisObjectRotation;
 import art.arcane.iris.engine.object.IrisObjectTranslate;
 import art.arcane.iris.engine.object.ObjectPlaceMode;
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.volmlib.util.collection.KList;
@@ -453,7 +454,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
         BlockData data = (BlockData) state.nativeHandle();
         PlatformBlockState existingState = placer.get(x, y, z);
         BlockData existing = existingState == null ? null : (BlockData) existingState.nativeHandle();
-        boolean wouldReplace = existing != null && B.isSolid(existing) && B.isVineBlock(data);
+        boolean wouldReplace = existing != null && BukkitBlockResolution.isSolid(existing) && BukkitBlockResolution.isVineBlock(data);
         boolean placesBlock = !data.getMaterial().equals(Material.AIR) && !data.getMaterial().equals(Material.CAVE_AIR) && !wouldReplace;
         return data instanceof IrisCustomData || placesBlock;
     }

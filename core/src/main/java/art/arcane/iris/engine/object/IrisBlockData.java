@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
@@ -173,7 +175,7 @@ public class IrisBlockData extends IrisRegistrant {
                         IrisLogging.debug("Block Data used " + sx + " (CUSTOM)");
                     }
 
-                    BlockData bx = B.get(sx);
+                    BlockData bx = BukkitBlockResolution.get(sx);
 
                     if (bx != null) {
                         return BukkitBlockState.of(bx);
@@ -186,7 +188,7 @@ public class IrisBlockData extends IrisRegistrant {
             }
 
             String ss = keyify(getBlock()) + computeProperties();
-            b = B.get(ss);
+            b = BukkitBlockResolution.get(ss);
 
             if (debug) {
                 IrisLogging.debug("Block Data used " + ss);

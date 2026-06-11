@@ -18,10 +18,11 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.PlatformBlockState;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.math.Vector3i;
 import art.arcane.volmlib.util.math.RNG;
 import org.bukkit.block.data.BlockData;
@@ -48,7 +49,7 @@ public final class IrisProceduralBlocks {
             return state == null ? null : ((BlockData) state.nativeHandle()).clone();
         }
         if (block != null && !block.isEmpty()) {
-            BlockData bd = B.getOrNull(block, false);
+            BlockData bd = BukkitBlockResolution.getOrNull(block, false);
             return bd == null ? null : bd.clone();
         }
         return null;

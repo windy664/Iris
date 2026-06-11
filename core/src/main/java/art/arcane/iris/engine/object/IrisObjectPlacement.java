@@ -18,6 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
@@ -26,7 +28,6 @@ import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.DataProvider;
 import art.arcane.volmlib.util.data.WeightedRandom;
 import art.arcane.volmlib.util.math.RNG;
@@ -321,7 +322,7 @@ public class IrisObjectPlacement {
     public IrisLootTable getTable(PlatformBlockState state, IrisData dataManager) {
         TableCache cache = getCache(dataManager);
         BlockData data = (BlockData) state.nativeHandle();
-        if (B.isStorageChest(data)) {
+        if (BukkitBlockResolution.isStorageChest(data)) {
             IrisLootTable picked = null;
             if (cache.exact.containsKey(data.getMaterial()) && cache.exact.get(data.getMaterial()).containsKey(data)) {
                 picked = cache.exact.get(data.getMaterial()).get(data).pullRandom();

@@ -18,6 +18,8 @@
 
 package art.arcane.iris.util.nbt.common.mca;
 
+import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
+
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -25,7 +27,6 @@ import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.nbt.mca.MCAWorldStoreSupport;
 import art.arcane.volmlib.util.nbt.mca.MCAWorldRuntimeSupport;
 import art.arcane.volmlib.util.nbt.mca.NBTWorldSupport;
-import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.reflect.KeyedType;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.nbt.tag.CompoundTag;
@@ -40,10 +41,10 @@ import java.util.Map;
 import java.util.Locale;
 
 public class NBTWorld {
-    private static final BlockData AIR = B.get("AIR");
+    private static final BlockData AIR = BukkitBlockResolution.get("AIR");
     private static final NBTWorldSupport.BlockStateCodec<BlockData> BLOCK_STATE_CODEC = NBTWorldSupport.blockStateCodec(
-            blockStateString -> B.getOrNull(blockStateString, true),
-            B::getAir,
+            blockStateString -> BukkitBlockResolution.getOrNull(blockStateString, true),
+            BukkitBlockResolution::getAir,
             blockData -> blockData.getAsString(true),
             blockData -> {
                 NamespacedKey key = KeyedType.getKey(blockData.getMaterial());
