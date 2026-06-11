@@ -137,7 +137,6 @@ public class IrisLoot {
                 is.setItemMeta(applyProperties(is, rng, debug, table));
                 return BukkitPlatform.applyCustomNbt(is, customNbt);
             } catch (Throwable e) {
-                //Iris.reportError(e);
                 e.printStackTrace();
             }
         }

@@ -19,8 +19,8 @@
 package art.arcane.iris.core.gui;
 
 import art.arcane.iris.Iris;
-import art.arcane.iris.core.gui.components.IrisRenderer;
-import art.arcane.iris.core.gui.components.RenderType;
+import art.arcane.iris.engine.framework.render.IrisRenderer;
+import art.arcane.iris.engine.framework.render.RenderType;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.framework.Engine;

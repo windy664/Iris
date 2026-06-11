@@ -21,6 +21,7 @@ package art.arcane.iris.core.service;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.edit.BlockEditor;
 import art.arcane.iris.core.edit.BukkitBlockEditor;
+import art.arcane.iris.engine.framework.BlockEditAccess;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.iris.util.common.plugin.IrisService;
@@ -31,7 +32,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.world.WorldUnloadEvent;
 
-public class EditSVC implements IrisService {
+public class EditSVC implements IrisService, BlockEditAccess<World, BlockData, Biome> {
     private KMap<World, BlockEditor> editors;
     private int updateTaskId = -1;
     public static boolean deletingWorld = false;

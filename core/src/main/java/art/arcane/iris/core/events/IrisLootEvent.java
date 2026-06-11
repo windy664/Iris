@@ -1,9 +1,10 @@
 package art.arcane.iris.core.events;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.InventorySlotType;
 import art.arcane.iris.engine.object.IrisLootTable;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.scheduling.J;
 import lombok.Getter;
@@ -32,7 +33,7 @@ public class IrisLootEvent extends Event {
         @NotNull
         @Override
         public NamespacedKey getKey() {
-            return new NamespacedKey(Iris.instance, "empty");
+            return new NamespacedKey(BukkitPlatform.plugin(), "empty");
         }
 
         @NotNull
@@ -103,13 +104,13 @@ public class IrisLootEvent extends Event {
         LootContext context = new LootContext.Builder(loc).build();
         LootGenerateEvent event = new LootGenerateEvent(world, null, holder, EMPTY, context, loot, true);
         if (!Bukkit.isPrimaryThread()) {
-            Iris.warn("LootGenerateEvent was not called on the main thread, please report this issue.");
+            IrisLogging.warn("LootGenerateEvent was not called on the main thread, please report this issue.");
             Thread.dumpStack();
             J.sfut(() -> {
                 try {
                     Bukkit.getPluginManager().callEvent(event);
                 } catch (Throwable e) {
-                    Iris.reportError("LootGenerateEvent dispatch failed at "
+                    IrisLogging.reportError("LootGenerateEvent dispatch failed at "
                             + world.getName() + " [" + x + "," + y + "," + z + "].", e);
                     if (e instanceof RuntimeException runtimeException) {
                         throw runtimeException;
@@ -124,7 +125,7 @@ public class IrisLootEvent extends Event {
             try {
                 Bukkit.getPluginManager().callEvent(event);
             } catch (Throwable e) {
-                Iris.reportError("LootGenerateEvent dispatch failed at "
+                IrisLogging.reportError("LootGenerateEvent dispatch failed at "
                         + world.getName() + " [" + x + "," + y + "," + z + "].", e);
                 if (e instanceof RuntimeException runtimeException) {
                     throw runtimeException;

@@ -1,8 +1,9 @@
 package art.arcane.iris.core.safeguard;
 
 import art.arcane.iris.BuildConstants;
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
 import org.bukkit.Bukkit;
@@ -63,7 +64,7 @@ public enum Mode {
     public void splash() {
         String padd = Form.repeat(" ", 4);
         String padd2 = Form.repeat(" ", 4);
-        String version = Iris.instance.getDescription().getVersion();
+        String version = BukkitPlatform.plugin().getDescription().getVersion();
         String releaseTrain = getReleaseTrain(version);
         String serverVersion = getServerVersion();
         String startupDate = getStartupDate();
@@ -90,7 +91,7 @@ public enum Mode {
             builder.append(padd).append(splash[i]).append(info[i]).append("\n");
         }
 
-        Iris.info(builder.toString());
+        IrisLogging.info(builder.toString());
     }
 
     private String[] renderSplashLogo() {

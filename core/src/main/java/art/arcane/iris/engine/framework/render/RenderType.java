@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package art.arcane.iris.core.gui.components;
+package art.arcane.iris.engine.framework.render;
 
 public enum RenderType {
     BIOME, BIOME_LAND, BIOME_SEA, REGION, CAVE_LAND, HEIGHT, OBJECT_LOAD, DECORATOR_LOAD, CONTINENT, LAYER_LOAD

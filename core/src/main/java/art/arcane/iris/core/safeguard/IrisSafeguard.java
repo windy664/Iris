@@ -1,10 +1,10 @@
 package art.arcane.iris.core.safeguard;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.safeguard.task.Diagnostic;
 import art.arcane.iris.core.safeguard.task.Task;
 import art.arcane.iris.core.safeguard.task.Tasks;
 import art.arcane.iris.core.safeguard.task.ValueWithDiagnostics;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.scheduling.J;
 
@@ -38,7 +38,7 @@ public final class IrisSafeguard {
             try {
                 result = task.run();
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 result = new ValueWithDiagnostics<>(
                         Mode.WARNING,
                         new Diagnostic(Diagnostic.Logger.ERROR, "Error while running task " + task.getId(), e)
@@ -80,17 +80,11 @@ public final class IrisSafeguard {
         return attachment;
     }
 
-    public static void splash() {
-        Iris.instance.splash();
-        printReports();
-        printFooter();
-    }
-
     public static void printReports() {
         switch (mode) {
-            case STABLE -> Iris.info(C.BLUE + "0 Conflicts found");
-            case WARNING -> Iris.warn(C.GOLD + "%s Issues found", count);
-            case UNSTABLE -> Iris.error(C.DARK_RED + "%s Issues found", count);
+            case STABLE -> IrisLogging.info(C.BLUE + "0 Conflicts found");
+            case WARNING -> IrisLogging.warn(C.GOLD + "%s Issues found", count);
+            case UNSTABLE -> IrisLogging.error(C.DARK_RED + "%s Issues found", count);
         }
 
         for (ValueWithDiagnostics<Mode> value : results.values()) {
@@ -100,7 +94,7 @@ public final class IrisSafeguard {
 
     public static void printFooter() {
         switch (mode) {
-            case STABLE -> Iris.info(C.BLUE + "Iris is running Stable");
+            case STABLE -> IrisLogging.info(C.BLUE + "Iris is running Stable");
             case WARNING -> warning();
             case UNSTABLE -> unstable();
         }
@@ -111,19 +105,19 @@ public final class IrisSafeguard {
     }
 
     private static void warning() {
-        Iris.warn(C.GOLD + "Iris is running in Warning Mode");
-        Iris.warn(C.GRAY + "Some startup checks need attention. Review the messages above for tuning suggestions.");
-        Iris.warn(C.GRAY + "Iris will continue startup normally.");
-        Iris.warn("");
+        IrisLogging.warn(C.GOLD + "Iris is running in Warning Mode");
+        IrisLogging.warn(C.GRAY + "Some startup checks need attention. Review the messages above for tuning suggestions.");
+        IrisLogging.warn(C.GRAY + "Iris will continue startup normally.");
+        IrisLogging.warn("");
     }
 
     private static void unstable() {
-        Iris.error(C.DARK_RED + "Iris is running in Danger Mode");
-        Iris.error("");
-        Iris.error(C.DARK_GRAY + "--==<" + C.RED + " IMPORTANT " + C.DARK_GRAY + ">==--");
-        Iris.error("Critical startup checks failed. Iris will continue startup in 10 seconds.");
-        Iris.error("Review and resolve the errors above as soon as possible.");
+        IrisLogging.error(C.DARK_RED + "Iris is running in Danger Mode");
+        IrisLogging.error("");
+        IrisLogging.error(C.DARK_GRAY + "--==<" + C.RED + " IMPORTANT " + C.DARK_GRAY + ">==--");
+        IrisLogging.error("Critical startup checks failed. Iris will continue startup in 10 seconds.");
+        IrisLogging.error("Review and resolve the errors above as soon as possible.");
         J.sleep(10000L);
-        Iris.info("");
+        IrisLogging.info("");
     }
 }

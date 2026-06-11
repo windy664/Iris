@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.core.gui.components.RenderType;
+import art.arcane.iris.engine.framework.render.RenderType;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;

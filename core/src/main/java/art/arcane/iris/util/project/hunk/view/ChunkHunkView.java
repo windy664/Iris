@@ -18,12 +18,14 @@
 
 package art.arcane.iris.util.project.hunk.view;
 
+import art.arcane.iris.engine.framework.BlockEditAccess;
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.core.service.EditSVC;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.project.hunk.Hunk;
 import org.bukkit.Chunk;
+import org.bukkit.World;
+import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 
 @SuppressWarnings("ClassCanBeRecord")
@@ -31,7 +33,12 @@ public class ChunkHunkView extends art.arcane.volmlib.util.hunk.view.ChunkWorldH
     public ChunkHunkView(Chunk chunk) {
         super(chunk,
                 chunk.getWorld().getMaxHeight(),
-                (wx, y, wz, t) -> IrisServices.get(EditSVC.class).set(chunk.getWorld(), wx, y, wz, (BlockData) t.nativeHandle()),
-                (wx, y, wz) -> BukkitBlockState.of(IrisServices.get(EditSVC.class).get(chunk.getWorld(), wx, y, wz)));
+                (wx, y, wz, t) -> edits().set(chunk.getWorld(), wx, y, wz, (BlockData) t.nativeHandle()),
+                (wx, y, wz) -> BukkitBlockState.of(edits().get(chunk.getWorld(), wx, y, wz)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static BlockEditAccess<World, BlockData, Biome> edits() {
+        return (BlockEditAccess<World, BlockData, Biome>) IrisServices.get(BlockEditAccess.class);
     }
 }
