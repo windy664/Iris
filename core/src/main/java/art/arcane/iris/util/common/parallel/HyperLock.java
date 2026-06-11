@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.parallel;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.parallel.HyperLockSupport;
 
 public class HyperLock extends HyperLockSupport {
@@ -13,6 +13,6 @@ public class HyperLock extends HyperLockSupport {
     }
 
     public HyperLock(int capacity, boolean fair) {
-        super(capacity, fair, Iris::warn, Iris::reportError);
+        super(capacity, fair, IrisLogging::warn, IrisLogging::reportError);
     }
 }

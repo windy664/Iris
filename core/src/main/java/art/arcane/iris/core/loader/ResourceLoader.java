@@ -19,7 +19,9 @@
 package art.arcane.iris.core.loader;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.project.SchemaBuilder;
 import art.arcane.iris.core.service.PreservationSVC;
@@ -97,12 +99,12 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
         this.root = root;
         this.folderName = folderName;
         loadCache = new KCache<>(this::loadRaw, IrisSettings.get().getPerformance().getResourceLoaderCacheSize());
-        Iris.debug("Loader<" + C.GREEN + resourceTypeName + C.LIGHT_PURPLE + "> created in " + C.RED + "IDM/" + manager.getId() + C.LIGHT_PURPLE + " on " + C.GRAY + manager.getDataFolder().getPath());
-        Iris.service(PreservationSVC.class).registerCache(this);
+        IrisLogging.debug("Loader<" + C.GREEN + resourceTypeName + C.LIGHT_PURPLE + "> created in " + C.RED + "IDM/" + manager.getId() + C.LIGHT_PURPLE + " on " + C.GRAY + manager.getDataFolder().getPath());
+        IrisServices.get(PreservationSVC.class).registerCache(this);
     }
 
     public JSONObject buildSchema() {
-        Iris.debug("Building Schema " + objectClass.getSimpleName() + " " + root.getPath());
+        IrisLogging.debug("Building Schema " + objectClass.getSimpleName() + " " + root.getPath());
         JSONObject o = new JSONObject();
         KList<String> fm = new KList<>();
 
@@ -119,7 +121,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
                 try {
                     IO.writeAll(a, new SchemaBuilder(objectClass, manager).construct().toString(4));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 } finally {
                     schemaBuildQueue.remove(schemaPath);
                 }
@@ -134,7 +136,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
             return null;
         }
         if (name.equals("null")) {
-            Iris.warn("Refusing " + resourceTypeName + " lookup for literal string \"null\" (called by " + callerHint() + ")");
+            IrisLogging.warn("Refusing " + resourceTypeName + " lookup for literal string \"null\" (called by " + callerHint() + ")");
             return null;
         }
 
@@ -152,7 +154,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
             }
         }
 
-        Iris.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
+        IrisLogging.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
 
         return null;
     }
@@ -189,12 +191,12 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
 
         if (sec.flip()) {
             J.a(() -> {
-                Iris.verbose("Loaded " + C.WHITE + loads.get() + " " + resourceTypeName + (loads.get() == 1 ? "" : "s") + C.GRAY + " (" + Form.f(getLoadCache().getSize()) + " " + resourceTypeName + (loadCache.getSize() == 1 ? "" : "s") + " Loaded)");
+                IrisLogging.debug("Loaded " + C.WHITE + loads.get() + " " + resourceTypeName + (loads.get() == 1 ? "" : "s") + C.GRAY + " (" + Form.f(getLoadCache().getSize()) + " " + resourceTypeName + (loadCache.getSize() == 1 ? "" : "s") + " Loaded)");
                 loads.set(0);
             });
         }
 
-        Iris.debug("Loader<" + C.GREEN + resourceTypeName + C.LIGHT_PURPLE + "> iload " + C.YELLOW + t.getLoadKey() + C.LIGHT_PURPLE + " in " + C.GRAY + t.getLoadFile().getPath() + C.LIGHT_PURPLE + " TLT: " + C.RED + Form.duration(tlt.get(), 2));
+        IrisLogging.debug("Loader<" + C.GREEN + resourceTypeName + C.LIGHT_PURPLE + "> iload " + C.YELLOW + t.getLoadKey() + C.LIGHT_PURPLE + " in " + C.GRAY + t.getLoadFile().getPath() + C.LIGHT_PURPLE + " TLT: " + C.RED + Form.duration(tlt.get(), 2));
     }
 
     public void failLoad(File path, Throwable e) {
@@ -292,7 +294,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
             tlt.addAndGet(p.getMilliseconds());
             return t;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             failLoad(j, rawText, e);
             return null;
         }
@@ -401,7 +403,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
             return null;
         }
         if (name.equals("null") && warn) {
-            Iris.warn("Refusing " + resourceTypeName + " load for literal string \"null\" (called by " + callerHint() + ")");
+            IrisLogging.warn("Refusing " + resourceTypeName + " load for literal string \"null\" (called by " + callerHint() + ")");
             return null;
         }
 
@@ -412,7 +414,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
 
     public void loadFirstAccess(Engine engine) throws IOException {
         String id = "DIM" + Math.abs(engine.getSeedManager().getSeed() + engine.getDimension().getVersion() + engine.getDimension().getLoadKey().hashCode());
-        File file = Iris.instance.getDataFile("prefetch/" + id + "/" + Math.abs(getFolderName().hashCode()) + ".ipfch");
+        File file = IrisPlatforms.get().dataFile("prefetch/" + id + "/" + Math.abs(getFolderName().hashCode()) + ".ipfch");
 
         if (!file.exists()) {
             return;
@@ -429,7 +431,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
         }
 
         din.close();
-        Iris.info("Loading " + s.size() + " prefetch " + getFolderName());
+        IrisLogging.info("Loading " + s.size() + " prefetch " + getFolderName());
         firstAccess = null;
         loadAllParallel(s);
     }
@@ -437,7 +439,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
     public void saveFirstAccess(Engine engine) throws IOException {
         if (firstAccess == null) return;
         String id = "DIM" + Math.abs(engine.getSeedManager().getSeed() + engine.getDimension().getVersion() + engine.getDimension().getLoadKey().hashCode());
-        File file = Iris.instance.getDataFile("prefetch/" + id + "/" + Math.abs(getFolderName().hashCode()) + ".ipfch");
+        File file = IrisPlatforms.get().dataFile("prefetch/" + id + "/" + Math.abs(getFolderName().hashCode()) + ".ipfch");
         file.getParentFile().mkdirs();
         FileOutputStream fos = new FileOutputStream(file);
         GZIPOutputStream gzo = new CustomOutputStream(fos, 9);

@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 
 public abstract class Controller implements IController {
     private final String name;
@@ -39,22 +39,22 @@ public abstract class Controller implements IController {
 
     @Override
     public void l(Object l) {
-        Iris.info("[" + getName() + "]: " + l);
+        IrisLogging.info("[" + getName() + "]: " + l);
     }
 
     @Override
     public void w(Object l) {
-        Iris.warn("[" + getName() + "]: " + l);
+        IrisLogging.warn("[" + getName() + "]: " + l);
     }
 
     @Override
     public void f(Object l) {
-        Iris.error("[" + getName() + "]: " + l);
+        IrisLogging.error("[" + getName() + "]: " + l);
     }
 
     @Override
     public void v(Object l) {
-        Iris.verbose("[" + getName() + "]: " + l);
+        IrisLogging.debug("[" + getName() + "]: " + l);
     }
 
     @Override

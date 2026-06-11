@@ -18,7 +18,8 @@
 
 package art.arcane.iris.engine.platform;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
 import art.arcane.iris.core.gui.PregeneratorJob;
@@ -38,8 +39,11 @@ import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.iris.engine.object.StudioMode;
 import art.arcane.iris.engine.platform.studio.StudioGenerator;
 import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.PlatformBiome;
+import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.math.M;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.iris.util.project.hunk.view.ChunkDataHunkHolder;
 import art.arcane.volmlib.util.io.ReactiveFolder;
@@ -63,6 +67,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -121,13 +127,13 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 new KList<>()
         );
         this.closing = false;
-        Bukkit.getServer().getPluginManager().registerEvents(this, Iris.instance);
+        Bukkit.getServer().getPluginManager().registerEvents(this, BukkitPlatform.plugin());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onWorldInit(WorldInitEvent event) {
         if (!world.name().equals(event.getWorld().getName())) return;
-        Iris.instance.unregisterListener(this);
+        BukkitPlatform.volmitPlugin().unregisterListener(this);
         world.setRawWorldSeed(event.getWorld().getSeed());
         if (initialize(event.getWorld())) return;
 
@@ -154,7 +160,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             e.printStackTrace();
         }
         spawnChunks.complete(INMS.get().getSpawnChunkCount(world));
-        Iris.instance.unregisterListener(this);
+        BukkitPlatform.volmitPlugin().unregisterListener(this);
         IrisWorlds.get().put(world.getName(), dimensionKey);
         return true;
     }
@@ -246,11 +252,11 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
                 if (test != null) {
                     IrisLogging.warn("Looks like " + dimensionKey + " exists in " + test.getLoadFile().getPath() + " ");
-                    test = Iris.service(StudioSVC.class).installInto(Iris.getSender(), dimensionKey, dataLocation);
+                    test = IrisServices.get(StudioSVC.class).installInto(BukkitPlatform.console(), dimensionKey, dataLocation);
                     IrisLogging.warn("Attempted to install into " + data.getDataFolder().getPath());
 
                     if (test != null) {
-                        Iris.success("Woo! Patched the Engine!");
+                        IrisLogging.msg(C.IRIS + "Woo! Patched the Engine!");
                         dimension = test;
                     } else {
                         IrisLogging.error("Failed to patch dimension!");
@@ -431,7 +437,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
 
             IrisLogging.error("======================================");
             e.printStackTrace();
-            Iris.reportErrorChunk(x, z, e, "CHUNK");
+            reportErrorChunk(x, z, e);
             IrisLogging.error("======================================");
 
             for (int i = 0; i < 16; i++) {
@@ -442,7 +448,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         } catch (Throwable e) {
             IrisLogging.error("======================================");
             e.printStackTrace();
-            Iris.reportErrorChunk(x, z, e, "CHUNK");
+            reportErrorChunk(x, z, e);
             IrisLogging.error("======================================");
 
             for (int i = 0; i < 16; i++) {
@@ -468,6 +474,24 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
     private boolean isMaintenanceActive() {
         World realWorld = this.world.realWorld();
         return realWorld != null && IrisToolbelt.isWorldMaintenanceActive(realWorld);
+    }
+
+    private static void reportErrorChunk(int x, int z, Throwable e) {
+        if (IrisSettings.get().getGeneral().isDebug()) {
+            File f = IrisPlatforms.get().dataFile("debug", "chunk-errors", "chunk." + x + "." + z + ".txt");
+
+            if (!f.exists()) {
+                J.attempt(() -> {
+                    PrintWriter pw = new PrintWriter(f);
+                    pw.println("Thread: " + Thread.currentThread().getName());
+                    pw.println("First: " + new Date(M.ms()));
+                    e.printStackTrace(pw);
+                    pw.close();
+                });
+            }
+
+            IrisLogging.debug("Chunk " + x + "," + z + " Exception Logged: " + e.getClass().getSimpleName() + ": " + C.RESET + "" + C.LIGHT_PURPLE + e.getMessage());
+        }
     }
 
     private boolean shouldThrottleHotload() {

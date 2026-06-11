@@ -1,7 +1,7 @@
 package art.arcane.iris.core.pregenerator;
 
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -109,7 +109,7 @@ public class DeepSearchPregenerator extends Thread implements Listener {
        // chunkCache(); //todo finish this
         if (latch.flip() && !job.paused) {
             if (cacheLock.isLocked()) {
-                Iris.info("DeepFinder: Caching: " + chunkCachePos.get() + " Of " + chunkCacheSize.get());
+                IrisLogging.info("DeepFinder: Caching: " + chunkCachePos.get() + " Of " + chunkCacheSize.get());
             } else {
                 long eta = computeETA();
                 save();
@@ -118,12 +118,12 @@ public class DeepSearchPregenerator extends Thread implements Listener {
                 secondGenerated = secondGenerated / 3;
                 chunksPerSecond.put(secondGenerated);
                 chunksPerMinute.put(secondGenerated * 60);
-                Iris.info("DeepFinder: " + C.IRIS + world.getName() + C.RESET + " Searching: " + Form.f(foundChunks.get()) + " of " + Form.f(foundTotalChunks.get()) + " " + Form.f((int) chunksPerSecond.getAverage()) + "/s ETA: " + Form.duration((double) eta, 2));
+                IrisLogging.info("DeepFinder: " + C.IRIS + world.getName() + C.RESET + " Searching: " + Form.f(foundChunks.get()) + " of " + Form.f(foundTotalChunks.get()) + " " + Form.f((int) chunksPerSecond.getAverage()) + "/s ETA: " + Form.duration((double) eta, 2));
             }
 
         }
         if (foundChunks.get() >= foundTotalChunks.get()) {
-            Iris.info("Completed DeepSearch!");
+            IrisLogging.info("Completed DeepSearch!");
             interrupt();
         }
     }
@@ -160,7 +160,7 @@ public class DeepSearchPregenerator extends Thread implements Listener {
                     File found = new File("plugins", "iris" + File.separator + "found.txt");
                     found.getParentFile().mkdirs();
                     IrisBiome biome = engine.getBiome(xx, engine.getHeight(), zz);
-                    Iris.info("Found at! " + xx + ", " + zz + " Biome ID: " + biome.getName());
+                    IrisLogging.info("Found at! " + xx + ", " + zz + " Biome ID: " + biome.getName());
                     try (FileWriter writer = new FileWriter(found, true)) {
                         writer.write("Biome at: X: " + xx + " Z: " + zz + " Biome ID: " + biome.getName() + "\n");
                     }
@@ -205,9 +205,9 @@ public class DeepSearchPregenerator extends Thread implements Listener {
         }
 
         if ( job.paused) {
-            Iris.info(C.BLUE + "DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Paused");
+            IrisLogging.info(C.BLUE + "DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Paused");
         } else {
-            Iris.info(C.BLUE + "DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Resumed");
+            IrisLogging.info(C.BLUE + "DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Resumed");
         }
     }
 
@@ -217,13 +217,13 @@ public class DeepSearchPregenerator extends Thread implements Listener {
     }
 
     public void shutdownInstance(World world) throws IOException {
-        Iris.info("DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Shutting down..");
+        IrisLogging.info("DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " Shutting down..");
         DeepSearchJob job = jobs.get(world.getName());
         File worldDirectory = new File(Bukkit.getWorldContainer(), world.getName());
         File deepFile = new File(worldDirectory, "DeepSearch.json");
 
         if (job == null) {
-            Iris.error("No DeepSearch job found for world: " + world.getName());
+            IrisLogging.error("No DeepSearch job found for world: " + world.getName());
             return;
         }
 
@@ -238,10 +238,10 @@ public class DeepSearchPregenerator extends Thread implements Listener {
                     deepFile.delete();
                     J.sleep(1000);
                 }
-                Iris.info("DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " File deleted and instance closed.");
+                IrisLogging.info("DeepSearch: " + C.IRIS + world.getName() + C.BLUE + " File deleted and instance closed.");
             }, 20);
         } catch (Exception e) {
-            Iris.error("Failed to shutdown DeepSearch for " + world.getName());
+            IrisLogging.error("Failed to shutdown DeepSearch for " + world.getName());
             e.printStackTrace();
         } finally {
             saveNow();

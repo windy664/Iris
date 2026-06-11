@@ -18,7 +18,8 @@
 
 package art.arcane.iris.core.service;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
@@ -75,50 +76,50 @@ public class TreeSVC implements IrisService {
         if (block || event.isCancelled()) {
             return;
         }
-        Iris.debug(this.getClass().getName() + " received a structure grow event");
+        IrisLogging.debug(this.getClass().getName() + " received a structure grow event");
 
         if (!IrisToolbelt.isIrisWorld(event.getWorld())) {
-            Iris.debug(this.getClass().getName() + " passed grow event off to vanilla since not an Iris world");
+            IrisLogging.debug(this.getClass().getName() + " passed grow event off to vanilla since not an Iris world");
             return;
         }
 
         PlatformChunkGenerator worldAccess = IrisToolbelt.access(event.getWorld());
         if (worldAccess == null) {
-            Iris.debug(this.getClass().getName() + " passed it off to vanilla because could not get IrisAccess for this world");
-            Iris.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
+            IrisLogging.debug(this.getClass().getName() + " passed it off to vanilla because could not get IrisAccess for this world");
+            IrisLogging.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
             return;
         }
 
         Engine engine = worldAccess.getEngine();
 
         if (engine == null) {
-            Iris.debug(this.getClass().getName() + " passed it off to vanilla because could not get Engine for this world");
-            Iris.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
+            IrisLogging.debug(this.getClass().getName() + " passed it off to vanilla because could not get Engine for this world");
+            IrisLogging.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
             return;
         }
 
         IrisDimension dimension = engine.getDimension();
 
         if (dimension == null) {
-            Iris.debug(this.getClass().getName() + " passed it off to vanilla because could not get Dimension for this world");
-            Iris.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
+            IrisLogging.debug(this.getClass().getName() + " passed it off to vanilla because could not get Dimension for this world");
+            IrisLogging.reportError(new NullPointerException(event.getWorld().getName() + " could not be accessed despite being an Iris world"));
             return;
         }
 
         if (!dimension.getTreeSettings().isEnabled()) {
-            Iris.debug(this.getClass().getName() + " cancelled because tree overrides are disabled");
+            IrisLogging.debug(this.getClass().getName() + " cancelled because tree overrides are disabled");
             return;
         }
 
         BlockData first = event.getLocation().getBlock().getBlockData().clone();
         Cuboid saplingPlane = getSaplings(event.getLocation(), blockData -> blockData instanceof Sapling && blockData.getMaterial().equals(first.getMaterial()), event.getWorld());
 
-        Iris.debug("Sapling grew @ " + event.getLocation() + " for " + event.getSpecies().name() + " usedBoneMeal is " + event.isFromBonemeal());
-        Iris.debug("Sapling plane is: " + saplingPlane.getSizeX() + " by " + saplingPlane.getSizeZ());
+        IrisLogging.debug("Sapling grew @ " + event.getLocation() + " for " + event.getSpecies().name() + " usedBoneMeal is " + event.isFromBonemeal());
+        IrisLogging.debug("Sapling plane is: " + saplingPlane.getSizeX() + " by " + saplingPlane.getSizeZ());
         IrisObjectPlacement placement = getObjectPlacement(worldAccess, event.getLocation(), event.getSpecies(), new IrisTreeSize(1, 1));
 
         if (placement == null) {
-            Iris.debug(this.getClass().getName() + " had options but did not manage to find objectPlacements for them");
+            IrisLogging.debug(this.getClass().getName() + " had options but did not manage to find objectPlacements for them");
             return;
         }
 
@@ -237,7 +238,7 @@ public class TreeSVC implements IrisService {
 
                     if (d instanceof IrisCustomData data) {
                         block.setBlockData(data.getBase(), false);
-                        Iris.service(ExternalDataSVC.class).processUpdate(engine, block, data.getCustom());
+                        IrisServices.get(ExternalDataSVC.class).processUpdate(engine, block, data.getCustom());
                     } else block.setBlockData(d, false);
                 }
             }
@@ -314,8 +315,8 @@ public class TreeSVC implements IrisService {
             b.min(blockPosition);
         }
 
-        Iris.debug("Blocks: " + blockPositions.size());
-        Iris.debug("Min: " + a + " Max: " + b);
+        IrisLogging.debug("Blocks: " + blockPositions.size());
+        IrisLogging.debug("Min: " + a + " Max: " + b);
 
         // Create a cuboid with the size calculated before
         Cuboid cuboid = new Cuboid(a.toBlock(world).getLocation(), b.toBlock(world).getLocation());

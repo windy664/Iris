@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.runtime;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
@@ -172,7 +172,7 @@ public final class ChunkJobReporter {
                     + C.GRAY + " | " + C.WHITE + summary);
         }
         sender.sendMessage((ok ? C.GREEN + title + " complete: " : C.RED + title + " finished with errors: ") + summary);
-        Iris.info(title + " done: world=" + worldName + " " + summary);
+        IrisLogging.info(title + " done: world=" + worldName + " " + summary);
     }
 
     private String progressBar(double value) {

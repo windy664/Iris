@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.data.palette;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KMap;
 
 import java.util.List;
@@ -45,9 +45,9 @@ public class HashMapPalette<T> implements Palette<T> {
             int newId = id++;
 
             if (newId >= 1 << this.bits) {
-                Iris.info(newId + " to...");
+                IrisLogging.info(newId + " to...");
                 newId = this.resizeHandler.onResize(this.bits + 1, var0);
-                Iris.info(newId + "..");
+                IrisLogging.info(newId + "..");
             }
 
             return newId;

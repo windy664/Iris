@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.parallel;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.volmlib.util.parallel.MultiBurstSupport;
 import art.arcane.volmlib.util.math.M;
@@ -29,7 +29,7 @@ public class MultiBurst extends MultiBurstSupport {
     }
 
     public MultiBurst(String name, int priority, IntSupplier parallelism) {
-        super(name, priority, parallelism, IrisSettings::getThreadCount, M::ms, Iris::reportError, Iris::info, Iris::warn, TIMEOUT);
+        super(name, priority, parallelism, IrisSettings::getThreadCount, M::ms, IrisLogging::reportError, IrisLogging::info, IrisLogging::warn, TIMEOUT);
     }
 
     public CoroutineDispatcher getDispatcher() {
@@ -64,6 +64,6 @@ public class MultiBurst extends MultiBurstSupport {
     }
 
     public static void close(ExecutorService service) {
-        MultiBurstSupport.close(service, M::ms, Iris::info, Iris::warn, Iris::reportError, TIMEOUT);
+        MultiBurstSupport.close(service, M::ms, IrisLogging::info, IrisLogging::warn, IrisLogging::reportError, TIMEOUT);
     }
 }

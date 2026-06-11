@@ -18,13 +18,35 @@
 
 package art.arcane.iris.util.common.director;
 
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.director.DirectorSystemSupport;
-import art.arcane.iris.Iris;
 import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.io.JarScanner;
 public final class DirectorSystem {
-    public static final KList<art.arcane.volmlib.util.director.DirectorParameterHandler<?>> handlers = Iris.initialize("art.arcane.iris.util.common.director.handlers", null).convert((i) -> (art.arcane.volmlib.util.director.DirectorParameterHandler<?>) i);
+    public static final KList<art.arcane.volmlib.util.director.DirectorParameterHandler<?>> handlers = initializePackage("art.arcane.iris.util.common.director.handlers").convert((i) -> (art.arcane.volmlib.util.director.DirectorParameterHandler<?>) i);
 
     private DirectorSystem() {
+    }
+
+    public static KList<Object> initializePackage(String packageName) {
+        JarScanner js = new JarScanner(IrisPlatforms.get().pluginJar(), packageName);
+        KList<Object> v = new KList<>();
+        J.attempt(js::scan);
+        for (Class<?> i : js.getClasses()) {
+            try {
+                v.add(i.getDeclaredConstructor().newInstance());
+            } catch (Throwable ex) {
+                IrisLogging.warn("Skipped class initialization for %s: %s%s",
+                        i.getName(),
+                        ex.getClass().getSimpleName(),
+                        ex.getMessage() == null ? "" : " - " + ex.getMessage());
+                IrisLogging.reportError(ex);
+            }
+        }
+
+        return v;
     }
 
     /**
@@ -39,7 +61,7 @@ public final class DirectorSystem {
             return handler;
         }
 
-        Iris.error("Unhandled type in Director Parameter: " + type.getName() + ". This is bad!");
+        IrisLogging.error("Unhandled type in Director Parameter: " + type.getName() + ". This is bad!");
         return null;
     }
 }

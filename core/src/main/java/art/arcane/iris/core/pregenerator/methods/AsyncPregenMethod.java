@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.pregenerator.methods;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisPaperLikeBackendMode;
 import art.arcane.iris.core.IrisRuntimeSchedulerMode;
 import art.arcane.iris.core.IrisSettings;
@@ -182,7 +182,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         try {
             J.sfut(() -> {
                 if (world == null) {
-                    Iris.warn("World was null somehow...");
+                    IrisLogging.warn("World was null somehow...");
                     return;
                 }
 
@@ -224,7 +224,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             int sizeBefore = lastUse.size();
             if (sizeBefore > 0) {
                 lastUse.clear();
-                Iris.info("Periodic chunk cleanup: cleared " + sizeBefore + " Folia chunk references");
+                IrisLogging.info("Periodic chunk cleanup: cleared " + sizeBefore + " Folia chunk references");
             }
             return;
         }
@@ -247,7 +247,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
         int removedCount = removed.get();
         if (removedCount > 0) {
-            Iris.info("Periodic chunk cleanup: removed " + removedCount + "/" + sizeBefore + " stale chunk references");
+            IrisLogging.info("Periodic chunk cleanup: removed " + removedCount + "/" + sizeBefore + " stale chunk references");
         }
     }
 
@@ -260,10 +260,10 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         if (root instanceof java.util.concurrent.TimeoutException) {
             onTimeout(x, z);
         } else {
-            Iris.warn("Failed async pregen chunk load at " + x + "," + z + ". " + metricsSnapshot());
+            IrisLogging.warn("Failed async pregen chunk load at " + x + "," + z + ". " + metricsSnapshot());
         }
 
-        Iris.reportError(throwable);
+        IrisLogging.reportError(throwable);
         return null;
     }
 
@@ -282,7 +282,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
         int suppressed = suppressedTimeoutLogs.getAndSet(0);
         String suppressedText = suppressed <= 0 ? "" : " suppressed=" + suppressed;
-        Iris.warn("Timed out async pregen chunk load at " + x + "," + z
+        IrisLogging.warn("Timed out async pregen chunk load at " + x + "," + z
                 + " after " + timeoutSeconds + "s."
                 + " adaptiveLimit=" + adaptiveInFlightLimit.get()
                 + suppressedText + " " + metricsSnapshot());
@@ -345,7 +345,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         }
 
         if (lastAdaptiveLogAt.compareAndSet(last, now)) {
-            Iris.info("Async pregen adaptive limit " + mode + " -> " + value + " " + metricsSnapshot());
+            IrisLogging.info("Async pregen adaptive limit " + mode + " -> " + value + " " + metricsSnapshot());
         }
     }
 
@@ -515,7 +515,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
             long elapsed = M.ms() - waitStart;
             if (elapsed >= mantleBackpressureTimeoutMs) {
-                Iris.warn("Pregen mantle backpressure exceeded " + mantleBackpressureTimeoutMs + "ms with " + resident
+                IrisLogging.warn("Pregen mantle backpressure exceeded " + mantleBackpressureTimeoutMs + "ms with " + resident
                         + " tectonic plates resident (hard cap " + hardCap + "); proceeding to avoid deadlock. "
                         + "Raise pregen.maxResidentTectonicPlates if this persists. " + metricsSnapshot());
                 return;
@@ -524,7 +524,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             long logNow = M.ms();
             if (logNow - lastLog >= 5_000L) {
                 lastLog = logNow;
-                Iris.warn("Pregen mantle backpressure: " + resident + " tectonic plates resident (hard cap " + hardCap
+                IrisLogging.warn("Pregen mantle backpressure: " + resident + " tectonic plates resident (hard cap " + hardCap
                         + "), freed " + freed + " last pass, waited " + elapsed + "ms.");
             }
 
@@ -539,7 +539,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
     @Override
     public void init() {
-        Iris.info("Async pregen init: world=" + world.getName()
+        IrisLogging.info("Async pregen init: world=" + world.getName()
                 + ", mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
                 + ", backend=" + backendMode
                 + ", chunkAccess=" + chunkAccessMode
@@ -733,10 +733,10 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 pool.getClass().getDeclaredMethod("adjustThreadCount", int.class).invoke(pool, adjusted);
                 return threads;
             } catch (Throwable e) {
-                Iris.warn("Failed to increase worker threads, if you are on paper or a fork of it please increase it manually to " + adjusted);
-                Iris.warn("For more information see https://docs.papermc.io/paper/reference/global-configuration#chunk_system_worker_threads");
+                IrisLogging.warn("Failed to increase worker threads, if you are on paper or a fork of it please increase it manually to " + adjusted);
+                IrisLogging.warn("For more information see https://docs.papermc.io/paper/reference/global-configuration#chunk_system_worker_threads");
                 if (e instanceof InvocationTargetException) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -754,8 +754,8 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 method.invoke(pool, i);
                 return 0;
             } catch (Throwable e) {
-                Iris.reportError(e);
-                Iris.error("Failed to reset worker threads");
+                IrisLogging.reportError(e);
+                IrisLogging.error("Failed to reset worker threads");
                 e.printStackTrace();
             }
             return i;
@@ -783,7 +783,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                     .whenComplete((chunk, throwable) -> completeFoliaChunk(x, z, listener, chunk, throwable)))) {
                 markFinished(false);
                 semaphore.release();
-                Iris.warn("Failed to schedule Folia region pregen task at " + x + "," + z + ". " + metricsSnapshot());
+                IrisLogging.warn("Failed to schedule Folia region pregen task at " + x + "," + z + ". " + metricsSnapshot());
             }
         }
 
@@ -805,7 +805,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 lastUse.put(chunk, M.ms());
                 success = true;
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             } finally {
                 markFinished(success);
@@ -838,7 +838,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 } finally {
                     markFinished(success);

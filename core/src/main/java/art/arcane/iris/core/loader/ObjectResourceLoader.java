@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.loader;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.volmlib.util.collection.KList;
@@ -60,13 +60,13 @@ public class ObjectResourceLoader extends ResourceLoader<IrisObject> {
             tlt.addAndGet(p.getMilliseconds());
             return t;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             String message = e.getMessage();
             String reason = e.getClass().getSimpleName();
             if (message != null && !message.isBlank()) {
                 reason = reason + ": " + message;
             }
-            Iris.warn("Couldn't read " + resourceTypeName + " file: " + j.getPath() + " (" + reason + ")");
+            IrisLogging.warn("Couldn't read " + resourceTypeName + " file: " + j.getPath() + " (" + reason + ")");
             return null;
         }
     }
@@ -75,7 +75,7 @@ public class ObjectResourceLoader extends ResourceLoader<IrisObject> {
         if (possibleKeys != null) {
             return possibleKeys;
         }
-        Iris.debug("Building " + resourceTypeName + " Possibility Lists");
+        IrisLogging.debug("Building " + resourceTypeName + " Possibility Lists");
         KSet<String> m = new KSet<>();
         HashSet<String> visitedDirectories = new HashSet<>();
         for (File i : getFolders()) {
@@ -127,7 +127,7 @@ public class ObjectResourceLoader extends ResourceLoader<IrisObject> {
             return null;
         }
         if (name.equals("null")) {
-            Iris.warn("Refusing " + resourceTypeName + " lookup for literal string \"null\" (called by " + callerHint() + ")");
+            IrisLogging.warn("Refusing " + resourceTypeName + " lookup for literal string \"null\" (called by " + callerHint() + ")");
             return null;
         }
 
@@ -145,7 +145,7 @@ public class ObjectResourceLoader extends ResourceLoader<IrisObject> {
             }
         }
 
-        Iris.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
+        IrisLogging.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
 
         return null;
     }
@@ -177,12 +177,12 @@ public class ObjectResourceLoader extends ResourceLoader<IrisObject> {
             return null;
         }
         if (name.equals("null") && warn) {
-            Iris.warn("Refusing " + resourceTypeName + " load for literal string \"null\" (called by " + callerHint() + ")");
+            IrisLogging.warn("Refusing " + resourceTypeName + " load for literal string \"null\" (called by " + callerHint() + ")");
             return null;
         }
         IrisObject result = loadCache.get(name);
         if (result == null && warn) {
-            Iris.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
+            IrisLogging.warn("Couldn't find " + resourceTypeName + ": " + name + " (called by " + callerHint() + ")");
         }
         return result;
     }

@@ -20,7 +20,10 @@ package art.arcane.iris.core.tools;
 
 import art.arcane.iris.core.runtime.TransientWorldCleanupSupport;
 import com.google.common.util.concurrent.AtomicDouble;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.core.link.MultiverseCoreLink;
 import art.arcane.iris.core.IrisRuntimeSchedulerMode;
 import art.arcane.iris.core.IrisWorlds;
 import art.arcane.iris.core.IrisSettings;
@@ -174,15 +177,15 @@ public class IrisCreator {
         }
 
         if (sender == null)
-            sender = Iris.getSender();
+            sender = BukkitPlatform.console();
 
         reportStudioProgress(0.16D, "prepare_world_pack");
         if (!studio() || benchmark) {
-            Iris.service(StudioSVC.class).installIntoWorld(sender, d.getLoadKey(), new File(Bukkit.getWorldContainer(), name()));
+            IrisServices.get(StudioSVC.class).installIntoWorld(sender, d.getLoadKey(), new File(Bukkit.getWorldContainer(), name()));
         }
         if (studio()) {
             IrisRuntimeSchedulerMode runtimeSchedulerMode = IrisRuntimeSchedulerMode.resolve(IrisSettings.get().getPregen());
-            Iris.debug("Studio create scheduling: mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
+            IrisLogging.debug("Studio create scheduling: mode=" + runtimeSchedulerMode.name().toLowerCase(Locale.ROOT)
                     + ", regionizedRuntime=" + FoliaScheduler.isRegionizedRuntime(Bukkit.getServer()));
         }
 
@@ -199,7 +202,7 @@ public class IrisCreator {
             IrisWorlds.get().put(name(), dimension());
         }
         ServerConfigurator.installDataPacksIfChanged(!studio());
-        Iris.debug("[Studio timing]   create.packPrep + datapacks = " + (System.currentTimeMillis() - createStart) + "ms (cumulative in create)");
+        IrisLogging.debug("[Studio timing]   create.packPrep + datapacks = " + (System.currentTimeMillis() - createStart) + "ms (cumulative in create)");
         reportStudioProgress(0.40D, "install_datapacks");
 
         PlatformChunkGenerator access = (PlatformChunkGenerator) wc.generator();
@@ -216,7 +219,7 @@ public class IrisCreator {
             world = J.sfut(() -> INMS.get().createWorldAsync(wc, request))
                     .thenCompose(Function.identity())
                     .get();
-            Iris.debug("[Studio timing]   create.createWorldAsync (NMS bukkit world load + spawn prep) = " + (System.currentTimeMillis() - nmsStart) + "ms");
+            IrisLogging.debug("[Studio timing]   create.createWorldAsync (NMS bukkit world load + spawn prep) = " + (System.currentTimeMillis() - nmsStart) + "ms");
         } catch (Throwable e) {
             done.set(true);
             cancelRepeatingTask(createProgressTask);
@@ -236,7 +239,7 @@ public class IrisCreator {
 
         if (!studio && !benchmark) {
             addToBukkitYml();
-            J.s(() -> Iris.linkMultiverseCore.updateWorld(world, dimension));
+            J.s(() -> IrisServices.get(MultiverseCoreLink.class).updateWorld(world, dimension));
         }
 
         if (pregen != null) {
@@ -271,7 +274,7 @@ public class IrisCreator {
         try {
             consumer.accept(clamped, stage);
         } catch (Throwable e) {
-            Iris.reportError("Studio progress consumer failed for world \"" + name() + "\".", e);
+            IrisLogging.reportError("Studio progress consumer failed for world \"" + name() + "\".", e);
         }
     }
 
@@ -289,7 +292,7 @@ public class IrisCreator {
         };
         access.getSpawnChunks().whenComplete((required, throwable) -> {
             if (throwable != null) {
-                Iris.reportError("Failed to resolve studio spawn chunk target for world \"" + name() + "\".", throwable);
+                IrisLogging.reportError("Failed to resolve studio spawn chunk target for world \"" + name() + "\".", throwable);
                 return;
             }
 
@@ -412,9 +415,9 @@ public class IrisCreator {
             section.createSection(name).set("generator", gen);
             try {
                 yml.save(BUKKIT_YML);
-                Iris.info("Registered \"" + name + "\" in bukkit.yml");
+                IrisLogging.info("Registered \"" + name + "\" in bukkit.yml");
             } catch (IOException e) {
-                Iris.error("Failed to update bukkit.yml!");
+                IrisLogging.error("Failed to update bukkit.yml!");
                 e.printStackTrace();
             }
         }

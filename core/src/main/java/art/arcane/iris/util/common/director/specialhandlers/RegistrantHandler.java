@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.director.specialhandlers;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.volmlib.util.collection.KList;
@@ -35,7 +35,7 @@ public abstract class RegistrantHandler<T extends IrisRegistrant> implements Dir
         }
 
         //noinspection ConstantConditions
-        for (File i : Iris.instance.getDataFolder("packs").listFiles()) {
+        for (File i : IrisPlatforms.get().dataFolder("packs").listFiles()) {
             if (i.isDirectory()) {
                 data = IrisData.get(i);
                 for (T j : data.getLoader(type).loadAll(data.getLoader(type).getPossibleKeys())) {

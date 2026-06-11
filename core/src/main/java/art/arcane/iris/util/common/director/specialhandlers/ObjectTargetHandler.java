@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.director.specialhandlers;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.director.DirectorParameterHandler;
@@ -41,7 +41,7 @@ public class ObjectTargetHandler implements DirectorParameterHandler<String> {
                 collectPrefixes(k, prefixes);
             }
         } else {
-            File packsFolder = Iris.instance.getDataFolder("packs");
+            File packsFolder = IrisPlatforms.get().dataFolder("packs");
             File[] packs = packsFolder.listFiles();
             if (packs != null) {
                 for (File pack : packs) {

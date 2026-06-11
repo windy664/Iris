@@ -18,7 +18,8 @@
 
 package art.arcane.iris.core.service;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.runtime.ObjectStudioActivation;
 import art.arcane.iris.core.runtime.ObjectStudioLayout;
@@ -58,7 +59,7 @@ public class ObjectStudioSaveService implements IrisService {
     public static ObjectStudioSaveService get() {
         ObjectStudioSaveService svc = INSTANCE;
         if (svc != null) return svc;
-        svc = Iris.service(ObjectStudioSaveService.class);
+        svc = IrisServices.get(ObjectStudioSaveService.class);
         return svc;
     }
 
@@ -81,7 +82,7 @@ public class ObjectStudioSaveService implements IrisService {
 
         Map<String, IrisData> sources = generator.getPackData();
         if (sources == null || sources.isEmpty()) {
-            Iris.warn("Object Studio save disabled: no pack data sources available for world %s", world.getName());
+            IrisLogging.warn("Object Studio save disabled: no pack data sources available for world %s", world.getName());
             return;
         }
 
@@ -93,7 +94,7 @@ public class ObjectStudioSaveService implements IrisService {
             }
         }
         if (objectsDirs.isEmpty()) {
-            Iris.warn("Object Studio save disabled: no resolvable objects folders for world %s", world.getName());
+            IrisLogging.warn("Object Studio save disabled: no resolvable objects folders for world %s", world.getName());
             return;
         }
 
@@ -104,7 +105,7 @@ public class ObjectStudioSaveService implements IrisService {
 
         String packKey = engine.getDimension() == null ? null : engine.getDimension().getLoadKey();
         studios.put(world.getUID(), new ActiveStudio(world.getUID(), layout, objectsDirs, packKey));
-        Iris.info("Object Studio live-save registered: world=%s cells=%d packs=%d",
+        IrisLogging.info("Object Studio live-save registered: world=%s cells=%d packs=%d",
                 world.getName(), layout.cells().size(), objectsDirs.size());
     }
 
@@ -115,7 +116,7 @@ public class ObjectStudioSaveService implements IrisService {
             if (removed.packKey != null) {
                 ObjectStudioActivation.deactivate(removed.packKey);
             }
-            Iris.info("Object Studio live-save unregistered: world=%s", world.getName());
+            IrisLogging.info("Object Studio live-save unregistered: world=%s", world.getName());
         }
     }
 
@@ -164,12 +165,12 @@ public class ObjectStudioSaveService implements IrisService {
         }
 
         player.sendMessage(C.AQUA + "Object Studio: saving " + C.WHITE + cell.pack() + "/" + cell.key() + C.GRAY + " (" + cell.w() + "x" + cell.h() + "x" + cell.d() + ")");
-        Iris.info("Object Studio save triggered by %s for %s/%s", player.getName(), cell.pack(), cell.key());
+        IrisLogging.info("Object Studio save triggered by %s for %s/%s", player.getName(), cell.pack(), cell.key());
         J.runRegion(world, cell.chunkMinX(), cell.chunkMinZ(), () -> {
             try {
                 captureAndSave(studio, world, cell, player);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         });
     }
@@ -209,7 +210,7 @@ public class ObjectStudioSaveService implements IrisService {
             double targetY = cell.originY() + cell.h() + 2.0D;
             Location location = new Location(world, targetX, targetY, targetZ);
             J.runEntity(player, () -> PaperLib.teleportAsync(player, location));
-            Iris.info("Object Studio goto: %s -> %s at %.0f,%.0f,%.0f",
+            IrisLogging.info("Object Studio goto: %s -> %s at %.0f,%.0f,%.0f",
                     player.getName(), objectKey, location.getX(), location.getY(), location.getZ());
             return true;
         }
@@ -283,13 +284,13 @@ public class ObjectStudioSaveService implements IrisService {
                     parent.mkdirs();
                 }
                 snapshot.write(targetFile);
-                Iris.info("Object Studio saved: %s/%s (%dx%dx%d)",
+                IrisLogging.info("Object Studio saved: %s/%s (%dx%dx%d)",
                         cell.pack(), cell.key(), cell.w(), cell.h(), cell.d());
                 if (notify != null) {
                     J.runEntity(notify, () -> notify.sendMessage(C.GREEN + "Object Studio: saved " + C.WHITE + cell.pack() + "/" + cell.key()));
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 if (notify != null) {
                     J.runEntity(notify, () -> notify.sendMessage(C.RED + "Object Studio: save failed for " + cell.pack() + "/" + cell.key() + " (" + e.getMessage() + ")"));
                 }
@@ -318,7 +319,7 @@ public class ObjectStudioSaveService implements IrisService {
             }
             return h;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return System.nanoTime();
         }
     }

@@ -19,7 +19,7 @@
 package art.arcane.iris.core.loader;
 
 import com.google.gson.GsonBuilder;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import lombok.Data;
@@ -49,7 +49,7 @@ public abstract class IrisRegistrant {
         try {
             Desktop.getDesktop().open(getLoadFile());
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return getLoadFile();

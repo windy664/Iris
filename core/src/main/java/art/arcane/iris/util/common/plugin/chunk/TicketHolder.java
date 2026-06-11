@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.plugin.chunk;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.volmlib.util.collection.KMap;
 import lombok.NonNull;
@@ -23,7 +23,7 @@ public class TicketHolder {
     public void addTicket(int x, int z) {
         tickets.compute(Cache.key(x, z), ($, ref) -> {
             if (ref == null) {
-                world.addPluginChunkTicket(x, z, Iris.instance);
+                world.addPluginChunkTicket(x, z, BukkitPlatform.plugin());
                 return 1L;
             }
             return ++ref;
@@ -39,7 +39,7 @@ public class TicketHolder {
         return tickets.compute(Cache.key(x, z), ($, ref) -> {
             if (ref == null) return null;
             if (--ref <= 0) {
-                world.removePluginChunkTicket(x, z, Iris.instance);
+                world.removePluginChunkTicket(x, z, BukkitPlatform.plugin());
                 return null;
             }
             return ref;

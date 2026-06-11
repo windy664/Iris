@@ -49,6 +49,21 @@ public final class IrisLogging {
         System.out.println("[Iris] " + message);
     }
 
+    public static void reportError(String context, Throwable error) {
+        Throwable cause = error == null ? new IllegalStateException("Unknown Iris failure") : error;
+        String message = context == null || context.isBlank() ? "Unhandled Iris failure." : context;
+
+        try {
+            error(message);
+        } catch (Throwable inner) {
+            System.err.println("[Iris] " + message);
+            inner.printStackTrace(System.err);
+        }
+
+        reportError(cause);
+        cause.printStackTrace(System.err);
+    }
+
     public static void reportError(Throwable error) {
         if (IrisPlatforms.isBound()) {
             IrisPlatforms.get().reportError(error);

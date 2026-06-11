@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.nms.v1X;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMSBinding;
 import art.arcane.iris.core.nms.container.BiomeColor;
 import art.arcane.iris.core.nms.container.BlockProperty;
@@ -223,14 +223,14 @@ public class NMSBinding1X implements INMSBinding {
 
     @Override
     public MCABiomeContainer newBiomeContainer(int min, int max) {
-        Iris.error("Cannot use the custom biome data! Iris is incapable of using MCA generation on this version of minecraft!");
+        IrisLogging.error("Cannot use the custom biome data! Iris is incapable of using MCA generation on this version of minecraft!");
 
         return null;
     }
 
     @Override
     public MCABiomeContainer newBiomeContainer(int min, int max, int[] v) {
-        Iris.error("Cannot use the custom biome data! Iris is incapable of using MCA generation on this version of minecraft!");
+        IrisLogging.error("Cannot use the custom biome data! Iris is incapable of using MCA generation on this version of minecraft!");
 
         return null;
     }
@@ -247,7 +247,7 @@ public class NMSBinding1X implements INMSBinding {
 
     @Override
     public MCAPaletteAccess createPalette() {
-        Iris.error("Cannot use the global data palette! Iris is incapable of using MCA generation on this version of minecraft!");
+        IrisLogging.error("Cannot use the global data palette! Iris is incapable of using MCA generation on this version of minecraft!");
         return null;
     }
 }

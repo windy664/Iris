@@ -18,7 +18,6 @@
 
 package art.arcane.iris.core.service;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.util.common.plugin.IrisService;
 import art.arcane.iris.util.common.scheduling.J;
 import lombok.Getter;

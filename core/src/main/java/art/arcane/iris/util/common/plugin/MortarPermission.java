@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import org.bukkit.command.CommandSender;
 
@@ -39,7 +39,7 @@ public abstract class MortarPermission {
                 } catch (IllegalArgumentException | IllegalAccessException | InstantiationException |
                          InvocationTargetException | NoSuchMethodException | SecurityException e) {
                     e.printStackTrace();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         }
@@ -54,7 +54,7 @@ public abstract class MortarPermission {
                     p.add((MortarPermission) i.get(Modifier.isStatic(i.getModifiers()) ? null : this));
                 } catch (IllegalArgumentException | IllegalAccessException | SecurityException e) {
                     e.printStackTrace();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         }

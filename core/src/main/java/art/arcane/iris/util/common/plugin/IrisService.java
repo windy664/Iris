@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import org.bukkit.event.Listener;
 
 public interface IrisService extends Listener {
@@ -27,6 +27,6 @@ public interface IrisService extends Listener {
     void onDisable();
 
     default void postShutdown(Runnable r) {
-        Iris.instance.postShutdown(r);
+        BukkitPlatform.volmitPlugin().postShutdown(r);
     }
 }

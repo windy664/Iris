@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.structure;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.tools.PlausibilizeMode;
@@ -106,7 +106,7 @@ public final class FeatureImporter {
                             try {
                                 TreePlausibilizer.apply(object, PlausibilizeMode.NORMALIZE, TreePlausibilizer.DEFAULT_SHELL_RADIUS);
                             } catch (Throwable e) {
-                                Iris.reportError(e);
+                                IrisLogging.reportError(e);
                             }
                         }
                         long hash = hashOf(object);
@@ -127,7 +127,7 @@ public final class FeatureImporter {
                 } catch (Throwable e) {
                     failed++;
                     sender.sendMessage(C.RED + "[fail] " + row.key() + ": " + e.getMessage());
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
 
                 int processed = imported + skipped + failed;
@@ -252,7 +252,7 @@ public final class FeatureImporter {
         }
 
         if (errorRef.get() != null) {
-            Iris.reportError(errorRef.get());
+            IrisLogging.reportError(errorRef.get());
             return null;
         }
         return new CaptureResult(placedRef.get(), objectRef.get());
@@ -305,7 +305,7 @@ public final class FeatureImporter {
                     .thenCompose(Function.identity())
                     .get();
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             sender.sendMessage(C.RED + "Could not create the scratch world for feature import (" + e.getMessage() + "); skipping the tree/object pass.");
             return null;
         }
@@ -322,14 +322,14 @@ public final class FeatureImporter {
                 return Boolean.TRUE;
             }).get();
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
         try {
             if (folder != null && folder.exists()) {
                 IO.delete(folder);
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

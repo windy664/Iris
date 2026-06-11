@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.format.C;
@@ -53,7 +53,7 @@ public abstract class EngineAssignedWorldManager extends EngineAssignedComponent
 
     public EngineAssignedWorldManager(Engine engine) {
         super(engine, "World");
-        Iris.instance.registerListener(this);
+        BukkitPlatform.volmitPlugin().registerListener(this);
         taskId = J.sr(this::onTick, 1);
     }
 
@@ -137,7 +137,7 @@ public abstract class EngineAssignedWorldManager extends EngineAssignedComponent
     @Override
     public void close() {
         super.close();
-        Iris.instance.unregisterListener(this);
+        BukkitPlatform.volmitPlugin().unregisterListener(this);
         if (taskId != -1) {
             J.csr(taskId);
         }

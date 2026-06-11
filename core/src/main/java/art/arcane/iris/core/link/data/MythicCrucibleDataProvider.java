@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.link.data;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.nms.INMS;
@@ -56,11 +56,11 @@ public class MythicCrucibleDataProvider extends ExternalDataProvider {
 
     @Override
     public void init() {
-        Iris.info("Setting up MythicCrucible Link...");
+        IrisLogging.info("Setting up MythicCrucible Link...");
         try {
             this.itemManager = MythicCrucible.inst().getItemManager();
         } catch (Exception e) {
-            Iris.error("Failed to set up MythicCrucible Link: Unable to fetch MythicCrucible instance!");
+            IrisLogging.error("Failed to set up MythicCrucible Link: Unable to fetch MythicCrucible instance!");
         }
     }
 

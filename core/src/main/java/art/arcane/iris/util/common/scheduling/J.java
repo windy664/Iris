@@ -18,7 +18,9 @@
 
 package art.arcane.iris.util.common.scheduling;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.service.PreservationSVC;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 import art.arcane.volmlib.util.function.NastyFunction;
@@ -64,15 +66,15 @@ public class J {
         SchedulerBridge.setAsyncRepeatingScheduler(J::ar);
         SchedulerBridge.setCancelScheduler(J::car);
         SchedulerBridge.setErrorHandler(e -> {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             e.printStackTrace();
         });
-        SchedulerBridge.setInfoLogger(Iris::debug);
+        SchedulerBridge.setInfoLogger(IrisLogging::debug);
         SchedulerBridge.setThreadRegistrar(thread -> {
             try {
-                Iris.service(PreservationSVC.class).register(thread);
+                IrisServices.get(PreservationSVC.class).register(thread);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         });
     }
@@ -82,7 +84,7 @@ public class J {
     }
 
     public static boolean doif(Supplier<Boolean> c, Runnable g) {
-        return JSupport.doif(c, g, Iris::reportError);
+        return JSupport.doif(c, g, IrisLogging::reportError);
     }
 
     public static void arun(Runnable a) {
@@ -90,8 +92,8 @@ public class J {
             try {
                 a.run();
             } catch (Throwable e) {
-                Iris.reportError(e);
-                Iris.error("Failed to run async task");
+                IrisLogging.reportError(e);
+                IrisLogging.error("Failed to run async task");
                 e.printStackTrace();
             }
         });
@@ -102,8 +104,8 @@ public class J {
             try {
                 a.run();
             } catch (Throwable e) {
-                Iris.reportError(e);
-                Iris.error("Failed to run async task");
+                IrisLogging.reportError(e);
+                IrisLogging.error("Failed to run async task");
                 e.printStackTrace();
             }
         });
@@ -128,11 +130,11 @@ public class J {
     }
 
     public static <R> R attemptResult(NastyFuture<R> r, R onError) {
-        return JSupport.attemptResult(r::run, onError, Iris::reportError);
+        return JSupport.attemptResult(r::run, onError, IrisLogging::reportError);
     }
 
     public static <T, R> R attemptFunction(NastyFunction<T, R> r, T param, R onError) {
-        return JSupport.attemptFunction(r::run, param, onError, Iris::reportError);
+        return JSupport.attemptFunction(r::run, param, onError, IrisLogging::reportError);
     }
 
     public static boolean sleep(long ms) {
@@ -152,7 +154,7 @@ public class J {
     }
 
     public static <T> T attempt(Supplier<T> t, T i) {
-        return JSupport.attempt(t::get, i, Iris::reportError);
+        return JSupport.attempt(t::get, i, IrisLogging::reportError);
     }
 
     public static void executeAfterStartupQueue() {
@@ -254,7 +256,7 @@ public class J {
         }
 
         if (isFolia()) {
-            Iris.verbose("Failed to schedule immediate region task for " + world.getName() + "@" + chunkX + "," + chunkZ + " on Folia.");
+            IrisLogging.debug("Failed to schedule immediate region task for " + world.getName() + "@" + chunkX + "," + chunkZ + " on Folia.");
             return false;
         }
 
@@ -276,7 +278,7 @@ public class J {
         }
 
         if (isFolia()) {
-            Iris.verbose("Failed to schedule delayed region task for " + world.getName() + "@" + chunkX + "," + chunkZ
+            IrisLogging.debug("Failed to schedule delayed region task for " + world.getName() + "@" + chunkX + "," + chunkZ
                     + " (" + delayTicks + "t) on Folia.");
             return false;
         }
@@ -302,17 +304,17 @@ public class J {
     }
 
     public static void cancelPluginTasks() {
-        if (Iris.instance == null) {
+        if (!BukkitPlatform.hasPlugin()) {
             return;
         }
 
-        FoliaScheduler.cancelTasks(Iris.instance);
+        FoliaScheduler.cancelTasks(BukkitPlatform.plugin());
 
         try {
-            Bukkit.getScheduler().cancelTasks(Iris.instance);
+            Bukkit.getScheduler().cancelTasks(BukkitPlatform.plugin());
         } catch (UnsupportedOperationException ex) {
             // Folia blocks BukkitScheduler usage.
-            Iris.verbose("Skipping BukkitScheduler#cancelTasks for Iris on this server.");
+            IrisLogging.debug("Skipping BukkitScheduler#cancelTasks for Iris on this server.");
         }
     }
 
@@ -330,7 +332,7 @@ public class J {
         }
 
         try {
-            Bukkit.getScheduler().scheduleSyncDelayedTask(Iris.instance, r);
+            Bukkit.getScheduler().scheduleSyncDelayedTask(BukkitPlatform.plugin(), r);
         } catch (UnsupportedOperationException e) {
             FoliaScheduler.forceFoliaThreading(Bukkit.getServer());
             if (runGlobalImmediate(r)) {
@@ -422,7 +424,7 @@ public class J {
         }
 
         try {
-            Bukkit.getScheduler().scheduleSyncDelayedTask(Iris.instance, r, delay);
+            Bukkit.getScheduler().scheduleSyncDelayedTask(BukkitPlatform.plugin(), r, delay);
         } catch (UnsupportedOperationException e) {
             FoliaScheduler.forceFoliaThreading(Bukkit.getServer());
             if (runGlobalDelayed(r, delay)) {
@@ -431,7 +433,7 @@ public class J {
 
             throw new IllegalStateException("Failed to schedule delayed sync task (Folia scheduler unavailable, BukkitScheduler unsupported).", e);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -568,7 +570,7 @@ public class J {
     }
 
     private static boolean isPluginEnabled() {
-        return Iris.instance != null && Bukkit.getPluginManager().isPluginEnabled(Iris.instance);
+        return BukkitPlatform.hasPlugin() && Bukkit.getPluginManager().isPluginEnabled(BukkitPlatform.plugin());
     }
 
     private static long ticksToMilliseconds(int ticks) {
@@ -585,7 +587,7 @@ public class J {
             return true;
         }
 
-        return FoliaScheduler.runGlobal(Iris.instance, runnable);
+        return FoliaScheduler.runGlobal(BukkitPlatform.plugin(), runnable);
     }
 
     private static boolean runGlobalDelayed(Runnable runnable, int delayTicks) {
@@ -597,7 +599,7 @@ public class J {
             return runGlobalImmediate(runnable);
         }
 
-        return FoliaScheduler.runGlobal(Iris.instance, runnable, Math.max(0, delayTicks));
+        return FoliaScheduler.runGlobal(BukkitPlatform.plugin(), runnable, Math.max(0, delayTicks));
     }
 
     private static boolean runRegionImmediate(World world, int chunkX, int chunkZ, Runnable runnable) {
@@ -605,7 +607,7 @@ public class J {
             return false;
         }
 
-        return FoliaScheduler.runRegion(Iris.instance, world, chunkX, chunkZ, runnable);
+        return FoliaScheduler.runRegion(BukkitPlatform.plugin(), world, chunkX, chunkZ, runnable);
     }
 
     private static boolean runRegionDelayed(World world, int chunkX, int chunkZ, Runnable runnable, int delayTicks) {
@@ -613,7 +615,7 @@ public class J {
             return false;
         }
 
-        return FoliaScheduler.runRegion(Iris.instance, world, chunkX, chunkZ, runnable, Math.max(0, delayTicks));
+        return FoliaScheduler.runRegion(BukkitPlatform.plugin(), world, chunkX, chunkZ, runnable, Math.max(0, delayTicks));
     }
 
     private static boolean runAsyncImmediate(Runnable runnable) {
@@ -623,15 +625,15 @@ public class J {
 
         if (!isFolia()) {
             try {
-                Bukkit.getScheduler().runTaskAsynchronously(Iris.instance, runnable);
+                Bukkit.getScheduler().runTaskAsynchronously(BukkitPlatform.plugin(), runnable);
                 return true;
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 return false;
             }
         }
 
-        return FoliaScheduler.runAsync(Iris.instance, runnable);
+        return FoliaScheduler.runAsync(BukkitPlatform.plugin(), runnable);
     }
 
     private static boolean runAsyncDelayed(Runnable runnable, int delayTicks) {
@@ -641,15 +643,15 @@ public class J {
 
         if (!isFolia()) {
             try {
-                Bukkit.getScheduler().runTaskLaterAsynchronously(Iris.instance, runnable, Math.max(0, delayTicks));
+                Bukkit.getScheduler().runTaskLaterAsynchronously(BukkitPlatform.plugin(), runnable, Math.max(0, delayTicks));
                 return true;
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 return false;
             }
         }
 
-        return FoliaScheduler.runAsync(Iris.instance, runnable, Math.max(0, delayTicks));
+        return FoliaScheduler.runAsync(BukkitPlatform.plugin(), runnable, Math.max(0, delayTicks));
     }
 
     private static boolean runEntityImmediate(Entity entity, Runnable runnable) {
@@ -657,7 +659,7 @@ public class J {
             return false;
         }
 
-        return FoliaScheduler.runEntity(Iris.instance, entity, runnable);
+        return FoliaScheduler.runEntity(BukkitPlatform.plugin(), entity, runnable);
     }
 
     private static boolean runEntityDelayed(Entity entity, Runnable runnable, int delayTicks) {
@@ -665,7 +667,7 @@ public class J {
             return false;
         }
 
-        return FoliaScheduler.runEntity(Iris.instance, entity, runnable, Math.max(0, delayTicks));
+        return FoliaScheduler.runEntity(BukkitPlatform.plugin(), entity, runnable, Math.max(0, delayTicks));
     }
 
     private static final class RepeatingState {

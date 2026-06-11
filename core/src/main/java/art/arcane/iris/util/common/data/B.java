@@ -3,7 +3,9 @@ package art.arcane.iris.util.common.data;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.data.BSupport;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.engine.object.IrisCompat;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.link.data.DataType;
@@ -27,22 +29,22 @@ public class B {
     private static final class BSupportImpl extends BSupport<BlockProperty> {
         @Override
         protected void warn(String message) {
-            Iris.warn(message);
+            IrisLogging.warn(message);
         }
 
         @Override
         protected void debug(String message) {
-            Iris.debug(message);
+            IrisLogging.debug(message);
         }
 
         @Override
         protected void reportError(Throwable throwable) {
-            Iris.reportError(throwable);
+            IrisLogging.reportError(throwable);
         }
 
         @Override
         protected void error(String message) {
-            Iris.error(message);
+            IrisLogging.error(message);
         }
 
         @Override
@@ -64,11 +66,11 @@ public class B {
         protected BlockData resolveCompatBlock(String bdxf) {
             if (bdxf.contains(":")) {
                 if (bdxf.startsWith("minecraft:")) {
-                    return Iris.compat.getBlock(bdxf);
+                    return IrisServices.get(IrisCompat.class).getBlock(bdxf);
                 }
                 return null;
             }
-            return Iris.compat.getBlock(bdxf);
+            return IrisServices.get(IrisCompat.class).getBlock(bdxf);
         }
 
         @Override
@@ -78,7 +80,7 @@ public class B {
             }
 
             Identifier key = Identifier.fromString(ix);
-            Optional<BlockData> bd = Iris.service(ExternalDataSVC.class).getBlockData(key);
+            Optional<BlockData> bd = IrisServices.get(ExternalDataSVC.class).getBlockData(key);
             debug("Loading block data " + key);
             return bd.orElse(null);
         }
@@ -90,14 +92,14 @@ public class B {
 
         @Override
         protected void appendExternalBlockTypes(KList<String> blockTypes) {
-            for (Identifier id : Iris.service(ExternalDataSVC.class).getAllIdentifiers(DataType.BLOCK)) {
+            for (Identifier id : IrisServices.get(ExternalDataSVC.class).getAllIdentifiers(DataType.BLOCK)) {
                 blockTypes.add(id.toString());
             }
         }
 
         @Override
         protected void appendExternalItemTypes(KList<String> itemTypes) {
-            for (Identifier id : Iris.service(ExternalDataSVC.class).getAllIdentifiers(DataType.ITEM)) {
+            for (Identifier id : IrisServices.get(ExternalDataSVC.class).getAllIdentifiers(DataType.ITEM)) {
                 itemTypes.add(id.toString());
             }
         }
@@ -112,7 +114,7 @@ public class B {
             });
 
             var emptyStates = flipped.computeIfAbsent(new KList<>(0), $ -> new KList<>());
-            for (var pair : Iris.service(ExternalDataSVC.class).getAllBlockProperties()) {
+            for (var pair : IrisServices.get(ExternalDataSVC.class).getAllBlockProperties()) {
                 if (pair.getB().isEmpty()) {
                     emptyStates.add(pair.getA().toString());
                 } else {

@@ -1,6 +1,6 @@
 package art.arcane.iris.core.link;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.volmlib.util.data.Cuboid;
 import art.arcane.volmlib.util.data.KCache;
@@ -45,9 +45,9 @@ public class WorldEditLink {
                     (int) min.getClass().getDeclaredMethod("z").invoke(max)
             );
         } catch (Throwable e) {
-            Iris.error("Could not get selection");
+            IrisLogging.error("Could not get selection");
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             active.reset();
             active.aquire(() -> false);
         }

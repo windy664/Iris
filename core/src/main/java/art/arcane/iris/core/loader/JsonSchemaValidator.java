@@ -1,6 +1,6 @@
 package art.arcane.iris.core.loader;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.json.JSONObject;
 import com.google.gson.annotations.SerializedName;
@@ -53,7 +53,7 @@ final class JsonSchemaValidator {
         if (snippet != null) {
             out.append('\n').append(snippet);
         }
-        Iris.warn(out.toString());
+        IrisLogging.warn(out.toString());
     }
 
     private static void reportUnknownKey(String key, String rawText, File file, String resourceTypeName, Set<String> known) {
@@ -74,7 +74,7 @@ final class JsonSchemaValidator {
         if (snippet != null) {
             out.append('\n').append(snippet);
         }
-        Iris.warn(out.toString());
+        IrisLogging.warn(out.toString());
     }
 
     private static Set<String> collectFieldNames(Class<?> cls) {

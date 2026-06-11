@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.runtime;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.volmlib.util.json.JSONArray;
@@ -100,7 +100,7 @@ public final class ObjectStudioLayout {
             try {
                 size = IrisObject.sampleSize(file);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 continue;
             }
 
@@ -177,7 +177,7 @@ public final class ObjectStudioLayout {
             }
             return null;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return null;
         }
     }
@@ -209,7 +209,7 @@ public final class ObjectStudioLayout {
             root.put("cells", arr);
             Files.writeString(file.toPath(), root.toString(2));
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

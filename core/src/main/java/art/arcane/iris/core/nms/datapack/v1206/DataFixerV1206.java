@@ -1,6 +1,6 @@
 package art.arcane.iris.core.nms.datapack.v1206;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.datapack.v1192.DataFixerV1192;
 import art.arcane.iris.engine.object.IrisBiomeCustom;
 import art.arcane.iris.engine.object.IrisBiomeCustomSpawn;
@@ -34,7 +34,7 @@ public class DataFixerV1206 extends DataFixerV1192 {
                 }
                 EntityType type = i.getType();
                 if (type == null) {
-                    Iris.warn("Skipping custom biome spawn with null entity type in biome " + biome.getId());
+                    IrisLogging.warn("Skipping custom biome spawn with null entity type in biome " + biome.getId());
                     continue;
                 }
                 IrisBiomeCustomSpawnType group = i.getGroup() == null ? IrisBiomeCustomSpawnType.MISC : i.getGroup();
@@ -42,7 +42,7 @@ public class DataFixerV1206 extends DataFixerV1192 {
                 JSONObject o = new JSONObject();
                 NamespacedKey key = type.getKey();
                 if (key == null) {
-                    Iris.warn("Skipping custom biome spawn with unresolved entity key in biome " + biome.getId());
+                    IrisLogging.warn("Skipping custom biome spawn with unresolved entity key in biome " + biome.getId());
                     continue;
                 }
                 o.put("type", key.toString());

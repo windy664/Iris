@@ -40,6 +40,24 @@ public interface IrisPlatform {
 
     File dataFolder();
 
+    default File dataFolder(String... path) {
+        if (path == null || path.length == 0) {
+            return dataFolder();
+        }
+
+        File folder = new File(dataFolder(), String.join(File.separator, path));
+        folder.mkdirs();
+        return folder;
+    }
+
+    default File dataFolderNoCreate(String... path) {
+        if (path == null || path.length == 0) {
+            return dataFolder();
+        }
+
+        return new File(dataFolder(), String.join(File.separator, path));
+    }
+
     File dataFile(String... path);
 
     File pluginJar();

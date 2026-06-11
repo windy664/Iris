@@ -1,6 +1,7 @@
 package art.arcane.iris.core.tools;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.engine.object.*;
 import art.arcane.volmlib.util.data.Varint;
 import art.arcane.iris.util.common.format.C;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class IrisConverter {
     public static void convertSchematics(VolmitSender sender) {
-        File folder = Iris.instance.getDataFolder("convert");
+        File folder = IrisPlatforms.get().dataFolder("convert");
 
         FilenameFilter filter = (dir, name) -> name.endsWith(".schem");
         File[] fileList = folder.listFiles(filter);
@@ -45,7 +46,7 @@ public class IrisConverter {
                     try {
                         tag = NBTUtil.read(schem);
                     } catch (IOException e) {
-                        Iris.info(C.RED + "Failed to read: " + schem.getName());
+                        IrisLogging.info(C.RED + "Failed to read: " + schem.getName());
                         throw new RuntimeException(e);
                     }
                     CompoundTag compound = (CompoundTag) tag.getTag();
@@ -62,8 +63,8 @@ public class IrisConverter {
                     AtomicInteger v = new AtomicInteger(0);
                     if (mv > 2_000_000) {
                         largeObject = true;
-                        Iris.info(C.GRAY + "Converting.. " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob"));
-                        Iris.info(C.GRAY + "- It may take a while");
+                        IrisLogging.info(C.GRAY + "Converting.. " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob"));
+                        IrisLogging.info(C.GRAY + "- It may take a while");
                         if (sender.isPlayer()) {
                             i = J.ar(() -> {
                                 sender.sendProgress((double) v.get() / mv, "Converting");
@@ -113,9 +114,9 @@ public class IrisConverter {
                             }
                         }
                         if (largeObject) {
-                            Iris.info(C.GRAY + "Converted " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob") + " in " + Form.duration(p.getMillis()));
+                            IrisLogging.info(C.GRAY + "Converted " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob") + " in " + Form.duration(p.getMillis()));
                         } else {
-                            Iris.info(C.GRAY + "Converted " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob"));
+                            IrisLogging.info(C.GRAY + "Converted " + schem.getName() + " -> " + schem.getName().replace(".schem", ".iob"));
                         }
                         FileUtils.delete(schem);
                     } catch (IOException e) {

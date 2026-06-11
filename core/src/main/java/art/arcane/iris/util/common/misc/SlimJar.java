@@ -1,6 +1,8 @@
 package art.arcane.iris.util.common.misc;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.util.common.plugin.VolmitPlugin;
 import io.github.slimjar.app.builder.ApplicationBuilder;
 import io.github.slimjar.app.builder.SpigotApplicationBuilder;
 import io.github.slimjar.injector.loader.factory.InjectableFactory;
@@ -10,8 +12,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static art.arcane.iris.Iris.instance;
 
 public class SlimJar {
     private static final boolean DEBUG = Boolean.getBoolean("iris.debug-slimjar");
@@ -26,37 +26,38 @@ public class SlimJar {
 
         try {
             if (loaded.getAndSet(true)) return;
-            final var downloadPath = instance.getDataFolder("cache", "libraries").toPath();
-            final var logger = instance.getLogger();
+            final VolmitPlugin plugin = BukkitPlatform.volmitPlugin();
+            final var downloadPath = plugin.getDataFolder("cache", "libraries").toPath();
+            final var logger = plugin.getLogger();
 
             logger.info("Loading libraries...");
             try {
-                new SpigotApplicationBuilder(instance)
+                new SpigotApplicationBuilder(plugin)
                         .downloadDirectoryPath(downloadPath)
                         .debug(DEBUG)
                         .remap(!DISABLE_REMAPPER)
                         .build();
             } catch (Throwable e) {
-                Iris.warn("Failed to inject the library loader, falling back to application builder");
-                ApplicationBuilder.appending(instance.getName())
+                IrisLogging.warn("Failed to inject the library loader, falling back to application builder");
+                ApplicationBuilder.appending(plugin.getName())
                         .injectableFactory(InjectableFactory.selecting(InjectableFactory.ERROR, InjectableFactory.INJECTABLE, InjectableFactory.WRAPPED, InjectableFactory.UNSAFE))
                         .downloadDirectoryPath(downloadPath)
                         .logger(new ProcessLogger() {
                             @Override
                             public void info(@NotNull String message, @Nullable Object... args) {
                                 if (!DEBUG) return;
-                                instance.getLogger().info(message.formatted(args));
+                                plugin.getLogger().info(message.formatted(args));
                             }
 
                             @Override
                             public void error(@NotNull String message, @Nullable Object... args) {
-                                instance.getLogger().severe(message.formatted(args));
+                                plugin.getLogger().severe(message.formatted(args));
                             }
 
                             @Override
                             public void debug(@NotNull String message, @Nullable Object... args) {
                                 if (!DEBUG) return;
-                                instance.getLogger().info(message.formatted(args));
+                                plugin.getLogger().info(message.formatted(args));
                             }
                         })
                         .build();

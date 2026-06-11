@@ -18,7 +18,8 @@
 
 package art.arcane.iris.core.project;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.link.data.DataType;
 import art.arcane.iris.core.loader.IrisData;
@@ -114,7 +115,7 @@ public class SchemaBuilder {
         schema.put("definitions", defs);
 
         for (String i : warnings) {
-            Iris.warn(root.getSimpleName() + ": " + i);
+            IrisLogging.warn(root.getSimpleName() + ": " + i);
         }
 
         return schema;
@@ -245,7 +246,7 @@ public class SchemaBuilder {
                         prop.put("$ref", "#/definitions/" + key);
                         description.add(SYMBOL_TYPE__N + "  Must be a valid " + loader.getFolderName() + " (use ctrl+space for auto complete!)");
                     } else {
-                        Iris.error("Cannot find Registry Loader for type " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
+                        IrisLogging.error("Cannot find Registry Loader for type " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
                     }
                 } else if (k.isAnnotationPresent(RegistryListStructure.class)) {
                     String key = "enum-iris-structure-placement";
@@ -342,7 +343,7 @@ public class SchemaBuilder {
 
                     if (!definitions.containsKey(key)) {
                         JSONObject j = new JSONObject();
-                        KList<String> list = Iris.service(ExternalDataSVC.class)
+                        KList<String> list = IrisServices.get(ExternalDataSVC.class)
                                 .getAllIdentifiers(DataType.ENTITY)
                                 .stream()
                                 .map(Identifier::toString)
@@ -407,7 +408,7 @@ public class SchemaBuilder {
                         prop.put("$ref", "#/definitions/" + key);
                         description.add(SYMBOL_TYPE__N + "  Must be a valid " + fancyType + " (use ctrl+space for auto complete!)");
                     } catch (Throwable e) {
-                        Iris.error("Could not execute apply method in " + functionClass.getName());
+                        IrisLogging.error("Could not execute apply method in " + functionClass.getName());
                     }
                 } else if (k.getType().equals(PotionEffectType.class)) {
                     String key = "enum-potion-effect-type";
@@ -538,7 +539,7 @@ public class SchemaBuilder {
                                     prop.put("items", items);
                                     description.add(SYMBOL_TYPE__N + "  Must be a valid " + loader.getResourceTypeName() + " (use ctrl+space for auto complete!)");
                                 } else {
-                                    Iris.error("Cannot find Registry Loader for type (list schema) " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
+                                    IrisLogging.error("Cannot find Registry Loader for type (list schema) " + rr.value() + " used in " + k.getDeclaringClass().getCanonicalName() + " in field " + k.getName());
                                 }
                             } else if (k.isAnnotationPresent(RegistryListStructure.class)) {
                                 fancyType = "List<Structure>";
@@ -655,7 +656,7 @@ public class SchemaBuilder {
                                     prop.put("items", items);
                                     description.add(SYMBOL_TYPE__N + "  Must be a valid " + fancyType + " (use ctrl+space for auto complete!)");
                                 } catch (Throwable e) {
-                                    Iris.error("Could not execute apply method in " + functionClass.getName());
+                                    IrisLogging.error("Could not execute apply method in " + functionClass.getName());
                                 }
                             } else if (t.type().equals(PotionEffectType.class)) {
                                 fancyType = "List of Potion Effect Types";
@@ -803,7 +804,7 @@ public class SchemaBuilder {
                     j.put("x-intellij-html-description", desc.replace("\n", "<br>"));
                     a.put(j);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             } else {

@@ -1,6 +1,6 @@
 package art.arcane.iris.core.link.data;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.engine.framework.Engine;
@@ -88,7 +88,7 @@ public class ItemAdderDataProvider extends ExternalDataProvider {
             updateNamespaces(DataType.ITEM);
             updateNamespaces(DataType.BLOCK);
         } catch (Throwable e) {
-            Iris.warn("Failed to update ItemAdder namespaces: " + e.getMessage());
+            IrisLogging.warn("Failed to update ItemAdder namespaces: " + e.getMessage());
         }
     }
 
@@ -96,7 +96,7 @@ public class ItemAdderDataProvider extends ExternalDataProvider {
         var namespaces = getTypes(dataType).stream().map(Identifier::namespace).collect(Collectors.toSet());
         if (dataType == DataType.ITEM) itemNamespaces = namespaces;
         else blockNamespaces = namespaces;
-        Iris.debug("Updated ItemAdder namespaces: " + dataType + " - " + namespaces);
+        IrisLogging.debug("Updated ItemAdder namespaces: " + dataType + " - " + namespaces);
     }
 
     @Override

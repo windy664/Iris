@@ -1,6 +1,6 @@
 package art.arcane.iris.core.link.data;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
@@ -51,7 +51,7 @@ public class HMCLeavesDataProvider extends ExternalDataProvider {
 			blockDataMap = getMap(config, "blockDataMap");
 			itemDataField = getMap(config, "itemSupplierMap");
 		} catch (Throwable e) {
-			Iris.error("Failed to initialize HMCLeavesDataProvider: " + e.getMessage());
+			IrisLogging.error("Failed to initialize HMCLeavesDataProvider: " + e.getMessage());
 		}
 	}
 
@@ -84,7 +84,7 @@ public class HMCLeavesDataProvider extends ExternalDataProvider {
 		blockId = pair.getA();
 		Boolean result = setCustomBlock.invoke(apiInstance, new Object[]{block.getLocation(), blockId.key(), false});
 		if (result == null || !result)
-			Iris.warn("Failed to set custom block! " + blockId.key() + " " + block.getX() + " " + block.getY() + " " + block.getZ());
+			IrisLogging.warn("Failed to set custom block! " + blockId.key() + " " + block.getX() + " " + block.getY() + " " + block.getZ());
 		else if (IrisSettings.get().getGenerator().preventLeafDecay) {
 			BlockData blockData = block.getBlockData();
 			if (blockData instanceof Leaves leaves)

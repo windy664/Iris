@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.io.IO;
@@ -47,6 +47,7 @@ import java.util.Map;
 @SuppressWarnings("EmptyMethod")
 public abstract class VolmitPlugin extends JavaPlugin implements Listener {
     public static final boolean bad = false;
+    private final KList<Runnable> postShutdown = new KList<>();
     private KMap<KList<String>, VirtualCommand> commands;
     private KList<MortarCommand> commandCache;
     private KList<MortarPermission> permissionCache;
@@ -55,20 +56,28 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
         return getFile();
     }
 
+    public void postShutdown(Runnable r) {
+        postShutdown.add(r);
+    }
+
+    protected void runPostShutdown() {
+        postShutdown.forEach(Runnable::run);
+    }
+
     public void l(Object l) {
-        Iris.info("[" + getName() + "]: " + l);
+        IrisLogging.info("[" + getName() + "]: " + l);
     }
 
     public void w(Object l) {
-        Iris.warn("[" + getName() + "]: " + l);
+        IrisLogging.warn("[" + getName() + "]: " + l);
     }
 
     public void f(Object l) {
-        Iris.error("[" + getName() + "]: " + l);
+        IrisLogging.error("[" + getName() + "]: " + l);
     }
 
     public void v(Object l) {
-        Iris.verbose("[" + getName() + "]: " + l);
+        IrisLogging.debug("[" + getName() + "]: " + l);
     }
 
     public void onEnable() {
@@ -95,7 +104,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
             outputCommandInfo();
             outputPermissionInfo();
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
     }
@@ -168,7 +177,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                     v("Registered Permissions " + pc.getFullNode() + " (" + i.getName() + ")");
                 } catch (IllegalArgumentException | IllegalAccessException | InstantiationException |
                          InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     w("Failed to register permission (field " + i.getName() + ")");
                     e.printStackTrace();
                 }
@@ -179,7 +188,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
             try {
                 Bukkit.getPluginManager().addPermission(i);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
 
             }
         }
@@ -194,7 +203,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                     g.add(toPermission(x));
                     g.addAll(computePermissions(x));
                 } catch (IllegalArgumentException | IllegalAccessException | SecurityException e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -266,7 +275,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
             } catch (Throwable e) {
                 w("Failed to tick controller " + i.getName());
                 e.printStackTrace();
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
@@ -284,7 +293,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                 } catch (IllegalArgumentException | IllegalAccessException | SecurityException e) {
                     w("Failed to register instance (field " + i.getName() + ")");
                     e.printStackTrace();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         }
@@ -303,7 +312,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                 } catch (IllegalArgumentException | IllegalAccessException | SecurityException e) {
                     w("Failed to unregister instance (field " + i.getName() + ")");
                     e.printStackTrace();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         }
@@ -329,7 +338,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                          InvocationTargetException | NoSuchMethodException | SecurityException e) {
                     w("Failed to register command (field " + i.getName() + ")");
                     e.printStackTrace();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         }
@@ -445,7 +454,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
             }
         } catch (Throwable e) {
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -457,12 +466,12 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
     }
 
     public void registerListener(Listener l) {
-        Iris.debug("Register Listener " + l.getClass().getSimpleName());
+        IrisLogging.debug("Register Listener " + l.getClass().getSimpleName());
         Bukkit.getPluginManager().registerEvents(l, this);
     }
 
     public void unregisterListener(Listener l) {
-        Iris.debug("Register Listener " + l.getClass().getSimpleName());
+        IrisLogging.debug("Register Listener " + l.getClass().getSimpleName());
         HandlerList.unregisterAll(l);
     }
 
@@ -484,7 +493,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
             try {
                 unregisterCommand(i.getCommand());
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
 
             }
         }
@@ -502,7 +511,7 @@ public abstract class VolmitPlugin extends JavaPlugin implements Listener {
                 Bukkit.getPluginManager().removePermission(i);
                 v("Unregistered Permission " + i.getName());
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }

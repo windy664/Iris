@@ -18,7 +18,9 @@
 
 package art.arcane.iris.core.service;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.link.*;
 import art.arcane.iris.core.link.data.DataType;
 import art.arcane.iris.core.nms.container.BlockProperty;
@@ -50,16 +52,16 @@ public class ExternalDataSVC implements IrisService {
 
     @Override
     public void onEnable() {
-        Iris.info("Loading ExternalDataProvider...");
-        Bukkit.getPluginManager().registerEvents(this, Iris.instance);
+        IrisLogging.info("Loading ExternalDataProvider...");
+        Bukkit.getPluginManager().registerEvents(this, BukkitPlatform.plugin());
 
         providers.addAll(createProviders());
         for (ExternalDataProvider p : providers) {
             if (p.isReady()) {
                 activeProviders.add(p);
                 p.init();
-                Iris.instance.registerListener(p);
-                Iris.info("Enabled ExternalDataProvider for %s.", p.getPluginId());
+                BukkitPlatform.volmitPlugin().registerListener(p);
+                IrisLogging.info("Enabled ExternalDataProvider for %s.", p.getPluginId());
             }
         }
     }
@@ -74,8 +76,8 @@ public class ExternalDataSVC implements IrisService {
             providers.stream().filter(p -> p.isReady() && e.getPlugin().equals(p.getPlugin())).findFirst().ifPresent(edp -> {
                 activeProviders.add(edp);
                 edp.init();
-                Iris.instance.registerListener(edp);
-                Iris.info("Enabled ExternalDataProvider for %s.", edp.getPluginId());
+                BukkitPlatform.volmitPlugin().registerListener(edp);
+                IrisLogging.info("Enabled ExternalDataProvider for %s.", edp.getPluginId());
             });
         }
     }
@@ -89,7 +91,7 @@ public class ExternalDataSVC implements IrisService {
         if (provider.isReady()) {
             activeProviders.add(provider);
             provider.init();
-            Iris.instance.registerListener(provider);
+            BukkitPlatform.volmitPlugin().registerListener(provider);
         }
     }
 
@@ -103,7 +105,7 @@ public class ExternalDataSVC implements IrisService {
         try {
             return Optional.of(provider.get().getBlockData(mod, pair.getB()));
         } catch (MissingResourceException e) {
-            Iris.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
+            IrisLogging.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
             return Optional.empty();
         }
     }
@@ -115,7 +117,7 @@ public class ExternalDataSVC implements IrisService {
         try {
             return Optional.of(provider.get().getBlockProperties(key));
         } catch (MissingResourceException e) {
-            Iris.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
+            IrisLogging.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
             return Optional.empty();
         }
     }
@@ -123,13 +125,13 @@ public class ExternalDataSVC implements IrisService {
     public Optional<ItemStack> getItemStack(Identifier key, KMap<String, Object> customNbt) {
         Optional<ExternalDataProvider> provider = activeProviders.stream().filter(p -> p.isValidProvider(key, DataType.ITEM)).findFirst();
         if (provider.isEmpty()) {
-            Iris.warn("No matching Provider found for modded material \"%s\"!", key);
+            IrisLogging.warn("No matching Provider found for modded material \"%s\"!", key);
             return Optional.empty();
         }
         try {
             return Optional.of(provider.get().getItemStack(key, customNbt));
         } catch (MissingResourceException e) {
-            Iris.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
+            IrisLogging.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
             return Optional.empty();
         }
     }
@@ -137,7 +139,7 @@ public class ExternalDataSVC implements IrisService {
     public void processUpdate(Engine engine, Block block, Identifier blockId) {
         Optional<ExternalDataProvider> provider = activeProviders.stream().filter(p -> p.isValidProvider(blockId, DataType.BLOCK)).findFirst();
         if (provider.isEmpty()) {
-            Iris.warn("No matching Provider found for modded material \"%s\"!", blockId);
+            IrisLogging.warn("No matching Provider found for modded material \"%s\"!", blockId);
             return;
         }
         provider.get().processUpdate(engine, block, blockId);
@@ -146,13 +148,13 @@ public class ExternalDataSVC implements IrisService {
     public Entity spawnMob(Location location, Identifier mobId) {
         Optional<ExternalDataProvider> provider = activeProviders.stream().filter(p -> p.isValidProvider(mobId, DataType.ENTITY)).findFirst();
         if (provider.isEmpty()) {
-            Iris.warn("No matching Provider found for modded mob \"%s\"!", mobId);
+            IrisLogging.warn("No matching Provider found for modded mob \"%s\"!", mobId);
             return null;
         }
         try {
             return provider.get().spawnMob(location, mobId);
         } catch (MissingResourceException e) {
-            Iris.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
+            IrisLogging.error(e.getMessage() + " - [" + e.getClassName() + ":" + e.getKey() + "]");
             return null;
         }
     }
@@ -195,7 +197,7 @@ public class ExternalDataSVC implements IrisService {
     }
 
     private static KList<ExternalDataProvider> createProviders() {
-        JarScanner jar = new JarScanner(Iris.instance.getJarFile(), "art.arcane.iris.core.link.data", false);
+        JarScanner jar = new JarScanner(IrisPlatforms.get().pluginJar(), "art.arcane.iris.core.link.data", false);
         J.attempt(jar::scan);
         KList<ExternalDataProvider> providers = new KList<>();
 
@@ -203,7 +205,7 @@ public class ExternalDataSVC implements IrisService {
             if (ExternalDataProvider.class.isAssignableFrom(c)) {
                 try {
                     ExternalDataProvider p = (ExternalDataProvider) c.getDeclaredConstructor().newInstance();
-                    if (p.getPlugin() != null) Iris.info(p.getPluginId() + " found, loading " + c.getSimpleName() + "...");
+                    if (p.getPlugin() != null) IrisLogging.info(p.getPluginId() + " found, loading " + c.getSimpleName() + "...");
                     providers.add(p);
                 } catch (Throwable ignored) {}
             }

@@ -1,6 +1,6 @@
 package art.arcane.iris.core.nms.datapack;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.nms.datapack.v1192.DataFixerV1192;
 import art.arcane.iris.core.nms.datapack.v1206.DataFixerV1206;
@@ -41,14 +41,14 @@ public enum DataVersion {
         DataVersion version = INMS.get().getDataVersion();
         if (version == null || version == UNSUPPORTED) {
             DataVersion fallback = getLatest();
-            Iris.warn("Unsupported datapack version mapping detected, falling back to latest fixer: " + fallback.getVersion());
+            IrisLogging.warn("Unsupported datapack version mapping detected, falling back to latest fixer: " + fallback.getVersion());
             return fallback.get();
         }
 
         IDataFixer fixer = version.get();
         if (fixer == null) {
             DataVersion fallback = getLatest();
-            Iris.warn("Null datapack fixer for " + version.getVersion() + ", falling back to latest fixer: " + fallback.getVersion());
+            IrisLogging.warn("Null datapack fixer for " + version.getVersion() + ", falling back to latest fixer: " + fallback.getVersion());
             return fallback.get();
         }
 

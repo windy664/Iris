@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.pregenerator;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.tools.IrisPackBenchmarking;
 import art.arcane.volmlib.util.collection.KList;
@@ -139,7 +139,7 @@ public class IrisPregenerator {
                 if (cl.flip()) {
                     double percentage = ((double) generated.get() / (double) totalChunks.get()) * 100;
 
-                    Iris.info("%s: %s of %s (%.0f%%), %s/s ETA: %s",
+                    IrisLogging.info("%s: %s of %s (%.0f%%), %s/s ETA: %s",
                             benchmarking != null ? "Benchmarking" : "Pregen",
                             Form.f(generated.get()),
                             Form.f(totalChunks.get()),
@@ -181,10 +181,10 @@ public class IrisPregenerator {
         PrecisionStopwatch p = PrecisionStopwatch.start();
         task.iterateRegions((x, z) -> visitRegion(x, z, true));
         task.iterateRegions((x, z) -> visitRegion(x, z, false));
-        Iris.info("Pregen took " + Form.duration((long) p.getMilliseconds()));
+        IrisLogging.info("Pregen took " + Form.duration((long) p.getMilliseconds()));
         shutdown();
         if (benchmarking == null) {
-            Iris.info(C.IRIS + "Pregen stopped.");
+            IrisLogging.info(C.IRIS + "Pregen stopped.");
         } else {
             benchmarking.finishedBenchmark(chunksPerSecondHistory);
         }
@@ -237,7 +237,7 @@ public class IrisPregenerator {
 
         int loadedAfter = mantle.getLoadedRegionCount();
         if (loadedAfter < loadedBefore) {
-            Iris.info("Pregen reclaimed " + (loadedBefore - loadedAfter) + " tectonic plate(s) from the mantle");
+            IrisLogging.info("Pregen reclaimed " + (loadedBefore - loadedAfter) + " tectonic plate(s) from the mantle");
         }
     }
 

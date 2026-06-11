@@ -18,7 +18,8 @@
 
 package art.arcane.iris.core.runtime;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.mantle.EngineMantle;
@@ -82,7 +83,7 @@ public final class GoldenHashScanner {
         this.resetMantle = resetMantle;
         this.threads = Math.max(1, threads);
         this.deep = deep;
-        this.goldenFile = Iris.instance.getDataFile("golden", engine.getDimension().getLoadKey()
+        this.goldenFile = IrisPlatforms.get().dataFile("golden", engine.getDimension().getLoadKey()
                 + "-s" + world.getSeed()
                 + "-c" + centerChunkX + "x" + centerChunkZ
                 + "-r" + this.radius + ".hashes");
@@ -123,7 +124,7 @@ public final class GoldenHashScanner {
                 capture(lines);
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             error = true;
         } finally {
             ACTIVE_SCANS.decrementAndGet();
@@ -166,7 +167,7 @@ public final class GoldenHashScanner {
                     }
                     ok = true;
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 } finally {
                     reporter.countApplied(ok);
                     inFlight.release();
@@ -232,7 +233,7 @@ public final class GoldenHashScanner {
 
         sender.sendMessage(C.GREEN + "Golden captured: " + C.GOLD + body.size() + " chunks" + C.GREEN + " combined=" + C.GOLD + shortHash(combined));
         sender.sendMessage(C.GRAY + goldenFile.getAbsolutePath());
-        Iris.info("goldenhash captured: " + goldenFile.getAbsolutePath() + " combined=" + combined);
+        IrisLogging.info("goldenhash captured: " + goldenFile.getAbsolutePath() + " combined=" + combined);
     }
 
     private boolean verify(Map<Long, String> lines) throws IOException {
@@ -278,7 +279,7 @@ public final class GoldenHashScanner {
         if (mismatches.isEmpty()) {
             sender.sendMessage(C.GREEN + "GOLDEN MATCH: " + C.GOLD + body.size() + "/" + goldenChunks.size() + C.GREEN
                     + " chunks, combined=" + C.GOLD + shortHash(combined));
-            Iris.info("goldenhash MATCH: " + goldenFile.getName() + " combined=" + combined);
+            IrisLogging.info("goldenhash MATCH: " + goldenFile.getName() + " combined=" + combined);
             return true;
         }
 
@@ -295,7 +296,7 @@ public final class GoldenHashScanner {
         out.add("#combined=" + combined);
         Files.write(current.toPath(), out, StandardCharsets.UTF_8);
         sender.sendMessage(C.YELLOW + "Current hashes written to " + current.getName());
-        Iris.info("goldenhash MISMATCH: " + mismatches.size() + "/" + body.size() + " -> " + current.getAbsolutePath());
+        IrisLogging.info("goldenhash MISMATCH: " + mismatches.size() + "/" + body.size() + " -> " + current.getAbsolutePath());
 
         reporter.setStage("Diagnosing");
         diagnose(mismatches.getFirst());
@@ -373,9 +374,9 @@ public final class GoldenHashScanner {
             sender.sendMessage((diffs.isEmpty() ? C.YELLOW + "Repeat-gen STABLE" : C.RED + "Repeat-gen UNSTABLE (" + diffs.size() + "+ block diffs)")
                     + C.GRAY + ", " + (mantleDiffs.isEmpty() ? C.YELLOW + "mantle-reset STABLE" : C.RED + "mantle-reset DIVERGED (" + mantleDiffs.size() + "+ diffs)")
                     + C.GRAY + " -> " + diag.getName());
-            Iris.info("goldenhash diag: chunk=" + chunkX + "," + chunkZ + " repeatStable=" + diffs.isEmpty() + " -> " + diag.getAbsolutePath());
+            IrisLogging.info("goldenhash diag: chunk=" + chunkX + "," + chunkZ + " repeatStable=" + diffs.isEmpty() + " -> " + diag.getAbsolutePath());
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             sender.sendMessage(C.RED + "Diagnosis failed: " + e.getMessage());
         }
     }

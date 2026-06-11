@@ -19,7 +19,8 @@
 package art.arcane.iris.core;
 
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.volmlib.util.io.IO;
 import art.arcane.volmlib.util.json.JSONException;
 import art.arcane.volmlib.util.json.JSONObject;
@@ -59,14 +60,14 @@ public class IrisSettings {
 
         settings = new IrisSettings();
 
-        File s = Iris.instance.getDataFile("settings.json");
+        File s = IrisPlatforms.get().dataFile("settings.json");
 
         if (!s.exists()) {
             try {
                 IO.writeAll(s, new JSONObject(new Gson().toJson(settings)).toString(4));
             } catch (JSONException | IOException e) {
                 e.printStackTrace();
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         } else {
             try {
@@ -78,8 +79,8 @@ public class IrisSettings {
                     e.printStackTrace();
                 }
             } catch (Throwable ee) {
-                // Iris.reportError(ee); causes a self-reference & stackoverflow
-                Iris.error("Configuration Error in settings.json! " + ee.getClass().getSimpleName() + ": " + ee.getMessage());
+                // IrisLogging.reportError(ee); causes a self-reference & stackoverflow
+                IrisLogging.error("Configuration Error in settings.json! " + ee.getClass().getSimpleName() + ": " + ee.getMessage());
             }
         }
 
@@ -93,13 +94,13 @@ public class IrisSettings {
     }
 
     public void forceSave() {
-        File s = Iris.instance.getDataFile("settings.json");
+        File s = IrisPlatforms.get().dataFile("settings.json");
 
         try {
             IO.writeAll(s, new JSONObject(new Gson().toJson(settings)).toString(4));
         } catch (JSONException | IOException e) {
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

@@ -19,7 +19,8 @@
 package art.arcane.iris.core.project;
 
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.loader.IrisData;
@@ -91,8 +92,8 @@ public class IrisProject {
             try {
                 clean(clean);
             } catch (Throwable e) {
-                Iris.reportError(e);
-                Iris.error("Failed to beautify " + clean.getAbsolutePath() + " You may have errors in your json!");
+                IrisLogging.reportError(e);
+                IrisLogging.error("Failed to beautify " + clean.getAbsolutePath() + " You may have errors in your json!");
             }
 
             c++;
@@ -114,7 +115,7 @@ public class IrisProject {
 
             if (i.equals("block") && o instanceof String && !o.toString().trim().isEmpty() && !o.toString().contains(":")) {
                 obj.put(i, "minecraft:" + o);
-                Iris.debug("Updated Block Key: " + o + " to " + obj.getString(i) + " in " + f.getPath());
+                IrisLogging.debug("Updated Block Key: " + o + " to " + obj.getString(i) + " in " + f.getPath());
             }
 
             if (o instanceof JSONObject) {
@@ -184,20 +185,20 @@ public class IrisProject {
 
                 if (!doOpenVSCode(f)) {
                     File ff = new File(d.getLoader().getDataFolder(), d.getLoadKey() + ".code-workspace");
-                    Iris.warn("Project missing code-workspace: " + ff.getAbsolutePath() + " Re-creating code workspace.");
+                    IrisLogging.warn("Project missing code-workspace: " + ff.getAbsolutePath() + " Re-creating code workspace.");
 
                     try {
                         IO.writeAll(ff, createCodeWorkspaceConfig(false));
                     } catch (IOException e1) {
-                        Iris.reportError(e1);
+                        IrisLogging.reportError(e1);
                         e1.printStackTrace();
                     }
                     if (!doOpenVSCode(f)) {
-                        Iris.warn("Tried creating code workspace but failed a second time. Your project is likely corrupt.");
+                        IrisLogging.warn("Tried creating code workspace but failed a second time. Your project is likely corrupt.");
                     }
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             }
         });
@@ -211,13 +212,13 @@ public class IrisProject {
 
                 if (IrisSettings.get().getStudio().isOpenVSCode()) {
                     if (!GraphicsEnvironment.isHeadless()) {
-                        Iris.msg("Opening VSCode. You may see the output from VSCode.");
-                        Iris.msg("VSCode output always starts with: '(node:#####) electron'");
+                        IrisLogging.msg("Opening VSCode. You may see the output from VSCode.");
+                        IrisLogging.msg("VSCode output always starts with: '(node:#####) electron'");
                         Thread launcherThread = new Thread(() -> {
                             try {
                                 Desktop.getDesktop().open(i);
                             } catch (Throwable e) {
-                                Iris.reportError(e);
+                                IrisLogging.reportError(e);
                             }
                         }, "Iris-VSCode-Launcher");
                         launcherThread.setDaemon(true);
@@ -268,7 +269,7 @@ public class IrisProject {
                     Throwable error = throwable instanceof java.util.concurrent.CompletionException completionException && completionException.getCause() != null
                             ? completionException.getCause()
                             : throwable;
-                    Iris.reportError("Studio open failed for project \"" + getName() + "\".", error);
+                    IrisLogging.reportError("Studio open failed for project \"" + getName() + "\".", error);
                     sender.sendMessage(C.RED + "Studio open failed: " + error.getMessage());
                     return;
                 }
@@ -448,13 +449,13 @@ public class IrisProject {
             p.end();
             return true;
         } catch (Throwable e) {
-            Iris.reportError(e);
-            Iris.warn("Project invalid: " + ws.getAbsolutePath() + " Re-creating. You may loose some vs-code workspace settings! But not your actual project!");
+            IrisLogging.reportError(e);
+            IrisLogging.warn("Project invalid: " + ws.getAbsolutePath() + " Re-creating. You may loose some vs-code workspace settings! But not your actual project!");
             ws.delete();
             try {
                 IO.writeAll(ws, createCodeWorkspaceConfig());
             } catch (IOException e1) {
-                Iris.reportError(e1);
+                IrisLogging.reportError(e1);
                 e1.printStackTrace();
             }
         }
@@ -613,9 +614,9 @@ public class IrisProject {
         String dimm = getName();
         IrisData dm = IrisData.get(path);
         IrisDimension dimension = dm.getDimensionLoader().load(dimm);
-        File folder = new File(Iris.instance.getDataFolder(), "exports/" + dimension.getLoadKey());
+        File folder = new File(IrisPlatforms.get().dataFolder(), "exports/" + dimension.getLoadKey());
         folder.mkdirs();
-        Iris.info("Packaging Dimension " + dimension.getName() + " " + (obfuscate ? "(Obfuscated)" : ""));
+        IrisLogging.info("Packaging Dimension " + dimension.getName() + " " + (obfuscate ? "(Obfuscated)" : ""));
         KSet<IrisRegion> regions = new KSet<>();
         KSet<IrisBiome> biomes = new KSet<>();
         KSet<IrisEntity> entities = new KSet<>();
@@ -684,7 +685,7 @@ public class IrisProject {
                     sender.sendMessage("Wrote another " + g + " Objects");
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         })));
 
@@ -692,7 +693,7 @@ public class IrisProject {
         c.append(IO.hash(b.toString()));
         b = new StringBuilder();
 
-        Iris.info("Writing Dimensional Scaffold");
+        IrisLogging.info("Writing Dimensional Scaffold");
 
         try {
             a = new JSONObject(new Gson().toJson(dimension)).toString(minify ? 0 : 4);
@@ -745,15 +746,15 @@ public class IrisProject {
             meta.put("time", M.ms());
             meta.put("version", dimension.getVersion());
             IO.writeAll(new File(folder, "package.json"), meta.toString(minify ? 0 : 4));
-            File p = new File(Iris.instance.getDataFolder(), "exports/" + dimension.getLoadKey() + ".iris");
-            Iris.info("Compressing Package");
+            File p = new File(IrisPlatforms.get().dataFolder(), "exports/" + dimension.getLoadKey() + ".iris");
+            IrisLogging.info("Compressing Package");
             ZipUtil.pack(folder, p, 9);
             IO.delete(folder);
 
             sender.sendMessage("Package Compiled!");
             return p;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             e.printStackTrace();
         }
         sender.sendMessage("Failed!");
@@ -854,7 +855,7 @@ public class IrisProject {
             try {
                 files.add(clean);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
@@ -868,7 +869,7 @@ public class IrisProject {
             try {
                 files.add(clean);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }

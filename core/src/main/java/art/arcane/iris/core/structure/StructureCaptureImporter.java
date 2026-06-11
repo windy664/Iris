@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.structure;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisObject;
@@ -110,7 +110,7 @@ public final class StructureCaptureImporter {
                 } catch (Throwable e) {
                     failed++;
                     sender.sendMessage(C.RED + "[fail] " + key + ": " + e.getMessage());
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
 
                 int processed = imported + skipped + failed;
@@ -200,7 +200,7 @@ public final class StructureCaptureImporter {
         }
 
         if (errorRef.get() != null) {
-            Iris.reportError(errorRef.get());
+            IrisLogging.reportError(errorRef.get());
             return null;
         }
         return objectRef.get();

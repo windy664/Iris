@@ -30,6 +30,9 @@ import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
 import art.arcane.iris.spi.PlatformStructureHooks;
 import art.arcane.iris.spi.PlatformWorld;
+import art.arcane.iris.util.common.misc.Bindings;
+import art.arcane.iris.util.common.plugin.VolmitPlugin;
+import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.math.Vector3d;
@@ -45,19 +48,73 @@ import org.bukkit.event.Event;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
 import java.io.File;
+import java.util.function.Supplier;
 
 /**
  * Bukkit implementation of the root Iris platform service.
  */
 public final class BukkitPlatform implements IrisPlatform {
+    private static volatile Plugin PLUGIN;
+    private static volatile Bindings.Adventure AUDIENCES;
+    private static volatile Supplier<VolmitSender> CONSOLE;
+
     private final BukkitRegistries registries = new BukkitRegistries();
     private final BukkitScheduler scheduler = new BukkitScheduler();
     private final PlatformCapabilities capabilities = new BukkitCapabilities();
     private final BukkitStructureHooks structureHooks = new BukkitStructureHooks();
     private final BukkitBiomeWriter biomeWriter = new BukkitBiomeWriter();
+
+    public static void hostPlugin(Plugin plugin) {
+        PLUGIN = plugin;
+    }
+
+    public static Plugin plugin() {
+        Plugin plugin = PLUGIN;
+        if (plugin == null) {
+            throw new IllegalStateException("No Iris plugin is hosted");
+        }
+        return plugin;
+    }
+
+    public static boolean hasPlugin() {
+        return PLUGIN != null;
+    }
+
+    public static VolmitPlugin volmitPlugin() {
+        Plugin plugin = plugin();
+        if (plugin instanceof VolmitPlugin host) {
+            return host;
+        }
+        throw new IllegalStateException("Hosted Iris plugin is not a VolmitPlugin");
+    }
+
+    public static void hostAudiences(Bindings.Adventure adventure) {
+        AUDIENCES = adventure;
+    }
+
+    public static Bindings.Adventure audiences() {
+        Bindings.Adventure adventure = AUDIENCES;
+        if (adventure == null) {
+            throw new IllegalStateException("No Iris adventure audiences are hosted");
+        }
+        return adventure;
+    }
+
+    public static void hostConsoleSender(Supplier<VolmitSender> supplier) {
+        CONSOLE = supplier;
+    }
+
+    public static VolmitSender console() {
+        Supplier<VolmitSender> supplier = CONSOLE;
+        if (supplier == null) {
+            throw new IllegalStateException("No Iris console sender is hosted");
+        }
+        return supplier.get();
+    }
 
     public static World unwrapWorld(PlatformWorld world) {
         return (World) world.nativeHandle();

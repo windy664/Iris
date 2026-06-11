@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.runtime;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
@@ -80,7 +80,7 @@ public final class InPlaceChunkRegenerator {
             reporter.setStage("Regenerating");
             regenerate(targets);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             error = true;
         } finally {
             reporter.finish(error);
@@ -112,7 +112,7 @@ public final class InPlaceChunkRegenerator {
                 try {
                     engine.generate(chunkX << 4, chunkZ << 4, buffer, false);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     reporter.countApplied(false);
                     inFlight.release();
                     allApplied.countDown();
@@ -125,7 +125,7 @@ public final class InPlaceChunkRegenerator {
                         applyToLiveChunk(chunkX, chunkZ, buffer);
                         ok = true;
                     } catch (Throwable e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
                     } finally {
                         reporter.countApplied(ok);
                         inFlight.release();
@@ -134,7 +134,7 @@ public final class InPlaceChunkRegenerator {
                 });
 
                 if (!scheduled) {
-                    Iris.warn("Regen could not schedule chunk apply at " + chunkX + "," + chunkZ + " in " + world.getName() + ".");
+                    IrisLogging.warn("Regen could not schedule chunk apply at " + chunkX + "," + chunkZ + " in " + world.getName() + ".");
                     reporter.countApplied(false);
                     inFlight.release();
                     allApplied.countDown();

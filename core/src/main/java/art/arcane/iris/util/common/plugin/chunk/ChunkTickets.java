@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.plugin.chunk;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -18,7 +18,7 @@ public class ChunkTickets implements Listener {
     private final Map<World, TicketHolder> holders = new HashMap<>();
 
     public ChunkTickets() {
-        Iris.instance.registerListener(this);
+        BukkitPlatform.volmitPlugin().registerListener(this);
         Bukkit.getWorlds().forEach(w -> holders.put(w, new TicketHolder(w)));
     }
 

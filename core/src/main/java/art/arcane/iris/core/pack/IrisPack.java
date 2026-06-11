@@ -18,7 +18,8 @@
 
 package art.arcane.iris.core.pack;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.service.StudioSVC;
@@ -153,7 +154,7 @@ public class IrisPack {
      * @return the file path
      */
     public static File packsPack(String name) {
-        return Iris.instance.getDataFolderNoCreate(StudioSVC.WORKSPACE_NAME, name);
+        return IrisPlatforms.get().dataFolderNoCreate(StudioSVC.WORKSPACE_NAME, name);
     }
 
     private static KList<File> collectFiles(File f, String fileExtension) {
@@ -208,20 +209,20 @@ public class IrisPack {
 
         try {
             PrecisionStopwatch p = PrecisionStopwatch.start();
-            Iris.debug("Building Workspace: " + ws.getPath());
+            IrisLogging.debug("Building Workspace: " + ws.getPath());
             JSONObject j = generateWorkspaceConfig();
             IO.writeAll(ws, j.toString(4));
             p.end();
-            Iris.debug("Building Workspace: " + ws.getPath() + " took " + Form.duration(p.getMilliseconds(), 2));
+            IrisLogging.debug("Building Workspace: " + ws.getPath() + " took " + Form.duration(p.getMilliseconds(), 2));
             return true;
         } catch (Throwable e) {
-            Iris.reportError(e);
-            Iris.warn("Pack invalid: " + ws.getAbsolutePath() + " Re-creating. You may loose some vs-code workspace settings! But not your actual project!");
+            IrisLogging.reportError(e);
+            IrisLogging.warn("Pack invalid: " + ws.getAbsolutePath() + " Re-creating. You may loose some vs-code workspace settings! But not your actual project!");
             ws.delete();
             try {
                 IO.writeAll(ws, generateWorkspaceConfig());
             } catch (IOException e1) {
-                Iris.reportError(e1);
+                IrisLogging.reportError(e1);
                 e1.printStackTrace();
             }
         }
@@ -265,7 +266,7 @@ public class IrisPack {
         try {
             FileUtils.copyDirectory(getFolder(), folder);
         } catch (IOException e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return new IrisPack(folder);
@@ -288,7 +289,7 @@ public class IrisPack {
         try {
             FileUtils.copyDirectory(getFolder(), newPack);
         } catch (IOException e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         IrisData data = IrisData.get(newPack);

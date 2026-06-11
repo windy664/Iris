@@ -129,7 +129,6 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         }
     }
 
-    private final KList<Runnable> postShutdown = new KList<>();
     private final AtomicBoolean alreadyDrained = new AtomicBoolean(false);
     private KMap<Class<? extends IrisService>, IrisService> services;
 
@@ -546,6 +545,8 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
 
     public Iris() {
         instance = this;
+        BukkitPlatform.hostPlugin(this);
+        BukkitPlatform.hostConsoleSender(Iris::getSender);
         SlimJar.load();
     }
 
@@ -561,6 +562,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         });
         IO.delete(new File("iris"));
         compat = IrisCompat.configured(getDataFile("compat.json"));
+        IrisServices.register(IrisCompat.class, compat);
         ServerConfigurator.configure();
         validateAllPacks();
         IrisSafeguard.execute();
@@ -568,6 +570,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         IrisSafeguard.splash();
         tickets = new ChunkTickets();
         linkMultiverseCore = new MultiverseCoreLink();
+        IrisServices.register(MultiverseCoreLink.class, linkMultiverseCore);
         settingsFile = getDataFile("settings.json");
         configHotloadEngine = new ConfigHotloadEngine(
                 Iris::isSettingsFile,
@@ -904,16 +907,13 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
     private void setupAudience() {
         try {
             audiences = new Bindings.Adventure(this);
+            BukkitPlatform.hostAudiences(audiences);
         } catch (Throwable e) {
             e.printStackTrace();
             IrisSettings.get().getGeneral().setUseConsoleCustomColors(false);
             IrisSettings.get().getGeneral().setUseCustomColorsIngame(false);
             Iris.error("Failed to setup Adventure API... No custom colors :(");
         }
-    }
-
-    public void postShutdown(Runnable r) {
-        postShutdown.add(r);
     }
 
     public void onEnable() {
@@ -938,7 +938,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         }
         J.cancelPluginTasks();
         HandlerList.unregisterAll((Plugin) this);
-        postShutdown.forEach(Runnable::run);
+        runPostShutdown();
         super.onDisable();
 
         J.attempt(new JarScanner(instance.getJarFile(), "", false)::scanAll);

@@ -1,6 +1,6 @@
 package art.arcane.iris.util.common.reflect;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -15,7 +15,7 @@ public final class WrappedReturningMethod<C, R> {
             m = origin.getDeclaredMethod(methodName, paramTypes);
             m.setAccessible(true);
         } catch (NoSuchMethodException e) {
-            Iris.error("Failed to created WrappedMethod %s#%s: %s%s", origin.getSimpleName(), methodName, e.getClass().getSimpleName(), e.getMessage().equals("") ? "" : " | " + e.getMessage());
+            IrisLogging.error("Failed to created WrappedMethod %s#%s: %s%s", origin.getSimpleName(), methodName, e.getClass().getSimpleName(), e.getMessage().equals("") ? "" : " | " + e.getMessage());
         }
         this.method = m;
     }
@@ -32,7 +32,7 @@ public final class WrappedReturningMethod<C, R> {
         try {
             return (R) method.invoke(instance, args);
         } catch (InvocationTargetException | IllegalAccessException e) {
-            Iris.error("Failed to invoke WrappedMethod %s#%s: %s%s", method.getDeclaringClass().getSimpleName(), method.getName(), e.getClass().getSimpleName(), e.getMessage().equals("") ? "" : " | " + e.getMessage());
+            IrisLogging.error("Failed to invoke WrappedMethod %s#%s: %s%s", method.getDeclaringClass().getSimpleName(), method.getName(), e.getClass().getSimpleName(), e.getMessage().equals("") ? "" : " | " + e.getMessage());
             return null;
         }
     }

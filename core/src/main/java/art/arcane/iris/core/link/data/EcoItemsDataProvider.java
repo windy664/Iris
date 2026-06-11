@@ -1,6 +1,6 @@
 package art.arcane.iris.core.link.data;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.volmlib.util.collection.KMap;
@@ -25,14 +25,14 @@ public class EcoItemsDataProvider extends ExternalDataProvider {
 
     @Override
     public void init() {
-        Iris.info("Setting up EcoItems Link...");
+        IrisLogging.info("Setting up EcoItems Link...");
         itemStack = new WrappedField<>(EcoItem.class, "_itemStack");
         if (this.itemStack.hasFailed()) {
-            Iris.error("Failed to set up EcoItems Link: Unable to fetch ItemStack field!");
+            IrisLogging.error("Failed to set up EcoItems Link: Unable to fetch ItemStack field!");
         }
         id = new WrappedField<>(EcoItem.class, "id");
         if (this.id.hasFailed()) {
-            Iris.error("Failed to set up EcoItems Link: Unable to fetch id field!");
+            IrisLogging.error("Failed to set up EcoItems Link: Unable to fetch id field!");
         }
     }
 

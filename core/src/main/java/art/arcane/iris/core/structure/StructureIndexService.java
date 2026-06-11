@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.structure;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.volmlib.util.collection.KList;
@@ -56,7 +56,7 @@ public final class StructureIndexService {
             return write(data);
         } catch (Throwable e) {
             GENERATED.remove(key);
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return null;
         }
     }
@@ -123,7 +123,7 @@ public final class StructureIndexService {
             String json = new GsonBuilder().setPrettyPrinting().create().toJson(root);
             Files.writeString(file.toPath(), json, StandardCharsets.UTF_8);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
         return file;
     }

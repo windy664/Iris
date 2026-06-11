@@ -1,6 +1,6 @@
 package art.arcane.iris.core.link.data;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.volmlib.util.collection.KMap;
@@ -28,7 +28,7 @@ public class MMOItemsDataProvider extends ExternalDataProvider {
 
     @Override
     public void init() {
-        Iris.info("Setting up MMOItems Link...");
+        IrisLogging.info("Setting up MMOItems Link...");
     }
 
     @NotNull

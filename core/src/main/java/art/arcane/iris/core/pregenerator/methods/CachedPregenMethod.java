@@ -1,6 +1,7 @@
 package art.arcane.iris.core.pregenerator.methods;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.pregenerator.PregenListener;
 import art.arcane.iris.core.pregenerator.PregeneratorMethod;
 import art.arcane.iris.core.pregenerator.cache.PregenCache;
@@ -16,9 +17,9 @@ public class CachedPregenMethod implements PregeneratorMethod {
 
     public CachedPregenMethod(PregeneratorMethod method, String worldName) {
         this.method = method;
-        var cache = Iris.service(GlobalCacheSVC.class).get(worldName);
+        var cache = IrisServices.get(GlobalCacheSVC.class).get(worldName);
         if (cache == null) {
-            Iris.debug("Could not find existing cache for " + worldName  + " creating fallback");
+            IrisLogging.debug("Could not find existing cache for " + worldName  + " creating fallback");
             cache = GlobalCacheSVC.createDefault(worldName);
         }
         this.cache = cache;

@@ -20,7 +20,7 @@ package art.arcane.iris.util.nbt.common.mca;
 
 import art.arcane.volmlib.util.nbt.mca.MCAChunkSupport;
 import art.arcane.volmlib.util.nbt.tag.CompoundTag;
-import art.arcane.iris.Iris;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.nms.INMS;
 
 import static org.bukkit.Bukkit.getServer;
@@ -36,8 +36,8 @@ public class Chunk extends MCAChunkSupport<Section> {
             (min, max, data) -> INMS.get().newBiomeContainer(min, max, data),
             (sectionRoot, dataVersion, loadFlags) -> new Section(sectionRoot, dataVersion, loadFlags),
             Section::newSection,
-            () -> "Iris Headless " + Iris.instance.getDescription().getVersion(),
-            () -> "Iris " + Iris.instance.getDescription().getVersion()
+            () -> "Iris Headless " + BukkitPlatform.plugin().getDescription().getVersion(),
+            () -> "Iris " + BukkitPlatform.plugin().getDescription().getVersion()
     );
 
     Chunk(int lastMCAUpdate) {

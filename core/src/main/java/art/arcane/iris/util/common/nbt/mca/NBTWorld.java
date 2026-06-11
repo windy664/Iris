@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.nbt.common.mca;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.volmlib.util.collection.KMap;
@@ -71,10 +71,10 @@ public class NBTWorld {
                 NBTWorldSupport.regionFileResolver(worldFolder, "region"),
                 MCAUtil::write,
                 NBTWorldSupport.logger(
-                        Iris::info,
-                        Iris::debug,
+                        IrisLogging::info,
+                        IrisLogging::debug,
                         (message, error) -> {
-                            Iris.error(message);
+                            IrisLogging.error(message);
                             if (error != null) {
                                 error.printStackTrace();
                             }
@@ -197,7 +197,7 @@ public class NBTWorld {
 
             return getBlockData(tag);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
         return AIR;

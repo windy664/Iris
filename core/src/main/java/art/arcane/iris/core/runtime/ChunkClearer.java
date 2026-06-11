@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.runtime;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.util.common.plugin.VolmitSender;
@@ -69,7 +69,7 @@ public final class ChunkClearer {
             reporter.setStage("Clearing");
             clear(targets);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             error = true;
         } finally {
             reporter.finish(error);
@@ -92,7 +92,7 @@ public final class ChunkClearer {
                     clearChunk(chunkX, chunkZ, mantle);
                     ok = true;
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 } finally {
                     reporter.countApplied(ok);
                     inFlight.release();
@@ -101,7 +101,7 @@ public final class ChunkClearer {
             });
 
             if (!scheduled) {
-                Iris.warn("Delete could not schedule chunk clear at " + chunkX + "," + chunkZ + " in " + world.getName() + ".");
+                IrisLogging.warn("Delete could not schedule chunk clear at " + chunkX + "," + chunkZ + " in " + world.getName() + ".");
                 reporter.countApplied(false);
                 inFlight.release();
                 allCleared.countDown();

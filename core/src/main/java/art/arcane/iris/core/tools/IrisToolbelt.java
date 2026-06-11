@@ -18,7 +18,10 @@
 
 package art.arcane.iris.core.tools;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.IrisRuntimeSchedulerMode;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.gui.PregeneratorJob;
@@ -86,7 +89,7 @@ public class IrisToolbelt {
             return null;
         }
 
-        File packsFolder = Iris.instance.getDataFolder("packs");
+        File packsFolder = IrisPlatforms.get().dataFolder("packs");
         File pack = new File(packsFolder, requested);
         if (!pack.exists()) {
             File found = findCaseInsensitivePack(packsFolder, requested);
@@ -96,7 +99,7 @@ public class IrisToolbelt {
         }
 
         if (!pack.exists()) {
-            Iris.service(StudioSVC.class).downloadSearch(new VolmitSender(Bukkit.getConsoleSender(), Iris.instance.getTag()), requested, false);
+            IrisServices.get(StudioSVC.class).downloadSearch(new VolmitSender(Bukkit.getConsoleSender(), BukkitPlatform.volmitPlugin().getTag()), requested, false);
             File found = findCaseInsensitivePack(packsFolder, requested);
             if (found != null) {
                 pack = found;
@@ -199,7 +202,7 @@ public class IrisToolbelt {
             return ((PlatformChunkGenerator) world.getGenerator());
         }
 
-        StudioSVC studioService = Iris.service(StudioSVC.class);
+        StudioSVC studioService = IrisServices.get(StudioSVC.class);
         if (studioService != null && studioService.isProjectOpen()) {
             IrisProject activeProject = studioService.getActiveProject();
             if (activeProject != null) {
@@ -265,7 +268,7 @@ public class IrisToolbelt {
         }
 
         if (PREGEN_PROFILE_JVM_HINT_LOGGED.compareAndSet(false, true) && !fastCacheEnabledBefore) {
-            Iris.info("For startup-wide cache-fast coverage, set JVM argument: -Diris.cache.fast=true");
+            IrisLogging.info("For startup-wide cache-fast coverage, set JVM argument: -Diris.cache.fast=true");
         }
 
         return changed;
@@ -275,7 +278,7 @@ public class IrisToolbelt {
         boolean changed = applyPregenPerformanceProfile();
         if (changed && engine != null) {
             engine.hotloadComplex();
-            Iris.info("Pregen profile applied: noiseCacheSize=" + IrisSettings.get().getPerformance().getNoiseCacheSize() + " iris.cache.fast=" + Boolean.getBoolean("iris.cache.fast"));
+            IrisLogging.info("Pregen profile applied: noiseCacheSize=" + IrisSettings.get().getPerformance().getNoiseCacheSize() + " iris.cache.fast=" + Boolean.getBoolean("iris.cache.fast"));
         }
     }
 
@@ -322,7 +325,7 @@ public class IrisToolbelt {
         for (World i : Bukkit.getWorlds()) {
             if (!i.getName().equals(world.getName())) {
                 for (Player j : new ArrayList<>(world.getPlayers())) {
-                    new VolmitSender(j, Iris.instance.getTag()).sendMessage("You have been evacuated from this world.");
+                    new VolmitSender(j, BukkitPlatform.volmitPlugin().getTag()).sendMessage("You have been evacuated from this world.");
                     Location target = i.getSpawnLocation();
                     Runnable teleportTask = () -> teleportAsyncSafely(j, target);
                     if (!J.runEntity(j, teleportTask)) {
@@ -352,7 +355,7 @@ public class IrisToolbelt {
         for (World i : Bukkit.getWorlds()) {
             if (!i.getName().equals(world.getName())) {
                 for (Player j : new ArrayList<>(world.getPlayers())) {
-                    new VolmitSender(j, Iris.instance.getTag()).sendMessage("You have been evacuated from this world. " + m);
+                    new VolmitSender(j, BukkitPlatform.volmitPlugin().getTag()).sendMessage("You have been evacuated from this world. " + m);
                     Location target = i.getSpawnLocation();
                     Runnable teleportTask = () -> teleportAsyncSafely(j, target);
                     if (!J.runEntity(j, teleportTask)) {
@@ -385,14 +388,14 @@ public class IrisToolbelt {
             if (teleportFuture != null) {
                 teleportFuture.exceptionally(throwable -> {
                     if (!isServerStopping()) {
-                        Iris.reportError(throwable);
+                        IrisLogging.reportError(throwable);
                     }
                     return false;
                 });
             }
         } catch (Throwable throwable) {
             if (!isServerStopping()) {
-                Iris.reportError(throwable);
+                IrisLogging.reportError(throwable);
             }
         }
     }
@@ -409,8 +412,7 @@ public class IrisToolbelt {
             }
         }
 
-        Iris iris = Iris.instance;
-        return iris == null || !iris.isEnabled();
+        return !BukkitPlatform.hasPlugin() || !BukkitPlatform.plugin().isEnabled();
     }
 
     private static Method resolveBukkitIsStoppingMethod() {
@@ -436,9 +438,9 @@ public class IrisToolbelt {
             worldMaintenanceMantleBypassDepth.computeIfAbsent(name, k -> new AtomicInteger()).incrementAndGet();
         }
         if (IrisSettings.get().getGeneral().isDebug()) {
-            Iris.info("World maintenance enter: " + name + " reason=" + reason + " depth=" + depth + " bypassMantle=" + bypassMantleStages);
+            IrisLogging.info("World maintenance enter: " + name + " reason=" + reason + " depth=" + depth + " bypassMantle=" + bypassMantleStages);
         } else {
-            Iris.verbose("World maintenance enter: " + name + " reason=" + reason + " depth=" + depth + " bypassMantle=" + bypassMantleStages);
+            IrisLogging.debug("World maintenance enter: " + name + " reason=" + reason + " depth=" + depth + " bypassMantle=" + bypassMantleStages);
         }
     }
 
@@ -470,9 +472,9 @@ public class IrisToolbelt {
         }
 
         if (IrisSettings.get().getGeneral().isDebug()) {
-            Iris.info("World maintenance exit: " + name + " reason=" + reason + " depth=" + depth + " bypassMantleDepth=" + bypassDepth);
+            IrisLogging.info("World maintenance exit: " + name + " reason=" + reason + " depth=" + depth + " bypassMantleDepth=" + bypassDepth);
         } else {
-            Iris.verbose("World maintenance exit: " + name + " reason=" + reason + " depth=" + depth + " bypassMantleDepth=" + bypassDepth);
+            IrisLogging.debug("World maintenance exit: " + name + " reason=" + reason + " depth=" + depth + " bypassMantleDepth=" + bypassDepth);
         }
     }
 

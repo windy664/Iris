@@ -1,6 +1,6 @@
 package art.arcane.iris.util.simd;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 
 public final class SimdSupport {
@@ -25,11 +25,11 @@ public final class SimdSupport {
 
     public static void install() {
         if (isVectorized()) {
-            Iris.info("SIMD: vector kernels enabled (" + KERNELS.describe() + ")");
+            IrisLogging.info("SIMD: vector kernels enabled (" + KERNELS.describe() + ")");
         } else if (!MODULE_PRESENT) {
-            Iris.info("SIMD: scalar kernels active; add --add-modules " + VECTOR_MODULE + " to JVM flags to enable vectorized generation kernels");
+            IrisLogging.info("SIMD: scalar kernels active; add --add-modules " + VECTOR_MODULE + " to JVM flags to enable vectorized generation kernels");
         } else {
-            Iris.info("SIMD: vector kernels disabled (performance.simdKernels=false)");
+            IrisLogging.info("SIMD: vector kernels disabled (performance.simdKernels=false)");
         }
     }
 

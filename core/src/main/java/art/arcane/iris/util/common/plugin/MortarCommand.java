@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.format.C;
@@ -193,7 +193,7 @@ public abstract class MortarCommand implements ICommand {
                     p.add(pc);
                 } catch (IllegalArgumentException | IllegalAccessException | InstantiationException |
                          InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }

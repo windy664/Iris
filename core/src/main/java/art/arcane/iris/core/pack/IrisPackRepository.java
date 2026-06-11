@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.pack;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.service.StudioSVC;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.iris.util.common.plugin.VolmitSender;
@@ -110,11 +110,11 @@ public class IrisPackRepository {
     }
 
     public void install(VolmitSender sender, Runnable whenComplete) throws MalformedURLException {
-        File pack = Iris.instance.getDataFolderNoCreate(StudioSVC.WORKSPACE_NAME, getRepo());
+        File pack = IrisPlatforms.get().dataFolderNoCreate(StudioSVC.WORKSPACE_NAME, getRepo());
 
         if (!pack.exists()) {
-            File dl = new File(Iris.getTemp(), "dltk-" + UUID.randomUUID() + ".zip");
-            File work = new File(Iris.getTemp(), "extk-" + UUID.randomUUID());
+            File dl = new File(IrisPlatforms.get().dataFolder("cache", "temp"), "dltk-" + UUID.randomUUID() + ".zip");
+            File work = new File(IrisPlatforms.get().dataFolder("cache", "temp"), "extk-" + UUID.randomUUID());
             new JobCollection(Form.capitalize(getRepo()),
                     new DownloadJob(toURL(), pack),
                     new SingleJob("Extracting", () -> ZipUtil.unpack(dl, work)),

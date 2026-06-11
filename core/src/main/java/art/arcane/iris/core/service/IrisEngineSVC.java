@@ -1,7 +1,8 @@
 package art.arcane.iris.core.service;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.runtime.GoldenHashScanner;
@@ -70,7 +71,7 @@ public class IrisEngineSVC implements IrisService {
             try {
                 gen.close();
             } catch (Throwable t) {
-                Iris.reportError(t);
+                IrisLogging.reportError(t);
             }
         }
         if (service != null) {
@@ -102,7 +103,7 @@ public class IrisEngineSVC implements IrisService {
     }
 
     public double getBiomeCacheUsageRatio() {
-        PreservationSVC preservation = Iris.service(PreservationSVC.class);
+        PreservationSVC preservation = IrisServices.get(PreservationSVC.class);
         if (preservation == null) {
             return 0D;
         }
@@ -134,7 +135,7 @@ public class IrisEngineSVC implements IrisService {
         long[] sizes = new long[4];
         long[] count = new long[4];
 
-        for (var cache : Iris.service(PreservationSVC.class).getCaches()) {
+        for (var cache : IrisServices.get(PreservationSVC.class).getCaches()) {
             var type = switch (cache) {
                 case ResourceLoader<?> ignored -> 0;
                 case CachedStream2D<?> ignored -> 1;
@@ -322,8 +323,8 @@ public class IrisEngineSVC implements IrisService {
                             close();
                             return;
                         }
-                        Iris.reportError(e);
-                        Iris.error("EngineSVC: Failed to trim for " + name);
+                        IrisLogging.reportError(e);
+                        IrisLogging.error("EngineSVC: Failed to trim for " + name);
                         e.printStackTrace();
                     }
                 }, offset, TRIM_PERIOD, TimeUnit.MILLISECONDS);
@@ -350,15 +351,15 @@ public class IrisEngineSVC implements IrisService {
                         long unloadStart = System.currentTimeMillis();
                         int count = engine.getMantle().unloadTectonicPlate(IrisSettings.get().getPerformance().getEngineSVC().forceMulticoreWrite ? 0 : activeTectonicLimit(engine));
                         if (count > 0) {
-                            Iris.debug(C.GOLD + "Unloaded " + C.YELLOW + count + " TectonicPlates in " + C.RED + Form.duration(System.currentTimeMillis() - unloadStart, 2));
+                            IrisLogging.debug(C.GOLD + "Unloaded " + C.YELLOW + count + " TectonicPlates in " + C.RED + Form.duration(System.currentTimeMillis() - unloadStart, 2));
                         }
                     } catch (Throwable e) {
                         if (isMantleClosed(e)) {
                             close();
                             return;
                         }
-                        Iris.reportError(e);
-                        Iris.error("EngineSVC: Failed to unload for " + name);
+                        IrisLogging.reportError(e);
+                        IrisLogging.error("EngineSVC: Failed to unload for " + name);
                         e.printStackTrace();
                     }
                 }, offset + TRIM_PERIOD / 2, TRIM_PERIOD, TimeUnit.MILLISECONDS);

@@ -1,6 +1,6 @@
 package art.arcane.iris.core.pregenerator.cache;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.data.Varint;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.documentation.RegionCoordinates;
@@ -157,9 +157,9 @@ public class PregenCacheImpl implements PregenCache {
         try (DataInputStream input = new DataInputStream(new LZ4BlockInputStream(new FileInputStream(file)))) {
             return readPlate(x, z, input);
         } catch (IOException e) {
-            Iris.error("Failed to read pregen cache " + file);
+            IrisLogging.error("Failed to read pregen cache " + file);
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return new Plate(x, z);
@@ -175,9 +175,9 @@ public class PregenCacheImpl implements PregenCache {
             IO.write(file, output -> new DataOutputStream(new LZ4BlockOutputStream(output)), plate::write);
             plate.dirty = false;
         } catch (IOException e) {
-            Iris.error("Failed to write preen cache " + file);
+            IrisLogging.error("Failed to write preen cache " + file);
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

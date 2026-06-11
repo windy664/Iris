@@ -18,7 +18,8 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -225,7 +226,7 @@ public class VolmitSender implements CommandSender {
     }
 
     public void sendTitle(String title, String subtitle, int i, int s, int o) {
-        Iris.audiences.player(player()).showTitle(Title.title(
+        BukkitPlatform.audiences().player(player()).showTitle(Title.title(
                 createComponent(title),
                 createComponent(subtitle),
                 Title.Times.times(Duration.ofMillis(i), Duration.ofMillis(s), Duration.ofMillis(o))));
@@ -247,15 +248,15 @@ public class VolmitSender implements CommandSender {
     }
 
     public void sendAction(String action) {
-        Iris.audiences.player(player()).sendActionBar(createNoPrefixComponent(action));
+        BukkitPlatform.audiences().player(player()).sendActionBar(createNoPrefixComponent(action));
     }
 
     public void sendActionNoProcessing(String action) {
-        Iris.audiences.player(player()).sendActionBar(createNoPrefixComponentNoProcessing(action));
+        BukkitPlatform.audiences().player(player()).sendActionBar(createNoPrefixComponentNoProcessing(action));
     }
 
     public void sendTitle(String subtitle, int i, int s, int o) {
-        Iris.audiences.player(player()).showTitle(Title.title(
+        BukkitPlatform.audiences().player(player()).showTitle(Title.title(
                 createNoPrefixComponent(" "),
                 createNoPrefixComponent(subtitle),
                 Title.Times.times(Duration.ofMillis(i), Duration.ofMillis(s), Duration.ofMillis(o))));
@@ -338,12 +339,12 @@ public class VolmitSender implements CommandSender {
         }
 
         try {
-            Iris.audiences.sender(s).sendMessage(createComponent(message));
+            BukkitPlatform.audiences().sender(s).sendMessage(createComponent(message));
         } catch (Throwable e) {
             String t = C.translateAlternateColorCodes('&', getTag() + message);
             String a = C.aura(t, IrisSettings.get().getGeneral().getSpinh(), IrisSettings.get().getGeneral().getSpins(), IrisSettings.get().getGeneral().getSpinb());
 
-            Iris.debug("<NOMINI>Failure to parse " + a);
+            IrisLogging.debug("<NOMINI>Failure to parse " + a);
             s.sendMessage(C.translateAlternateColorCodes('&', getTag() + message));
         }
     }
@@ -368,12 +369,12 @@ public class VolmitSender implements CommandSender {
         }
 
         try {
-            Iris.audiences.sender(s).sendMessage(createComponentRaw(message));
+            BukkitPlatform.audiences().sender(s).sendMessage(createComponentRaw(message));
         } catch (Throwable e) {
             String t = C.translateAlternateColorCodes('&', getTag() + message);
             String a = C.aura(t, IrisSettings.get().getGeneral().getSpinh(), IrisSettings.get().getGeneral().getSpins(), IrisSettings.get().getGeneral().getSpinb());
 
-            Iris.debug("<NOMINI>Failure to parse " + a);
+            IrisLogging.debug("<NOMINI>Failure to parse " + a);
             s.sendMessage(C.translateAlternateColorCodes('&', getTag() + message));
         }
     }
@@ -542,7 +543,7 @@ public class VolmitSender implements CommandSender {
                         String nDescription = "<#3fe05a>✎ <#6ad97d><font:minecraft:uniform>" + p.getDescription();
                         String nUsage;
                         String fullTitle;
-                        Iris.debug("Contextual: " + p.isContextual() + " / player: " + isPlayer());
+                        IrisLogging.debug("Contextual: " + p.isContextual() + " / player: " + isPlayer());
                         if (p.isContextual() && (isPlayer() || s instanceof CommandDummy)) {
                             fullTitle = "<#ffcc00>[" + nTitle + "<#ffcc00>] ";
                             nUsage = "<#ff9900>➱ <#ffcc00><font:minecraft:uniform>The value may be derived from environment context.";

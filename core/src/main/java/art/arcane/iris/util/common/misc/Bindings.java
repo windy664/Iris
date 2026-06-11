@@ -5,7 +5,8 @@ import art.arcane.iris.util.project.sentry.IrisLogger;
 import art.arcane.iris.util.project.sentry.ServerID;
 import com.google.gson.JsonSyntaxException;
 import art.arcane.iris.BuildConstants;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.safeguard.IrisSafeguard;
@@ -14,6 +15,7 @@ import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.iris.util.project.context.IrisContext;
 import art.arcane.volmlib.util.json.JSONException;
 import art.arcane.volmlib.util.reflect.ShadeFix;
+import art.arcane.iris.util.common.plugin.VolmitPlugin;
 import art.arcane.iris.util.common.scheduling.J;
 
 import io.sentry.Sentry;
@@ -26,6 +28,7 @@ import org.bstats.charts.SingleLineChart;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,8 +44,8 @@ public class Bindings {
     public static void setupSentry() {
         var settings = IrisSettings.get().getSentry();
         if (settings.disableAutoReporting || Sentry.isEnabled() || Boolean.getBoolean("iris.suppressReporting")) return;
-        Iris.info("Enabling Sentry for anonymous error reporting. You can disable this in the settings.");
-        Iris.info("Your server ID is: " + ServerID.ID);
+        IrisLogging.info("Enabling Sentry for anonymous error reporting. You can disable this in the settings.");
+        IrisLogging.info("Your server ID is: " + ServerID.ID);
 
         Sentry.init(options -> {
             options.setDsn("http://4cdbb9ac953306529947f4ca1e8e6b26@sentry.volmit.com:8080/2");
@@ -53,7 +56,7 @@ public class Bindings {
 
             options.setAttachServerName(false);
             options.setEnableUncaughtExceptionHandler(false);
-            options.setRelease(Iris.instance.getDescription().getVersion());
+            options.setRelease(BukkitPlatform.plugin().getDescription().getVersion());
             options.setEnvironment(BuildConstants.ENVIRONMENT);
             options.setBeforeSend((event, hint) -> {
                 if (suppress(event.getThrowable())) return null;
@@ -83,7 +86,7 @@ public class Bindings {
     }
 
 
-    public static void setupBstats(Iris plugin) {
+    public static void setupBstats(VolmitPlugin plugin) {
         J.s(() -> {
             var metrics = new Metrics(plugin, 24220);
             metrics.addCustomChart(new SingleLineChart("custom_dimensions", () -> Bukkit.getWorlds()
@@ -118,7 +121,7 @@ public class Bindings {
     public static class Adventure {
         private final BukkitAudiences audiences;
 
-        public Adventure(Iris plugin) {
+        public Adventure(Plugin plugin) {
             ShadeFix.fix(ComponentSerializer.class);
             this.audiences = BukkitAudiences.create(plugin);
         }

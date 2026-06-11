@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.common.data.palette;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.M;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
@@ -93,7 +93,7 @@ public class PalettedContainer<T> implements PaletteResize<T> {
         int var2 = this.palette.idFor(var1);
 
         if (M.r(0.003)) {
-            Iris.info("ID for " + var1 + " is " + var2 + " Palette: " + palette.getSize());
+            IrisLogging.info("ID for " + var1 + " is " + var2 + " Palette: " + palette.getSize());
         }
 
         this.storage.set(var0, var2);

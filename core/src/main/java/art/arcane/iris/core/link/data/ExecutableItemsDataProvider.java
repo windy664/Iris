@@ -1,7 +1,7 @@
 package art.arcane.iris.core.link.data;
 
 import com.ssomar.score.api.executableitems.ExecutableItemsAPI;
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.link.ExternalDataProvider;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.volmlib.util.collection.KMap;
@@ -20,7 +20,7 @@ public class ExecutableItemsDataProvider extends ExternalDataProvider {
 
     @Override
     public void init() {
-        Iris.info("Setting up ExecutableItems Link...");
+        IrisLogging.info("Setting up ExecutableItems Link...");
     }
 
     @NotNull

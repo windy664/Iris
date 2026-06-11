@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.service;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.MeteredCache;
 import art.arcane.iris.util.project.context.IrisContext;
@@ -63,7 +63,7 @@ public class PreservationSVC implements IrisService {
             p += i.getUsage();
         }
 
-        Iris.info("Cached " + Form.f(s) + " / " + Form.f(m) + " (" + Form.pc(p / mf) + ") from " + caches.size() + " Caches");
+        IrisLogging.info("Cached " + Form.f(s) + " / " + Form.f(m) + " (" + Form.pc(p / mf) + ") from " + caches.size() + " Caches");
     }
 
     public void dereference() {
@@ -101,9 +101,9 @@ public class PreservationSVC implements IrisService {
                 if (i.isAlive()) {
                     try {
                         i.interrupt();
-                        Iris.info("Shutdown Thread " + i.getName());
+                        IrisLogging.info("Shutdown Thread " + i.getName());
                     } catch (Throwable e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
                     }
                 }
             }
@@ -111,9 +111,9 @@ public class PreservationSVC implements IrisService {
             for (ExecutorService i : services) {
                 try {
                     i.shutdownNow();
-                    Iris.info("Shutdown Executor Service " + i);
+                    IrisLogging.info("Shutdown Executor Service " + i);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         });

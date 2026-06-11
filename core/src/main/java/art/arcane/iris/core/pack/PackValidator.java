@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.pack;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.json.JSONArray;
 import art.arcane.volmlib.util.json.JSONObject;
 
@@ -94,7 +94,7 @@ public final class PackValidator {
             String packTextCorpus = buildPackTextCorpus(packFolder);
             runUnusedResourceGc(packFolder, packTextCorpus, removedUnusedFiles, warnings);
         } catch (Throwable e) {
-            Iris.reportError("PackValidator GC pass failed for pack '" + packName + "'", e);
+            IrisLogging.reportError("PackValidator GC pass failed for pack '" + packName + "'", e);
             warnings.add("Unused-resource GC pass failed: " + e.getMessage());
         }
 
@@ -192,7 +192,7 @@ public final class PackValidator {
                         }
                     });
         } catch (Throwable e) {
-            Iris.reportError("PackValidator failed to walk pack folder for corpus scan", e);
+            IrisLogging.reportError("PackValidator failed to walk pack folder for corpus scan", e);
         }
         return sb.toString();
     }
@@ -269,7 +269,7 @@ public final class PackValidator {
                 Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);
                 removedUnusedFiles.add(relative.toString().replace(File.separatorChar, '/'));
             } catch (Throwable e) {
-                Iris.reportError("PackValidator failed to move unused file " + file.getPath() + " to trash", e);
+                IrisLogging.reportError("PackValidator failed to move unused file " + file.getPath() + " to trash", e);
                 warnings.add("Failed to quarantine unused file " + file.getName() + ": " + e.getMessage());
             }
         }
@@ -340,7 +340,7 @@ public final class PackValidator {
                 restored++;
             }
         } catch (Throwable e) {
-            Iris.reportError("PackValidator failed to restore trash for pack " + packFolder.getName(), e);
+            IrisLogging.reportError("PackValidator failed to restore trash for pack " + packFolder.getName(), e);
         }
         deleteFolderQuiet(latestDump);
         return restored;

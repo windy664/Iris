@@ -18,7 +18,9 @@
 
 package art.arcane.iris.core.datapack;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.datapack.ModrinthResolver.ResolvedDatapack;
@@ -76,7 +78,7 @@ public final class DatapackIngestService {
         if (IrisSettings.get().getGeneral().autoIngestDatapacks) {
             KList<String> urls = collectConfiguredImports();
             if (!urls.isEmpty()) {
-                Iris.info("Auto-ingesting " + urls.size() + " external datapack import(s) from pack datapackImports...");
+                IrisLogging.info("Auto-ingesting " + urls.size() + " external datapack import(s) from pack datapackImports...");
                 Report report = ingest(null, urls, true);
                 restarting = report.changed();
             }
@@ -100,7 +102,7 @@ public final class DatapackIngestService {
         try {
             new IrisProject(data.getDataFolder()).updateWorkspace();
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -111,7 +113,7 @@ public final class DatapackIngestService {
             return report;
         }
 
-        File root = Iris.instance.getDataFolder("datapacks");
+        File root = IrisPlatforms.get().dataFolder("datapacks");
         File cacheDir = new File(root, "cache");
         File stagingDir = new File(root, "staging");
         cacheDir.mkdirs();
@@ -130,7 +132,7 @@ public final class DatapackIngestService {
             } catch (Exception e) {
                 report.failed.add(url + " - " + e.getMessage());
                 message(sender, C.RED + "  Failed: " + C.WHITE + url + C.RED + " - " + e.getMessage());
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
 
@@ -152,7 +154,7 @@ public final class DatapackIngestService {
     }
 
     public static void reapplyFromStaging(KList<File> worldFolders) {
-        File stagingDir = Iris.instance.getDataFolderNoCreate("datapacks", "staging");
+        File stagingDir = IrisPlatforms.get().dataFolderNoCreate("datapacks", "staging");
         if (stagingDir == null || !stagingDir.isDirectory()) {
             return;
         }
@@ -168,14 +170,14 @@ public final class DatapackIngestService {
             try {
                 install(stagedDir, worldFolders, stagedDir.getName(), false, stripOverrides);
             } catch (IOException e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
 
     public static boolean remove(VolmitSender sender, String id) {
         String cleaned = sanitizeId(id);
-        File root = Iris.instance.getDataFolder("datapacks");
+        File root = IrisPlatforms.get().dataFolder("datapacks");
         Manifest manifest = readManifest(root);
         boolean removed = false;
 
@@ -215,7 +217,7 @@ public final class DatapackIngestService {
     }
 
     public static List<Entry> installed() {
-        return readManifest(Iris.instance.getDataFolder("datapacks")).entries;
+        return readManifest(IrisPlatforms.get().dataFolder("datapacks")).entries;
     }
 
     private static void ingestSingle(VolmitSender sender, String url, String mcVersion, File cacheDir, File stagingDir, KList<File> worldFolders, Manifest manifest, Report report, boolean stripOverrides) throws IOException {
@@ -374,7 +376,7 @@ public final class DatapackIngestService {
         try {
             Files.writeString(marker.toPath(), "stripped", StandardCharsets.UTF_8);
         } catch (IOException e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -382,7 +384,7 @@ public final class DatapackIngestService {
         if (!IrisSettings.get().getGeneral().autoImportDatapackStructures) {
             return;
         }
-        File root = Iris.instance.getDataFolder("datapacks");
+        File root = IrisPlatforms.get().dataFolder("datapacks");
         Manifest manifest = readManifest(root);
         if (manifest.entries.isEmpty()) {
             return;
@@ -398,7 +400,7 @@ public final class DatapackIngestService {
             return;
         }
 
-        Iris.info("Importing datapack structures (jigsaw pools, pieces & objects) into packs that declare datapackImports...");
+        IrisLogging.info("Importing datapack structures (jigsaw pools, pieces & objects) into packs that declare datapackImports...");
         AtomicInteger packs = new AtomicInteger();
         try (Stream<IrisData> stream = ServerConfigurator.allPacks()) {
             stream.forEach(data -> {
@@ -406,10 +408,10 @@ public final class DatapackIngestService {
                     return;
                 }
                 try {
-                    BulkStructureImporter.importDatapackStructures(data, StructureImporter.Mode.ADD_ONLY, Iris.getSender());
+                    BulkStructureImporter.importDatapackStructures(data, StructureImporter.Mode.ADD_ONLY, BukkitPlatform.console());
                     packs.incrementAndGet();
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             });
         }
@@ -419,7 +421,7 @@ public final class DatapackIngestService {
         }
         writeManifest(root, manifest);
         if (packs.get() > 0) {
-            Iris.info("Datapack structure import finished for " + packs.get() + " pack(s). Reference the imported keys from a 'structures' placement to position them manually.");
+            IrisLogging.info("Datapack structure import finished for " + packs.get() + " pack(s). Reference the imported keys from a 'structures' placement to position them manually.");
         }
     }
 
@@ -583,7 +585,7 @@ public final class DatapackIngestService {
             sender.sendMessage(text);
             return;
         }
-        Iris.info(text);
+        IrisLogging.info(text);
     }
 
     private static Manifest readManifest(File root) {
@@ -602,7 +604,7 @@ public final class DatapackIngestService {
             }
             return manifest;
         } catch (Exception e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return new Manifest();
         }
     }
@@ -616,7 +618,7 @@ public final class DatapackIngestService {
             }
             Files.writeString(file.toPath(), GSON.toJson(manifest), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

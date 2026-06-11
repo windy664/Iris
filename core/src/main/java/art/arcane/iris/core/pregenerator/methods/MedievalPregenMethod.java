@@ -18,7 +18,7 @@
 
 package art.arcane.iris.core.pregenerator.methods;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.pregenerator.PregenListener;
 import art.arcane.iris.core.pregenerator.PregeneratorMethod;
@@ -70,7 +70,7 @@ public class MedievalPregenMethod implements PregeneratorMethod {
         try {
             J.sfut(() -> {
                 if (world == null) {
-                    Iris.warn("World was null somehow...");
+                    IrisLogging.warn("World was null somehow...");
                     return;
                 }
 

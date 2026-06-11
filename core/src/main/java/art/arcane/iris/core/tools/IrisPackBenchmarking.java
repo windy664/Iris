@@ -1,7 +1,8 @@
 package art.arcane.iris.core.tools;
 
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.pregenerator.PregenTask;
 import art.arcane.iris.engine.framework.Engine;
@@ -45,14 +46,14 @@ public class IrisPackBenchmarking {
         Thread.ofVirtual()
                 .name("PackBenchmarking")
                 .start(() -> {
-                    Iris.info("Setting up benchmark environment ");
+                    IrisLogging.info("Setting up benchmark environment ");
                     IO.delete(new File(Bukkit.getWorldContainer(), "benchmark"));
                     createBenchmark();
                     while (!IrisToolbelt.isIrisWorld(Bukkit.getWorld("benchmark"))) {
                         J.sleep(1000);
-                        Iris.debug("Iris PackBenchmark: Waiting...");
+                        IrisLogging.debug("Iris PackBenchmark: Waiting...");
                     }
-                    Iris.info("Starting Benchmark!");
+                    IrisLogging.info("Starting Benchmark!");
                     stopwatch.begin();
                     startBenchmark();
                 });
@@ -63,16 +64,16 @@ public class IrisPackBenchmarking {
         try {
             String time = Form.duration((long) stopwatch.getMilliseconds());
             Engine engine = IrisToolbelt.access(Bukkit.getWorld("benchmark")).getEngine();
-            Iris.info("-----------------");
-            Iris.info("Results:");
-            Iris.info("- Total time: " + time);
-            Iris.info("- Average CPS: " + calculateAverage(cps));
-            Iris.info("  - Median CPS: " + calculateMedian(cps));
-            Iris.info("  - Highest CPS: " + findHighest(cps));
-            Iris.info("  - Lowest CPS: " + findLowest(cps));
-            Iris.info("-----------------");
-            Iris.info("Creating a report..");
-            File results = Iris.instance.getDataFile("packbenchmarks", dimension.getName() + " " + LocalDateTime.now(Clock.systemDefaultZone()).toString().replace(':', '-') + ".txt");
+            IrisLogging.info("-----------------");
+            IrisLogging.info("Results:");
+            IrisLogging.info("- Total time: " + time);
+            IrisLogging.info("- Average CPS: " + calculateAverage(cps));
+            IrisLogging.info("  - Median CPS: " + calculateMedian(cps));
+            IrisLogging.info("  - Highest CPS: " + findHighest(cps));
+            IrisLogging.info("  - Lowest CPS: " + findLowest(cps));
+            IrisLogging.info("-----------------");
+            IrisLogging.info("Creating a report..");
+            File results = IrisPlatforms.get().dataFile("packbenchmarks", dimension.getName() + " " + LocalDateTime.now(Clock.systemDefaultZone()).toString().replace(':', '-') + ".txt");
             KMap<String, Double> metrics = engine.getMetrics().pull();
             try (FileWriter writer = new FileWriter(results)) {
                 writer.write("-----------------\n");
@@ -93,9 +94,9 @@ public class IrisPackBenchmarking {
                 writer.write("  - Highest CPS: " + findHighest(cps) + "\n");
                 writer.write("  - Lowest CPS: " + findLowest(cps) + "\n");
                 writer.write("-----------------\n");
-                Iris.info("Finished generating a report!");
+                IrisLogging.info("Finished generating a report!");
             } catch (IOException e) {
-                Iris.error("An error occurred writing to the file.");
+                IrisLogging.error("An error occurred writing to the file.");
                 e.printStackTrace();
             }
 
@@ -108,7 +109,7 @@ public class IrisPackBenchmarking {
 
             stopwatch.end();
         } catch (Exception e) {
-            Iris.error("Something has gone wrong!");
+            IrisLogging.error("Something has gone wrong!");
             e.printStackTrace();
         }
     }
