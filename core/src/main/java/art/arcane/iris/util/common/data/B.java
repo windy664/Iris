@@ -192,6 +192,15 @@ public class B {
         return BASE.get(bdxf);
     }
 
+    public static art.arcane.iris.spi.PlatformBlockState getState(String bdxf) {
+        return art.arcane.iris.platform.bukkit.BukkitBlockState.of(BASE.get(bdxf));
+    }
+
+    public static art.arcane.iris.spi.PlatformBlockState getStateOrNull(String bdxf) {
+        BlockData data = BASE.getOrNull(bdxf);
+        return data == null ? null : art.arcane.iris.platform.bukkit.BukkitBlockState.of(data);
+    }
+
     public static boolean isStorage(BlockData mat) {
         return BASE.isStorage(mat);
     }

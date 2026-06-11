@@ -21,6 +21,7 @@ package art.arcane.iris.platform.bukkit;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.B;
+import art.arcane.iris.util.common.data.IrisCustomData;
 import org.bukkit.Bukkit;
 import org.bukkit.block.data.BlockData;
 
@@ -37,6 +38,8 @@ public final class BukkitBlockState implements PlatformBlockState {
     private final BlockData data;
     private final String key;
     private final String namespace;
+    private volatile Boolean air;
+    private volatile Boolean solid;
 
     private BukkitBlockState(BlockData data, String key) {
         this.data = data;
@@ -45,8 +48,27 @@ public final class BukkitBlockState implements PlatformBlockState {
     }
 
     public static BukkitBlockState of(BlockData data) {
+        if (data instanceof IrisCustomData custom) {
+            return new BukkitBlockState(data, custom.getAsString());
+        }
         String key = data.getAsString();
         return CACHE.computeIfAbsent(key, (String k) -> new BukkitBlockState(data, k));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof BukkitBlockState state)) {
+            return false;
+        }
+        return data.equals(state.data);
+    }
+
+    @Override
+    public int hashCode() {
+        return key.hashCode();
     }
 
     private static String parseNamespace(String key) {
@@ -99,12 +121,22 @@ public final class BukkitBlockState implements PlatformBlockState {
 
     @Override
     public boolean isAir() {
-        return B.isAir(data);
+        Boolean cached = air;
+        if (cached == null) {
+            cached = B.isAir(data);
+            air = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isSolid() {
-        return B.isSolid(data);
+        Boolean cached = solid;
+        if (cached == null) {
+            cached = B.isSolid(data);
+            solid = cached;
+        }
+        return cached;
     }
 
     @Override
