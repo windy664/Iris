@@ -18,12 +18,12 @@
 
 package art.arcane.iris.util.project.stream;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IRare;
 import art.arcane.iris.engine.object.IrisStyledRange;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.stream.ProceduralLayer;
 import art.arcane.volmlib.util.stream.Significance;
@@ -51,8 +51,8 @@ public interface ProceduralStream<T> extends ProceduralLayer, Interpolated<T> {
         try {
             return of(f, Interpolated.DOUBLE);
         } catch (IncompatibleClassChangeError e) {
-            Iris.warn(f.toString());
-            Iris.reportError(e);
+            IrisLogging.warn(f.toString());
+            IrisLogging.reportError(e);
             e.printStackTrace();
             return null;
         }

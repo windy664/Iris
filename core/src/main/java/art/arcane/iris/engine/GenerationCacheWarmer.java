@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
@@ -28,6 +27,7 @@ import art.arcane.iris.engine.object.IrisOreGenerator;
 import art.arcane.iris.engine.object.IrisProceduralObjects;
 import art.arcane.iris.engine.object.IrisProceduralPlacement;
 import art.arcane.iris.engine.object.IrisRegion;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.RNG;
@@ -64,11 +64,11 @@ public final class GenerationCacheWarmer {
 
             warmOres(engine.getDimension().getOres(), root, counter, data);
         } catch (Throwable e) {
-            Iris.reportError(e);
-            Iris.warn("Generation cache warm pass failed: " + e.getMessage());
+            IrisLogging.reportError(e);
+            IrisLogging.warn("Generation cache warm pass failed: " + e.getMessage());
         }
 
-        Iris.debug("[IrisEngine timing] cache warm " + counter[0] + " configs=" + (M.ms() - start) + "ms");
+        IrisLogging.debug("[IrisEngine timing] cache warm " + counter[0] + " configs=" + (M.ms() - start) + "ms");
     }
 
     private static void warmPlacements(KList<IrisObjectPlacement> placements, RNG root, int[] counter, IrisData data) {

@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 import art.arcane.iris.util.project.hunk.Hunk;
@@ -36,7 +36,7 @@ public abstract class EngineAssignedModifier<T> extends EngineAssignedComponent 
         try {
             onModify(x, z, output, multicore, context);
         } catch (Throwable e) {
-            Iris.error("Modifier Failure: " + getName());
+            IrisLogging.error("Modifier Failure: " + getName());
             e.printStackTrace();
         }
     }

@@ -43,4 +43,6 @@ public interface IrisPlatform {
     void dispatchConsoleCommand(String command);
 
     void log(LogLevel level, String message);
+
+    void reportError(Throwable error);
 }

@@ -18,8 +18,8 @@
 
 package art.arcane.iris.util.project.matter;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.TileData;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.data.Cuboid;
 import art.arcane.volmlib.util.matter.IrisMatter;
 import art.arcane.volmlib.util.matter.Matter;
@@ -47,7 +47,7 @@ public class WorldMatter {
         IrisMatterSupport.ensureRegistered();
         Cuboid c = new Cuboid(a, b);
         Matter s = new IrisMatter(c.getSizeX(), c.getSizeY(), c.getSizeZ());
-        Iris.info(s.getWidth() + " " + s.getHeight() + " " + s.getDepth());
+        IrisLogging.info(s.getWidth() + " " + s.getHeight() + " " + s.getDepth());
         s.getHeader().setAuthor(author);
         s.slice(BlockData.class).readFrom(c.getLowerNE());
         s.slice(MatterEntityGroup.class).readFrom(c.getLowerNE());

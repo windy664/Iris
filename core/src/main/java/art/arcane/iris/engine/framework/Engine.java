@@ -38,6 +38,7 @@ import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.project.matter.TileWrapper;
@@ -345,14 +346,14 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                 if (c.getWorld().isChunkLoaded(c.getX() + x, c.getZ() + z))
                     continue;
                 var msg = "Chunk %s, %s [%s, %s] is not loaded".formatted(c.getX() + x, c.getZ() + z, x, z);
-                Iris.debug(msg);
+                IrisLogging.debug(msg);
                 return;
             }
         }
         var mantle = getMantle().getMantle();
         if (!mantle.isLoaded(c)) {
             var msg = "Mantle Chunk " + c.getX() + "," + c.getZ() + " is not loaded";
-            Iris.debug(msg);
+            IrisLogging.debug(msg);
             return;
         }
 
@@ -362,7 +363,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                 try {
                     scheduled.join();
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
             return;
@@ -378,7 +379,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                         NamespacedKey tileTypeKey = KeyedType.getKey(v.getData().getMaterial());
                         String blockType = blockTypeKey == null ? block.getType().name() : blockTypeKey.toString();
                         String tileType = tileTypeKey == null ? v.getData().getMaterial().name() : tileTypeKey.toString();
-                        Iris.warn("Failed to set tile entity data at [%d %d %d | %s] for tile %s!", block.getX(), block.getY(), block.getZ(), blockType, tileType);
+                        IrisLogging.warn("Failed to set tile entity data at [%d %d %d | %s] for tile %s!", block.getX(), block.getY(), block.getZ(), blockType, tileType);
                     }
                 });
             };
@@ -455,7 +456,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                 semaphore.acquire(1024);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                Iris.reportError(ex);
+                IrisLogging.reportError(ex);
             }
         } finally {
             chunk.release();
@@ -528,7 +529,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
                     addItems(false, m.getInventory(), rx, tables, slot, c.getWorld(), x, y, z, 15);
 
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
         } else {
@@ -758,7 +759,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
     default IrisPosition lookForBiome(IrisBiome biome, long timeout, Consumer<Integer> triesc) {
         if (!getWorld().hasRealWorld()) {
-            Iris.error("Cannot GOTO without a bound world (headless mode)");
+            IrisLogging.error("Cannot GOTO without a bound world (headless mode)");
             return null;
         }
 
@@ -798,13 +799,13 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
                             tries.getAndIncrement();
                         } catch (Throwable ex) {
-                            Iris.reportError(ex);
+                            IrisLogging.reportError(ex);
                             ex.printStackTrace();
                             return;
                         }
                     }
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             });
@@ -829,7 +830,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
     default IrisPosition lookForRegion(IrisRegion reg, long timeout, Consumer<Integer> triesc) {
         if (!getWorld().hasRealWorld()) {
-            Iris.error("Cannot GOTO without a bound world (headless mode)");
+            IrisLogging.error("Cannot GOTO without a bound world (headless mode)");
             return null;
         }
 
@@ -865,7 +866,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
 
                         tries.getAndIncrement();
                     } catch (Throwable xe) {
-                        Iris.reportError(xe);
+                        IrisLogging.reportError(xe);
                         xe.printStackTrace();
                         return;
                     }
@@ -1054,12 +1055,12 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
             CompletableFuture<Boolean> teleportFuture = PaperLib.teleportAsync(player, location);
             if (teleportFuture != null) {
                 teleportFuture.exceptionally(throwable -> {
-                    Iris.reportError(throwable);
+                    IrisLogging.reportError(throwable);
                     return false;
                 });
             }
         } catch (Throwable throwable) {
-            Iris.reportError(throwable);
+            IrisLogging.reportError(throwable);
         }
     }
 
@@ -1071,7 +1072,7 @@ public interface Engine extends DataProvider, Fallible, LootProvider, BlockUpdat
         } catch (NoSuchMethodException ignored) {
             return false;
         } catch (Throwable throwable) {
-            Iris.reportError(throwable);
+            IrisLogging.reportError(throwable);
             return false;
         }
     }

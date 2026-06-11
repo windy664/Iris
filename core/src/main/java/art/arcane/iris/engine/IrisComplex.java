@@ -18,13 +18,13 @@
 
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.platform.bukkit.BukkitBiome;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
@@ -406,9 +406,9 @@ public class IrisComplex implements DataProvider {
                 GeneratorBounds bounds = resolveGeneratorBounds(engine, generators, bx, cachedBounds, localBounds);
                 return bounds.noiseBounds;
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
-                Iris.error("Failed to sample interpolated biome bounds at " + xx + " " + zz + "...");
+                IrisLogging.error("Failed to sample interpolated biome bounds at " + xx + " " + zz + "...");
             }
 
             return ZERO_NOISE_BOUNDS;

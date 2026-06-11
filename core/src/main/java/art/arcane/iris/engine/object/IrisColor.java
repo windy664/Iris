@@ -18,12 +18,12 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.MaxNumber;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.Snippet;
+import art.arcane.iris.spi.IrisLogging;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -87,7 +87,7 @@ public class IrisColor {
                 try {
                     return Color.decode(v);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
 
                 }
             }

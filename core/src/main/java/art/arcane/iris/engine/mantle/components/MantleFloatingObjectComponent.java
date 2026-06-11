@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.mantle.components;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -37,6 +36,7 @@ import art.arcane.iris.engine.object.IrisObjectPlacement;
 import art.arcane.iris.engine.object.IrisObjectRotation;
 import art.arcane.iris.engine.object.IrisObjectTranslate;
 import art.arcane.iris.engine.object.ObjectPlaceMode;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.iris.util.project.context.ChunkContext;
@@ -204,7 +204,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                     }
                 }, null, data);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
@@ -282,7 +282,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                     }
                 }, null, data);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
@@ -377,7 +377,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                     }
                 }, null, data);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }

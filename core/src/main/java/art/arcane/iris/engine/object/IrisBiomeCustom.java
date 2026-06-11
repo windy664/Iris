@@ -18,9 +18,9 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.nms.datapack.IDataFixer;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.json.JSONArray;
@@ -149,7 +149,7 @@ public class IrisBiomeCustom {
                 }
                 EntityType type = i.getType();
                 if (type == null) {
-                    Iris.warn("Skipping custom biome spawn with null entity type in biome " + getId());
+                    IrisLogging.warn("Skipping custom biome spawn with null entity type in biome " + getId());
                     continue;
                 }
                 IrisBiomeCustomSpawnType group = i.getGroup() == null ? IrisBiomeCustomSpawnType.MISC : i.getGroup();
@@ -157,7 +157,7 @@ public class IrisBiomeCustom {
                 JSONObject o = new JSONObject();
                 NamespacedKey key = type.getKey();
                 if (key == null) {
-                    Iris.warn("Skipping custom biome spawn with unresolved entity key in biome " + getId());
+                    IrisLogging.warn("Skipping custom biome spawn with unresolved entity key in biome " + getId());
                     continue;
                 }
                 o.put("type", key.toString());
@@ -182,8 +182,8 @@ public class IrisBiomeCustom {
         try {
             return Color.decode(v).getRGB();
         } catch (Throwable e) {
-            Iris.reportError(e);
-            Iris.error("Error Parsing '''color''', (" + c + ")");
+            IrisLogging.reportError(e);
+            IrisLogging.error("Error Parsing '''color''', (" + c + ")");
         }
 
         return 0;

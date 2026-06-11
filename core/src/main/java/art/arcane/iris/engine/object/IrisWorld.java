@@ -18,8 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.tools.IrisToolbelt;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -127,7 +127,7 @@ public class IrisWorld {
             return realWorld().getSpawnLocation();
         }
 
-        Iris.error("This world is not real yet, cannot get spawn location! HEADLESS!");
+        IrisLogging.error("This world is not real yet, cannot get spawn location! HEADLESS!");
         return null;
     }
 

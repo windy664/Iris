@@ -27,6 +27,7 @@ import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedWorldManager;
 import art.arcane.iris.engine.object.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
@@ -231,7 +232,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                     mantle.flag(chunkX, chunkZ, MantleFlag.DISCOVERED, true);
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             } finally {
                 discoveredFlagQueue.remove(key);
             }
@@ -341,7 +342,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                     raised = true;
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             } finally {
                 markerFlagQueue.remove(key);
             }
@@ -369,7 +370,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             try {
                 getMantle().getChunk(chunkX, chunkZ);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             } finally {
                 mantleWarmupQueue.remove(key);
             }
@@ -389,14 +390,14 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
         actuallySpawned = 0;
 
         if (!getEngine().getWorld().hasRealWorld()) {
-            Iris.debug("Can't spawn. No real world");
+            IrisLogging.debug("Can't spawn. No real world");
             J.sleep(5000);
             return false;
         }
 
         double epx = getEntitySaturation();
         if (epx > IrisSettings.get().getWorld().getTargetSpawnEntitiesPerChunk()) {
-            Iris.debug("Can't spawn. The entity per chunk ratio is at " + Form.pc(epx, 2) + " > 100% (total entities " + entityCount + ")");
+            IrisLogging.debug("Can't spawn. The entity per chunk ratio is at " + Form.pc(epx, 2) + " > 100% (total entities " + entityCount + ")");
             J.sleep(5000);
             return false;
         }
@@ -433,7 +434,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
         Chunk[] cc = getLoadedChunksSnapshot(world);
         while (spawnBuffer-- > 0) {
             if (cc.length == 0) {
-                Iris.debug("Can't spawn. No chunks!");
+                IrisLogging.debug("Can't spawn. No chunks!");
                 return false;
             }
 
@@ -479,7 +480,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
         try {
             return future.get(2, TimeUnit.SECONDS);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return new Chunk[0];
         }
     }
@@ -546,7 +547,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
         try {
             future.get(5, TimeUnit.SECONDS);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -772,7 +773,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                         Thread.currentThread().interrupt();
                         Iris.verbose("Chunk warmup interrupted while loading async teleport chunk.");
                     } catch (ExecutionException ex) {
-                        Iris.reportError(ex);
+                        IrisLogging.reportError(ex);
                     }
                 }
 
@@ -816,7 +817,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             for (String i : mark.getSpawners()) {
                 IrisSpawner m = getData().getSpawnerLoader().load(i);
                 if (m == null) {
-                    Iris.error("Cannot load spawner: " + i + " for marker on " + getName());
+                    IrisLogging.error("Cannot load spawner: " + i + " for marker on " + getName());
                     continue;
                 }
                 m.setReferenceMarker(mark);
@@ -889,7 +890,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                     });
                 });
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             } finally {
                 markerScanQueue.remove(key);
             }
@@ -915,7 +916,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             for (String i : mark.getSpawners()) {
                 IrisSpawner spawner = getData().getSpawnerLoader().load(i);
                 if (spawner == null) {
-                    Iris.error("Cannot load spawner: " + i + " for marker on " + getName());
+                    IrisLogging.error("Cannot load spawner: " + i + " for marker on " + getName());
                     continue;
                 }
                 spawner.setReferenceMarker(mark);
@@ -948,7 +949,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             try {
                 getMantle().remove(marker.getX(), marker.getY(), marker.getZ(), MatterMarker.class);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         });
     }

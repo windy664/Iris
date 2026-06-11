@@ -1,6 +1,5 @@
 package art.arcane.iris.engine.framework.placer;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -12,6 +11,7 @@ import art.arcane.iris.engine.object.InventorySlotType;
 import art.arcane.iris.engine.object.IrisLootTable;
 import art.arcane.iris.engine.object.TileData;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.data.B;
@@ -65,7 +65,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
 
         if (d instanceof IrisCustomData data) {
             block.setBlockData(data.getBase(), false);
-            Iris.warn("Tried to place custom block at " + x + ", " + y + ", " + z + " which is not supported!");
+            IrisLogging.warn("Tried to place custom block at " + x + ", " + y + ", " + z + " which is not supported!");
         } else block.setBlockData(d, false);
 
         if (slot != null) {
@@ -76,7 +76,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
                 Bukkit.getPluginManager().callEvent(new IrisLootEvent(engine, block, slot, tables));
 
                 if (!tables.isEmpty()){
-                    Iris.debug("IrisLootEvent has been accessed");
+                    IrisLogging.debug("IrisLootEvent has been accessed");
                 }
 
                 if (tables.isEmpty())
@@ -84,7 +84,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
                 InventoryHolder m = (InventoryHolder) block.getState();
                 engine.addItems(false, m.getInventory(), rx, tables, slot, world, x, y, z, 15);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }

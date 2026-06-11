@@ -18,11 +18,11 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.RollingSequence;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 
@@ -41,7 +41,7 @@ public interface EngineComponent {
         try {
             BukkitPlatform.unregisterListener(this);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
     }

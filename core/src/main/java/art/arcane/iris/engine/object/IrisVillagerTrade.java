@@ -19,8 +19,8 @@
 package art.arcane.iris.engine.object;
 
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
 import lombok.AllArgsConstructor;
@@ -111,8 +111,8 @@ public class IrisVillagerTrade {
         if (warnings.isEmpty()) {
             return true;
         } else {
-            Iris.warn("Faulty item in cartographer item overrides: " + this);
-            warnings.forEach(w -> Iris.warn("   " + w));
+            IrisLogging.warn("Faulty item in cartographer item overrides: " + this);
+            warnings.forEach(w -> IrisLogging.warn("   " + w));
             return false;
         }
     }

@@ -18,8 +18,8 @@
 
 package art.arcane.iris.util.project.stream.interpolation;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.CaveResult;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
@@ -62,7 +62,7 @@ public interface Interpolated<T> {
             return new InterpolatorFactory<>((ProceduralStream<T>) this);
         }
 
-        Iris.warn("Cannot interpolate " + this.getClass().getCanonicalName() + "!");
+        IrisLogging.warn("Cannot interpolate " + this.getClass().getCanonicalName() + "!");
         return null;
     }
 }

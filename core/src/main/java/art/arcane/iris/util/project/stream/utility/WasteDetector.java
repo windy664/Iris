@@ -1,6 +1,6 @@
 package art.arcane.iris.util.project.stream.utility;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.iris.util.project.stream.BasicStream;
@@ -23,19 +23,19 @@ public class WasteDetector<T> extends BasicStream<T> {
 
     public static void printAll() {
         if (checking) {
-            Iris.warn("=========================================================");
+            IrisLogging.warn("=========================================================");
             for (String i : allAccesses.sortKNumber().reverse()) {
-                Iris.warn(i + ": " + allAccesses.get(i) + " Time(s)");
+                IrisLogging.warn(i + ": " + allAccesses.get(i) + " Time(s)");
             }
-            Iris.warn("=========================================================");
+            IrisLogging.warn("=========================================================");
             for (String i : allAccesses.sortKNumber().reverse()) {
-                Iris.warn("======== " + i + " ========");
+                IrisLogging.warn("======== " + i + " ========");
                 for (Throwable j : allThrows.get(i)) {
                     j.printStackTrace();
                 }
-                Iris.warn("---------------------------------------------------------");
+                IrisLogging.warn("---------------------------------------------------------");
             }
-            Iris.warn("=========================================================");
+            IrisLogging.warn("=========================================================");
         }
     }
 

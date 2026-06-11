@@ -18,14 +18,14 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 
 public interface Fallible {
     default void fail(String error) {
         try {
             throw new RuntimeException();
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             fail(error, e);
         }
     }

@@ -18,8 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.spi.IrisLogging;
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.volmlib.util.io.IO;
@@ -53,8 +53,8 @@ public class IrisCompat {
                 try {
                     IO.writeAll(f, defa);
                 } catch (IOException e) {
-                    Iris.error("Failed to writeNodeData to compat file");
-                    Iris.reportError(e);
+                    IrisLogging.error("Failed to writeNodeData to compat file");
+                    IrisLogging.reportError(e);
                 }
             });
         } else {
@@ -72,7 +72,7 @@ public class IrisCompat {
                 }
             } catch (Throwable e) {
                 e.printStackTrace();
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
 
@@ -275,7 +275,7 @@ public class IrisCompat {
         searching:
         while (true) {
             if (err-- <= 0) {
-                Iris.error("Can't find block data for " + n);
+                IrisLogging.error("Can't find block data for " + n);
                 return B.getNoCompat("STONE");
             }
             String m = buf;
@@ -299,7 +299,7 @@ public class IrisCompat {
                 }
             }
 
-            Iris.error("Can't find block data for " + n);
+            IrisLogging.error("Can't find block data for " + n);
             return B.getNoCompat("STONE");
         }
     }

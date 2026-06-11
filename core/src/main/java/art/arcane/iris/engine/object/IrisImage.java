@@ -18,8 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisRegistrant;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 
@@ -134,7 +134,7 @@ public class IrisImage extends IrisRegistrant {
                 }
             }
             ImageIO.write(b, "png", at);
-            Iris.warn("Debug image written to " + at.getPath() + " for channel " + channel.name());
+            IrisLogging.warn("Debug image written to " + at.getPath() + " for channel " + channel.name());
         } catch (IOException e) {
             e.printStackTrace();
         }

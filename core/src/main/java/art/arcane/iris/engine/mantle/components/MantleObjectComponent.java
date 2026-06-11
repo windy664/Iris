@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.mantle.components;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.IrisComplex;
@@ -30,6 +29,7 @@ import art.arcane.iris.engine.mantle.MantleWriter;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
@@ -117,7 +117,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             String fingerprint = context + "|" + (object == null ? "<null>" : object.getClass().getSimpleName());
             if (MISSING_LOAD_KEY_WARNED.add(fingerprint)) {
                 java.io.File file = object == null ? null : object.getLoadFile();
-                Iris.warn("Skipping placement marker write: IrisObject has no loadKey (context=" + context
+                IrisLogging.warn("Skipping placement marker write: IrisObject has no loadKey (context=" + context
                         + ", file=" + (file == null ? "<unknown>" : file.getPath()) + "). "
                         + "This would previously produce 'Couldn't find Object: null' warnings on chunk reload.");
             }
@@ -147,7 +147,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     carvedBlocks++;
                 }
             }
-            Iris.info("Cave object diag: chunk=" + x + "," + z
+            IrisLogging.info("Cave object diag: chunk=" + x + "," + z
                     + " surfaceBiome=" + surfaceBiome.getLoadKey()
                     + " caveBiome=" + caveBiome.getLoadKey()
                     + " surfaceY=" + surfaceY
@@ -158,7 +158,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     + " sameBiome=" + (caveBiome == surfaceBiome || java.util.Objects.equals(caveBiome.getLoadKey(), surfaceBiome.getLoadKey())));
         }
         if (traceRegen) {
-            Iris.info("Regen object layer start: chunk=" + x + "," + z
+            IrisLogging.info("Regen object layer start: chunk=" + x + "," + z
                     + " surfaceBiome=" + surfaceBiome.getLoadKey()
                     + " caveBiome=" + caveBiome.getLoadKey()
                     + " region=" + region.getLoadKey()
@@ -175,7 +175,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             placeUpperObjects(writer, rng, x, z, xxx, zzz, surfaceY, upperCtx, dimension, complex, traceRegen);
         }
         if (traceRegen) {
-            Iris.info("Regen object layer done: chunk=" + x + "," + z
+            IrisLogging.info("Regen object layer done: chunk=" + x + "," + z
                     + " biomeSurfacePlacersChecked=" + summary.biomeSurfacePlacersChecked()
                     + " biomeSurfacePlacersTriggered=" + summary.biomeSurfacePlacersTriggered()
                     + " biomeCavePlacersChecked=" + summary.biomeCavePlacersChecked()
@@ -256,7 +256,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             biomeSurfaceChecked++;
             boolean chance = rng.chance(i.getChance() + rng.d(-0.005, 0.005));
             if (traceRegen) {
-                Iris.info("Regen object placer chance: chunk=" + x + "," + z
+                IrisLogging.info("Regen object placer chance: chunk=" + x + "," + z
                         + " scope=biome-surface"
                         + " chanceResult=" + chance
                         + " chanceBase=" + i.getChance()
@@ -274,10 +274,10 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     errors += result.errors();
                 } catch (Throwable e) {
                     errors++;
-                    Iris.reportError(e);
-                    Iris.error("Failed to place objects in the following biome: " + surfaceBiome.getName());
-                    Iris.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
-                    Iris.error("Are these objects missing?");
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place objects in the following biome: " + surfaceBiome.getName());
+                    IrisLogging.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
+                    IrisLogging.error("Are these objects missing?");
                     e.printStackTrace();
                 }
             }
@@ -290,7 +290,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             biomeCaveChecked++;
             boolean chance = rng.chance(i.getChance());
             if (traceRegen) {
-                Iris.info("Regen object placer chance: chunk=" + x + "," + z
+                IrisLogging.info("Regen object placer chance: chunk=" + x + "," + z
                         + " scope=biome-cave"
                         + " chanceResult=" + chance
                         + " chanceBase=" + i.getChance()
@@ -308,10 +308,10 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     errors += result.errors();
                 } catch (Throwable e) {
                     errors++;
-                    Iris.reportError(e);
-                    Iris.error("Failed to place cave objects in the following biome: " + caveBiome.getName());
-                    Iris.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
-                    Iris.error("Are these objects missing?");
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place cave objects in the following biome: " + caveBiome.getName());
+                    IrisLogging.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
+                    IrisLogging.error("Are these objects missing?");
                     e.printStackTrace();
                 }
             }
@@ -321,7 +321,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             regionSurfaceChecked++;
             boolean chance = rng.chance(i.getChance() + rng.d(-0.005, 0.005));
             if (traceRegen) {
-                Iris.info("Regen object placer chance: chunk=" + x + "," + z
+                IrisLogging.info("Regen object placer chance: chunk=" + x + "," + z
                         + " scope=region-surface"
                         + " chanceResult=" + chance
                         + " chanceBase=" + i.getChance()
@@ -339,10 +339,10 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     errors += result.errors();
                 } catch (Throwable e) {
                     errors++;
-                    Iris.reportError(e);
-                    Iris.error("Failed to place objects in the following region: " + region.getName());
-                    Iris.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
-                    Iris.error("Are these objects missing?");
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place objects in the following region: " + region.getName());
+                    IrisLogging.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
+                    IrisLogging.error("Are these objects missing?");
                     e.printStackTrace();
                 }
             }
@@ -355,7 +355,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             regionCaveChecked++;
             boolean chance = rng.chance(i.getChance());
             if (traceRegen) {
-                Iris.info("Regen object placer chance: chunk=" + x + "," + z
+                IrisLogging.info("Regen object placer chance: chunk=" + x + "," + z
                         + " scope=region-cave"
                         + " chanceResult=" + chance
                         + " chanceBase=" + i.getChance()
@@ -373,10 +373,10 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     errors += result.errors();
                 } catch (Throwable e) {
                     errors++;
-                    Iris.reportError(e);
-                    Iris.error("Failed to place cave objects in the following region: " + region.getName());
-                    Iris.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
-                    Iris.error("Are these objects missing?");
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place cave objects in the following region: " + region.getName());
+                    IrisLogging.error("Object(s) " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ").");
+                    IrisLogging.error("Are these objects missing?");
                     e.printStackTrace();
                 }
             }
@@ -420,7 +420,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
         for (IrisProceduralPlacement p : proceduralObjects.getAllPlacements()) {
             boolean chancePassed = rng.chance(p.getChance() + rng.d(-0.005, 0.005));
             if (golden) {
-                Iris.info("Goldendebug procedural chance: chunk=" + x + "," + z
+                IrisLogging.info("Goldendebug procedural chance: chunk=" + x + "," + z
                         + " scope=" + scope
                         + " placement=" + p.getName()
                         + " passed=" + chancePassed);
@@ -443,7 +443,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 IrisObject variant = p.getVariantObject(getData(), rng);
                 if (variant == null) {
                     if (golden) {
-                        Iris.info("Goldendebug procedural pick: chunk=" + x + "," + z
+                        IrisLogging.info("Goldendebug procedural pick: chunk=" + x + "," + z
                                 + " placement=" + p.getName()
                                 + " densityIndex=" + i
                                 + " variant=null");
@@ -455,7 +455,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 int id = rng.i(0, Integer.MAX_VALUE);
                 if (golden) {
                     KList<IrisObject> pool = p.getVariantObjects(getData());
-                    Iris.info("Goldendebug procedural pick: chunk=" + x + "," + z
+                    IrisLogging.info("Goldendebug procedural pick: chunk=" + x + "," + z
                             + " placement=" + p.getName()
                             + " densityIndex=" + i
                             + " variant=" + variant.getLoadKey()
@@ -470,7 +470,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                     if (carving) {
                         int caveFloorY = findNearestCaveFloor(writer, xx, zz);
                         if (golden) {
-                            Iris.info("Goldendebug procedural caveFloor: chunk=" + x + "," + z
+                            IrisLogging.info("Goldendebug procedural caveFloor: chunk=" + x + "," + z
                                     + " placement=" + p.getName()
                                     + " xx=" + xx
                                     + " zz=" + zz
@@ -493,7 +493,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                         }, null, getData());
                     }
                     if (golden) {
-                        Iris.info("Goldendebug procedural result: chunk=" + x + "," + z
+                        IrisLogging.info("Goldendebug procedural result: chunk=" + x + "," + z
                                 + " placement=" + p.getName()
                                 + " variant=" + variant.getLoadKey()
                                 + " xx=" + xx
@@ -501,8 +501,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                                 + " resultY=" + placeResult);
                     }
                 } catch (Throwable e) {
-                    Iris.reportError(e);
-                    Iris.error("Failed to place procedural object '" + p.getName() + "' in " + scope);
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place procedural object '" + p.getName() + "' in " + scope);
                     e.printStackTrace();
                 }
             }
@@ -538,7 +538,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (v == null) {
                 nullObjects++;
                 if (traceRegen) {
-                    Iris.warn("Regen object placement null object: chunk=" + chunkX + "," + chunkZ
+                    IrisLogging.warn("Regen object placement null object: chunk=" + chunkX + "," + chunkZ
                             + " scope=" + scope
                             + " densityIndex=" + i
                             + " density=" + density
@@ -558,7 +558,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             }
             IObjectPlacer placePlacer = golden ? new GoldenDebugPlacer(writer, scope + "/" + v.getLoadKey()) : writer;
             if (golden) {
-                Iris.info("Goldendebug object attempt: chunk=" + chunkX + "," + chunkZ
+                IrisLogging.info("Goldendebug object attempt: chunk=" + chunkX + "," + chunkZ
                         + " scope=" + scope
                         + " object=" + v.getLoadKey()
                         + " densityIndex=" + i
@@ -623,7 +623,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
 
                 if (golden) {
-                    Iris.info("Goldendebug object result: chunk=" + chunkX + "," + chunkZ
+                    IrisLogging.info("Goldendebug object result: chunk=" + chunkX + "," + chunkZ
                             + " scope=" + scope
                             + " object=" + v.getLoadKey()
                             + " resultY=" + result
@@ -631,7 +631,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
 
                 if (traceRegen) {
-                    Iris.info("Regen object placement result: chunk=" + chunkX + "," + chunkZ
+                    IrisLogging.info("Regen object placement result: chunk=" + chunkX + "," + chunkZ
                             + " scope=" + scope
                             + " object=" + v.getLoadKey()
                             + " resultY=" + result
@@ -644,8 +644,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
             } catch (Throwable e) {
                 errors++;
-                Iris.reportError(e);
-                Iris.error("Regen object placement exception: chunk=" + chunkX + "," + chunkZ
+                IrisLogging.reportError(e);
+                IrisLogging.error("Regen object placement exception: chunk=" + chunkX + "," + chunkZ
                         + " scope=" + scope
                         + " object=" + v.getLoadKey()
                         + " densityIndex=" + i
@@ -715,7 +715,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (object == null) {
                 nullObjects++;
                 if (traceRegen) {
-                    Iris.warn("Regen cave object placement null object: chunk=" + metricChunkX + "," + metricChunkZ
+                    IrisLogging.warn("Regen cave object placement null object: chunk=" + metricChunkX + "," + metricChunkZ
                             + " scope=" + scope
                             + " densityIndex=" + i
                             + " density=" + density
@@ -836,7 +836,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
 
                 if (traceRegen) {
-                    Iris.info("Regen cave object placement result: chunk=" + metricChunkX + "," + metricChunkZ
+                    IrisLogging.info("Regen cave object placement result: chunk=" + metricChunkX + "," + metricChunkZ
                             + " scope=" + scope
                             + " object=" + object.getLoadKey()
                             + " resultY=" + result
@@ -849,8 +849,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 }
             } catch (Throwable e) {
                 errors++;
-                Iris.reportError(e);
-                Iris.error("Regen cave object placement exception: chunk=" + metricChunkX + "," + metricChunkZ
+                IrisLogging.reportError(e);
+                IrisLogging.error("Regen cave object placement exception: chunk=" + metricChunkX + "," + metricChunkZ
                         + " scope=" + scope
                         + " object=" + object.getLoadKey()
                         + " densityIndex=" + i
@@ -907,8 +907,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 try {
                     placeUpperObject(writer, rng, chunkX, chunkZ, i, upperCtx, dimension, complex, forcePlace, traceRegen, "upper-biome-surface");
                 } catch (Throwable e) {
-                    Iris.reportError(e);
-                    Iris.error("Failed to place upper-dimension objects in biome " + upperBiome.getName()
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place upper-dimension objects in biome " + upperBiome.getName()
                             + ": " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ")");
                     e.printStackTrace();
                 }
@@ -923,8 +923,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 try {
                     placeUpperObject(writer, rng, chunkX, chunkZ, i, upperCtx, dimension, complex, forcePlace, traceRegen, "upper-region-surface");
                 } catch (Throwable e) {
-                    Iris.reportError(e);
-                    Iris.error("Failed to place upper-dimension objects in region " + upperRegion.getName()
+                    IrisLogging.reportError(e);
+                    IrisLogging.error("Failed to place upper-dimension objects in region " + upperRegion.getName()
                             + ": " + i.getPlace().toString(", ") + " (" + e.getClass().getSimpleName() + ")");
                     e.printStackTrace();
                 }
@@ -993,7 +993,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             }, null, getData());
 
             if (traceRegen) {
-                Iris.info("Upper object placement: chunk=" + chunkX + "," + chunkZ
+                IrisLogging.info("Upper object placement: chunk=" + chunkX + "," + chunkZ
                         + " scope=" + scope
                         + " object=" + v.getLoadKey()
                         + " anchorY=" + anchorY
@@ -1052,7 +1052,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
         int suppressed = state.suppressed.getAndSet(0);
         String anchorYText = anchorY == null ? "none" : String.valueOf(anchorY);
         String errorText = error == null ? "none" : error.getClass().getSimpleName() + ":" + String.valueOf(error.getMessage());
-        Iris.warn("Cave object reject: scope=" + scope
+        IrisLogging.warn("Cave object reject: scope=" + scope
                 + " reason=" + reason
                 + " chunk=" + chunkX + "," + chunkZ
                 + " object=" + objectKey
@@ -1136,14 +1136,14 @@ public class MantleObjectComponent extends IrisMantleComponent {
         @Override
         public int getHighest(int x, int z, IrisData data) {
             int result = delegate.getHighest(x, z, data);
-            Iris.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ")=" + result);
+            IrisLogging.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ")=" + result);
             return result;
         }
 
         @Override
         public int getHighest(int x, int z, IrisData data, boolean ignoreFluid) {
             int result = delegate.getHighest(x, z, data, ignoreFluid);
-            Iris.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ",ignoreFluid=" + ignoreFluid + ")=" + result);
+            IrisLogging.info("Goldendebug query: tag=" + tag + " getHighest(" + x + "," + z + ",ignoreFluid=" + ignoreFluid + ")=" + result);
             return result;
         }
 
@@ -1165,14 +1165,14 @@ public class MantleObjectComponent extends IrisMantleComponent {
         @Override
         public boolean isCarved(int x, int y, int z) {
             boolean result = delegate.isCarved(x, y, z);
-            Iris.info("Goldendebug query: tag=" + tag + " isCarved(" + x + "," + y + "," + z + ")=" + result);
+            IrisLogging.info("Goldendebug query: tag=" + tag + " isCarved(" + x + "," + y + "," + z + ")=" + result);
             return result;
         }
 
         @Override
         public boolean isSolid(int x, int y, int z) {
             boolean result = delegate.isSolid(x, y, z);
-            Iris.info("Goldendebug query: tag=" + tag + " isSolid(" + x + "," + y + "," + z + ")=" + result);
+            IrisLogging.info("Goldendebug query: tag=" + tag + " isSolid(" + x + "," + y + "," + z + ")=" + result);
             return result;
         }
 
@@ -1648,16 +1648,16 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
             if (Math.max(bv.getBlockX(), bv.getBlockZ()) > 128) {
                 if (scale > 1D) {
-                    Iris.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage! (Object scaled up to " + Form.pc(scale, 2) + ")");
+                    IrisLogging.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage! (Object scaled up to " + Form.pc(scale, 2) + ")");
                 } else {
-                    Iris.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage!");
+                    IrisLogging.warn("Object " + objectKey + " has a large size (" + bv + ") and may increase memory usage!");
                 }
             }
 
             xg.getAndSet(Math.max((int) Math.ceil(bv.getBlockX() * scale), xg.get()));
             zg.getAndSet(Math.max((int) Math.ceil(bv.getBlockZ() * scale), zg.get()));
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -1685,7 +1685,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 xg.getAndSet(Math.max(reachX, xg.get()));
                 zg.getAndSet(Math.max(reachZ, zg.get()));
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
     }
@@ -1695,7 +1695,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             try {
                 return IrisObject.sampleSize(getData().getObjectLoader().findFile(objectKey));
             } catch (IOException e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             }
 

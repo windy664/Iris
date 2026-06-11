@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.object.IrisDirection;
 import art.arcane.iris.engine.object.IrisJigsawConnector;
@@ -29,6 +28,7 @@ import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.IrisObjectRotation;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.JigsawJoint;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.volmlib.util.math.RNG;
@@ -59,7 +59,7 @@ public final class StructureAssembler {
     public KList<PlacedStructurePiece> assemble(RNG rng) {
         IrisJigsawPool startPool = IrisData.loadAnyJigsawPool(structure.getStartPool(), data);
         if (startPool == null || startPool.getPieces().isEmpty()) {
-            Iris.warn("Structure " + structure.getLoadKey() + " has no resolvable start pool '" + structure.getStartPool() + "'");
+            IrisLogging.warn("Structure " + structure.getLoadKey() + " has no resolvable start pool '" + structure.getStartPool() + "'");
             return null;
         }
 
@@ -72,7 +72,7 @@ public final class StructureAssembler {
         }
         IrisObject startObject = IrisData.loadAnyObject(startPiece.getObject(), data);
         if (startObject == null) {
-            Iris.warn("Jigsaw piece references missing object '" + startPiece.getObject() + "'");
+            IrisLogging.warn("Jigsaw piece references missing object '" + startPiece.getObject() + "'");
             return null;
         }
 

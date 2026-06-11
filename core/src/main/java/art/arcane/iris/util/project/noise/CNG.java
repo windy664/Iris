@@ -18,9 +18,9 @@
 
 package art.arcane.iris.util.project.noise;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.IRare;
 import art.arcane.iris.engine.object.NoiseStyle;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.cache.FloatCache;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.format.Form;
@@ -286,7 +286,7 @@ public class CNG {
                 fbc.writeCache(dos);
                 dos.close();
                 if (!quiet) {
-                    Iris.info("Saved Noise Cache " + f.getName());
+                    IrisLogging.info("Saved Noise Cache " + f.getName());
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -509,7 +509,7 @@ public class CNG {
         try {
             return values.get(fit2D(0, values.size() - 1, x, z));
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return values.get(0);
@@ -548,7 +548,7 @@ public class CNG {
         try {
             return v.get(fit(0, v.size() - 1, dim));
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return v.get(0);

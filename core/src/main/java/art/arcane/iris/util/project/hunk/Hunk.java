@@ -18,9 +18,9 @@
 
 package art.arcane.iris.util.project.hunk;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.object.IrisPosition;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.function.*;
 import art.arcane.volmlib.util.hunk.HunkComputeSupport;
 import art.arcane.volmlib.util.hunk.HunkCoreSupport;
@@ -991,7 +991,7 @@ public interface Hunk<T> extends HunkLike<T> {
      */
     default void set(int x, int y, int z, T t) {
         if (!contains(x, y, z)) {
-            Iris.warn("OUT OF BOUNDS " + x + " " + y + " " + z + " in bounds " + getWidth() + " " + getHeight() + " " + getDepth());
+            IrisLogging.warn("OUT OF BOUNDS " + x + " " + y + " " + z + " in bounds " + getWidth() + " " + getHeight() + " " + getDepth());
             return;
         }
 

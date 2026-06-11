@@ -18,13 +18,13 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.MinNumber;
 import art.arcane.iris.engine.object.annotations.RegistryListResource;
 import art.arcane.iris.engine.object.annotations.Snippet;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.interpolation.InterpolationMethod;
 import art.arcane.iris.util.project.interpolation.IrisInterpolation;
 import lombok.AllArgsConstructor;
@@ -67,7 +67,7 @@ public class IrisImageMap {
     public double getNoise(IrisData data, int x, int z) {
         IrisImage i = imageCache.aquire(() -> data.getImageLoader().load(image));
         if (i == null) {
-            Iris.error("NULL IMAGE FOR " + image);
+            IrisLogging.error("NULL IMAGE FOR " + image);
             return 0;
         }
 

@@ -18,6 +18,7 @@
 
 package art.arcane.iris.engine;
 
+import art.arcane.iris.spi.IrisLogging;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.gson.Gson;
 import art.arcane.iris.Iris;
@@ -132,7 +133,7 @@ public class IrisEngine implements Engine {
         generated = new AtomicInteger(0);
         long _t0 = M.ms();
         mantle = new IrisEngineMantle(this);
-        Iris.debug("[IrisEngine timing] new IrisEngineMantle=" + (M.ms() - _t0) + "ms");
+        IrisLogging.debug("[IrisEngine timing] new IrisEngineMantle=" + (M.ms() - _t0) + "ms");
         context = new IrisContext(this);
         cleaning = new AtomicBoolean(false);
         modeFallbackLogged = new AtomicBoolean(false);
@@ -141,29 +142,29 @@ public class IrisEngine implements Engine {
             getData().dump();
             getData().clearLists();
             getTarget().setDimension(getData().getDimensionLoader().load(getDimension().getLoadKey()));
-            Iris.debug("[IrisEngine timing] dump+clearLists+reload=" + (M.ms() - _t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] dump+clearLists+reload=" + (M.ms() - _t0) + "ms");
         }
         context.touch();
         getData().setEngine(this);
         _t0 = M.ms();
         getData().loadPrefetch(this);
-        Iris.debug("[IrisEngine timing] loadPrefetch=" + (M.ms() - _t0) + "ms");
+        IrisLogging.debug("[IrisEngine timing] loadPrefetch=" + (M.ms() - _t0) + "ms");
         try {
             StructureIndexService.writeOnce(getData());
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
-        Iris.info("Engine init: " + target.getWorld().name() + "/" + target.getDimension().getLoadKey() + " seed=" + getSeedManager().getSeed());
+        IrisLogging.info("Engine init: " + target.getWorld().name() + "/" + target.getDimension().getLoadKey() + " seed=" + getSeedManager().getSeed());
         failing = false;
         closed = false;
         art = J.ar(this::tickRandomPlayer, 0);
         _t0 = M.ms();
         setupEngine();
-        Iris.debug("[IrisEngine timing] setupEngine total=" + (M.ms() - _t0) + "ms");
+        IrisLogging.debug("[IrisEngine timing] setupEngine total=" + (M.ms() - _t0) + "ms");
         _t0 = M.ms();
         GenerationCacheWarmer.warm(this);
-        Iris.debug("[IrisEngine timing] cache warm total=" + (M.ms() - _t0) + "ms");
-        Iris.debug("Engine Initialized " + getCacheID());
+        IrisLogging.debug("[IrisEngine timing] cache warm total=" + (M.ms() - _t0) + "ms");
+        IrisLogging.debug("Engine Initialized " + getCacheID());
     }
 
     private void verifySeed() {
@@ -223,29 +224,29 @@ public class IrisEngine implements Engine {
         try {
             generationSessions.activateNextSession();
             closing.set(false);
-            Iris.debug("Setup Engine " + getCacheID());
+            IrisLogging.debug("Setup Engine " + getCacheID());
             cacheId = RNG.r.nextInt();
             long t0 = M.ms();
             complex = ensureComplex();
-            Iris.debug("[IrisEngine timing] ensureComplex=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] ensureComplex=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             upperContext = buildUpperContext();
-            Iris.debug("[IrisEngine timing] buildUpperContext=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] buildUpperContext=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             effects = new IrisEngineEffects(this);
-            Iris.debug("[IrisEngine timing] IrisEngineEffects=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] IrisEngineEffects=" + (M.ms() - t0) + "ms");
             hash32 = new CompletableFuture<>();
             t0 = M.ms();
             mantle.hotload();
-            Iris.debug("[IrisEngine timing] mantle.hotload=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] mantle.hotload=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             setupMode();
-            Iris.debug("[IrisEngine timing] setupMode=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] setupMode=" + (M.ms() - t0) + "ms");
             t0 = M.ms();
             IrisWorldManager manager = new IrisWorldManager(this);
             worldManager = manager;
             manager.startManager();
-            Iris.debug("[IrisEngine timing] IrisWorldManager=" + (M.ms() - t0) + "ms");
+            IrisLogging.debug("[IrisEngine timing] IrisWorldManager=" + (M.ms() - t0) + "ms");
             J.a(this::computeBiomeMaxes);
             J.a(() -> {
                 File[] roots = getData().getLoaders()
@@ -260,11 +261,11 @@ public class IrisEngine implements Engine {
             });
             J.a(() -> DatapackIngestService.refreshWorkspace(getData()));
         } catch (Throwable e) {
-            Iris.error("FAILED TO SETUP ENGINE!");
+            IrisLogging.error("FAILED TO SETUP ENGINE!");
             e.printStackTrace();
         }
 
-        Iris.debug("Engine Setup Complete " + getCacheID());
+        IrisLogging.debug("Engine Setup Complete " + getCacheID());
     }
 
     private UpperDimensionContext buildUpperContext() {
@@ -278,11 +279,11 @@ public class IrisEngine implements Engine {
                 : IrisData.loadAnyDimension(upperKey, getData());
         if (upperDim != null) {
             UpperDimensionContext ctx = UpperDimensionContext.create(this, upperDim);
-            Iris.info("Upper dimension enabled: " + upperKey
+            IrisLogging.info("Upper dimension enabled: " + upperKey
                     + (ctx.isSelfReferencing() ? " (self-referencing)" : " (cross-referencing)"));
             return ctx;
         }
-        Iris.warn("Upper dimension '" + upperKey + "' could not be resolved, skipping upper terrain.");
+        IrisLogging.warn("Upper dimension '" + upperKey + "' could not be resolved, skipping upper terrain.");
         return null;
     }
 
@@ -325,9 +326,9 @@ public class IrisEngine implements Engine {
                     throw new IllegalStateException("Dimension mode factory returned null");
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 if (modeFallbackLogged.compareAndSet(false, true)) {
-                    Iris.warn("Failed to initialize configured dimension mode for " + getDimension().getLoadKey() + ", falling back to OVERWORLD mode.");
+                    IrisLogging.warn("Failed to initialize configured dimension mode for " + getDimension().getLoadKey() + ", falling back to OVERWORLD mode.");
                 }
                 currentMode = IrisDimensionModeType.OVERWORLD.create(this);
             }
@@ -423,7 +424,7 @@ public class IrisEngine implements Engine {
                 try {
                     data = new Gson().fromJson(IO.readAll(f), IrisEngineData.class);
                     if (data == null) {
-                        Iris.error("Failed to read Engine Data! Corrupted File? recreating...");
+                        IrisLogging.error("Failed to read Engine Data! Corrupted File? recreating...");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -436,7 +437,7 @@ public class IrisEngine implements Engine {
                 data.getStatistics().setMCVersion(Iris.instance.getMCVersion());
                 data.getStatistics().setUpgradedVersion(Iris.instance.getIrisVersion());
                 if (data.getStatistics().getVersion() == -1 || data.getStatistics().getMCVersion() == -1 ) {
-                    Iris.error("Failed to setup Engine Data!");
+                    IrisLogging.error("Failed to setup Engine Data!");
                 }
 
                 if (f.getParentFile().exists() || f.getParentFile().mkdirs()) {
@@ -446,7 +447,7 @@ public class IrisEngine implements Engine {
                         e.printStackTrace();
                     }
                 } else {
-                    Iris.error("Failed to setup Engine Data!");
+                    IrisLogging.error("Failed to setup Engine Data!");
                 }
             }
 
@@ -601,7 +602,7 @@ public class IrisEngine implements Engine {
         getData().dump();
         getData().clearLists();
         Iris.service(PreservationSVC.class).dereference();
-        Iris.debug("Engine Fully Shutdown!");
+        IrisLogging.debug("Engine Fully Shutdown!");
     }
 
     @Override
@@ -640,8 +641,8 @@ public class IrisEngine implements Engine {
             try {
                 getData().getObjectLoader().clean();
             } catch (Throwable e) {
-                Iris.reportError(e);
-                Iris.error("Cleanup failed! Enable debug to see stacktrace.");
+                IrisLogging.reportError(e);
+                IrisLogging.error("Cleanup failed! Enable debug to see stacktrace.");
             }
 
             cleaning.lazySet(false);
@@ -687,7 +688,7 @@ public class IrisEngine implements Engine {
         } catch (GenerationSessionException e) {
             throw e;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             fail("Failed to generate " + x + ", " + z, e);
         }
     }
@@ -704,9 +705,9 @@ public class IrisEngine implements Engine {
         f.getParentFile().mkdirs();
         try {
             IO.writeAll(f, new Gson().toJson(getEngineData()));
-            Iris.debug("Saved Engine Data");
+            IrisLogging.debug("Saved Engine Data");
         } catch (IOException e) {
-            Iris.error("Failed to save Engine Data");
+            IrisLogging.error("Failed to save Engine Data");
             e.printStackTrace();
         }
     }
@@ -737,7 +738,7 @@ public class IrisEngine implements Engine {
     @Override
     public void fail(String error, Throwable e) {
         failing = true;
-        Iris.error(error);
+        IrisLogging.error(error);
         e.printStackTrace();
     }
 

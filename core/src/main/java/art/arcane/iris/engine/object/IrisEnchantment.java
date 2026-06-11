@@ -18,8 +18,8 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.RNG;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -61,7 +61,7 @@ public class IrisEnchantment {
         try {
             Enchantment enchant = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(getEnchantment()));
             if (enchant == null) {
-                Iris.warn("Unknown Enchantment: " + getEnchantment());
+                IrisLogging.warn("Unknown Enchantment: " + getEnchantment());
                 return;
             }
             if (rng.nextDouble() < chance) {
@@ -72,7 +72,7 @@ public class IrisEnchantment {
                 meta.addEnchant(enchant, getLevel(rng), true);
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
     }

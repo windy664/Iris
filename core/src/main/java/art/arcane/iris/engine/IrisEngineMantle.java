@@ -32,6 +32,7 @@ import art.arcane.iris.engine.mantle.components.MantleFloatingObjectComponent;
 import art.arcane.iris.engine.mantle.components.MantleFluidBodyComponent;
 import art.arcane.iris.engine.mantle.components.MantleObjectComponent;
 import art.arcane.iris.engine.mantle.components.IrisStructureComponent;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.matter.IrisMatterSupport;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -283,10 +284,10 @@ public class IrisEngineMantle implements EngineMantle {
                                              long end,
                                              art.arcane.volmlib.util.io.CountingDataInputStream din,
                                              IOException error) {
-                Iris.error("Failed to read chunk section, skipping it.");
+                IrisLogging.error("Failed to read chunk section, skipping it.");
                 Iris.addPanic("read.byte.range", start + " " + end);
                 Iris.addPanic("read.byte.current", din.count() + "");
-                Iris.reportError(error);
+                IrisLogging.reportError(error);
                 error.printStackTrace();
                 Iris.panic();
                 TectonicPlate.addError();
@@ -308,10 +309,10 @@ public class IrisEngineMantle implements EngineMantle {
                                            long end,
                                            art.arcane.volmlib.util.io.CountingDataInputStream din,
                                            Throwable error) {
-                Iris.error("Failed to read chunk, creating a new chunk instead.");
+                IrisLogging.error("Failed to read chunk, creating a new chunk instead.");
                 Iris.addPanic("read.byte.range", start + " " + end);
                 Iris.addPanic("read.byte.current", din.count() + "");
-                Iris.reportError(error);
+                IrisLogging.reportError(error);
                 error.printStackTrace();
                 Iris.panic();
             }
@@ -328,17 +329,17 @@ public class IrisEngineMantle implements EngineMantle {
 
             @Override
             public void onDebug(String message) {
-                Iris.debug(message);
+                IrisLogging.debug(message);
             }
 
             @Override
             public void onWarn(String message) {
-                Iris.warn(message);
+                IrisLogging.warn(message);
             }
 
             @Override
             public void onError(Throwable throwable) {
-                Iris.reportError(throwable);
+                IrisLogging.reportError(throwable);
             }
         };
     }
@@ -356,9 +357,9 @@ public class IrisEngineMantle implements EngineMantle {
                     String message = "Acquired Channel for " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(millis, 2)
                             + C.GRAY + " thread=" + threadName;
                     if (millis >= 1000L) {
-                        Iris.warn(message);
+                        IrisLogging.warn(message);
                     } else {
-                        Iris.debug(message);
+                        IrisLogging.debug(message);
                     }
                 }
         );
@@ -375,7 +376,7 @@ public class IrisEngineMantle implements EngineMantle {
                         File dump = Iris.instance.getDataFolder("dump", name + ".bin");
                         worker.dumpDecoded(name, dump.toPath());
                     } else {
-                        Iris.debug("Read Tectonic Plate " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(stopwatch.getMilliseconds(), 2));
+                        IrisLogging.debug("Read Tectonic Plate " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(stopwatch.getMilliseconds(), 2));
                     }
                 }
             }
@@ -384,7 +385,7 @@ public class IrisEngineMantle implements EngineMantle {
             public void write(String name, TectonicPlate<Matter> region) throws Exception {
                 PrecisionStopwatch stopwatch = PrecisionStopwatch.start();
                 worker.write(name, "iris", ".bin", region, TectonicPlate::write);
-                Iris.debug("Saved Tectonic Plate " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(stopwatch.getMilliseconds(), 2));
+                IrisLogging.debug("Saved Tectonic Plate " + C.DARK_GREEN + name + C.RED + " in " + Form.duration(stopwatch.getMilliseconds(), 2));
             }
 
             @Override

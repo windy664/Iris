@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.platform.studio.generators;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.runtime.ObjectStudioActivation;
 import art.arcane.iris.core.runtime.ObjectStudioLayout;
@@ -31,6 +30,7 @@ import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.platform.studio.EnginedStudioGenerator;
 import art.arcane.iris.platform.bukkit.BukkitBiome;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.VectorMap;
@@ -253,12 +253,12 @@ public class ObjectStudioGenerator extends EnginedStudioGenerator {
             try {
                 ObjectStudioSaveService.get().register(engine, this);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
 
             int cellCount = layout.cells().size();
             BlockVector worldExtent = computeExtent(layout);
-            Iris.info("Object Studio layout built: %d cells from %d pack(s), extent %d x %d blocks",
+            IrisLogging.info("Object Studio layout built: %d cells from %d pack(s), extent %d x %d blocks",
                     cellCount, sources.size(), worldExtent.getBlockX(), worldExtent.getBlockZ());
         }
     }

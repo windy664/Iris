@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.gui.components.RenderType;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
@@ -26,6 +25,7 @@ import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import com.google.gson.annotations.SerializedName;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -434,7 +434,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                 try {
                     data.add(getLayers().get(i).get(random.nextParallelRNG(i + j), (wx + j) / layers.get(i).getZoom(), j, (wz - j) / layers.get(i).getZoom(), rdata));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -480,7 +480,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                 try {
                     data.add(getCaveCeilingLayers().get(i).get(random.nextParallelRNG(i + j), (wx + j) / caveCeilingLayers.get(i).getZoom(), j, (wz - j) / caveCeilingLayers.get(i).getZoom(), rdata));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -531,7 +531,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                 try {
                     data.add(getLayers().get(i).get(random.nextParallelRNG(i + j), (wx + j) / layers.get(i).getZoom(), j, (wz - j) / layers.get(i).getZoom(), rdata));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -603,7 +603,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                 try {
                     data.add(getSeaLayers().get(i).get(random.nextParallelRNG(i + j), (wx + j) / seaLayers.get(i).getZoom(), j, (wz - j) / seaLayers.get(i).getZoom(), rdata));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -749,7 +749,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                     if (this.color == null) {
                         RandomColor randomColor = new RandomColor(getName().hashCode());
                         if (this.getVanillaDerivative() == null) {
-                            Iris.warn("No vanilla biome found for " + getName());
+                            IrisLogging.warn("No vanilla biome found for " + getName());
                             return new Color(randomColor.randomColor());
                         }
                         RandomColor.Color col = VanillaBiomeMap.getColorType(this.getVanillaDerivative());
@@ -763,7 +763,7 @@ public class IrisBiome extends IrisRegistrant implements IRare {
                     try {
                         return Color.decode(this.color);
                     } catch (NumberFormatException e) {
-                        Iris.warn("Could not parse color \"" + this.color + "\" for biome " + getName());
+                        IrisLogging.warn("Could not parse color \"" + this.color + "\" for biome " + getName());
                         return new Color(new RandomColor(getName().hashCode()).randomColor());
                     }
                 });

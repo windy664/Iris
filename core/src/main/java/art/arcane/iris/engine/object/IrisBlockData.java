@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
@@ -26,6 +25,7 @@ import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -170,7 +170,7 @@ public class IrisBlockData extends IrisRegistrant {
                     String sx = keyify(st) + computeProperties(cdata);
 
                     if (debug) {
-                        Iris.debug("Block Data used " + sx + " (CUSTOM)");
+                        IrisLogging.debug("Block Data used " + sx + " (CUSTOM)");
                     }
 
                     BlockData bx = B.get(sx);
@@ -189,7 +189,7 @@ public class IrisBlockData extends IrisRegistrant {
             b = B.get(ss);
 
             if (debug) {
-                Iris.debug("Block Data used " + ss);
+                IrisLogging.debug("Block Data used " + ss);
             }
 
             if (b != null) {

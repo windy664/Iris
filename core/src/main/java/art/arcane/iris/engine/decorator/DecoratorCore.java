@@ -18,13 +18,13 @@
 
 package art.arcane.iris.engine.decorator;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDecorator;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.hunk.Hunk;
@@ -83,7 +83,7 @@ final class DecoratorCore {
                     }
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         }
 
@@ -107,7 +107,7 @@ final class DecoratorCore {
                     data.set(x, height + 2, z, BukkitBlockState.of(top));
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
             BlockData bottom = rawBd.clone();
             ((Bisected) bottom).setHalf(Bisected.Half.BOTTOM);
@@ -160,7 +160,7 @@ final class DecoratorCore {
                     data.set(x, height + 2, z, BukkitBlockState.of(top));
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
             BlockData bottom = rawBd.clone();
             ((Bisected) bottom).setHalf(Bisected.Half.BOTTOM);
@@ -291,7 +291,7 @@ final class DecoratorCore {
                     data.set(xf, height + 2, zf, BukkitBlockState.of(top));
                 }
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
             BlockData bottom = rawBd.clone();
             ((Bisected) bottom).setHalf(Bisected.Half.BOTTOM);

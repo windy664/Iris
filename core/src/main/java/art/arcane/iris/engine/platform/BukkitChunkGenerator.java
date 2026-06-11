@@ -37,6 +37,7 @@ import art.arcane.iris.engine.object.VanillaStructureMode;
 import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.iris.engine.object.StudioMode;
 import art.arcane.iris.engine.platform.studio.StudioGenerator;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.hunk.Hunk;
@@ -130,10 +131,10 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         world.setRawWorldSeed(event.getWorld().getSeed());
         if (initialize(event.getWorld())) return;
 
-        Iris.warn("Failed to get Engine for " + event.getWorld().getName() + " re-trying...");
+        IrisLogging.warn("Failed to get Engine for " + event.getWorld().getName() + " re-trying...");
         J.s(() -> {
             if (!initialize(event.getWorld())) {
-                Iris.error("Failed to get Engine for " + event.getWorld().getName() + "!");
+                IrisLogging.error("Failed to get Engine for " + event.getWorld().getName() + "!");
             }
         }, 10);
     }
@@ -143,13 +144,13 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
         if (engine == null) return false;
         try {
             INMS.get().inject(world.getSeed(), engine, world);
-            Iris.debug("Injected Iris Biome Source into " + world.getName());
+            IrisLogging.debug("Injected Iris Biome Source into " + world.getName());
             if (!studio) {
                 J.s(() -> updateSpawnLocation(world), 1);
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
-            Iris.error("Failed to inject biome source into " + world.getName());
+            IrisLogging.reportError(e);
+            IrisLogging.error("Failed to inject biome source into " + world.getName());
             e.printStackTrace();
         }
         spawnChunks.complete(INMS.get().getSpawnChunkCount(world));
@@ -240,23 +241,23 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
             IrisDimension dimension = data.getDimensionLoader().load(dimensionKey);
 
             if (dimension == null) {
-                Iris.error("Oh No! There's no pack in " + data.getDataFolder().getPath() + " or... there's no dimension for the key " + dimensionKey);
+                IrisLogging.error("Oh No! There's no pack in " + data.getDataFolder().getPath() + " or... there's no dimension for the key " + dimensionKey);
                 IrisDimension test = IrisData.loadAnyDimension(dimensionKey, null);
 
                 if (test != null) {
-                    Iris.warn("Looks like " + dimensionKey + " exists in " + test.getLoadFile().getPath() + " ");
+                    IrisLogging.warn("Looks like " + dimensionKey + " exists in " + test.getLoadFile().getPath() + " ");
                     test = Iris.service(StudioSVC.class).installInto(Iris.getSender(), dimensionKey, dataLocation);
-                    Iris.warn("Attempted to install into " + data.getDataFolder().getPath());
+                    IrisLogging.warn("Attempted to install into " + data.getDataFolder().getPath());
 
                     if (test != null) {
                         Iris.success("Woo! Patched the Engine!");
                         dimension = test;
                     } else {
-                        Iris.error("Failed to patch dimension!");
+                        IrisLogging.error("Failed to patch dimension!");
                         throw new RuntimeException("Missing Dimension: " + dimensionKey);
                     }
                 } else {
-                    Iris.error("Nope, you don't have an installation containing " + dimensionKey + " try downloading it?");
+                    IrisLogging.error("Nope, you don't have an installation containing " + dimensionKey + " try downloading it?");
                     throw new RuntimeException("Missing Dimension: " + dimensionKey);
                 }
             }
@@ -330,7 +331,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                     activeHotloader.join(1000L);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                 }
             }
 
@@ -375,7 +376,7 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 r.run();
                 loadLock.release(LOAD_LOCKS);
             } catch (Throwable e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             }
         });
     }
@@ -422,16 +423,16 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 blocks.apply();
             }
 
-            Iris.debug("Generated " + x + " " + z);
+            IrisLogging.debug("Generated " + x + " " + z);
         } catch (GenerationSessionException e) {
             if (closing || isExpectedTeardown(engine, e)) {
                 return;
             }
 
-            Iris.error("======================================");
+            IrisLogging.error("======================================");
             e.printStackTrace();
             Iris.reportErrorChunk(x, z, e, "CHUNK");
-            Iris.error("======================================");
+            IrisLogging.error("======================================");
 
             for (int i = 0; i < 16; i++) {
                 for (int j = 0; j < 16; j++) {
@@ -439,10 +440,10 @@ public class BukkitChunkGenerator extends ChunkGenerator implements PlatformChun
                 }
             }
         } catch (Throwable e) {
-            Iris.error("======================================");
+            IrisLogging.error("======================================");
             e.printStackTrace();
             Iris.reportErrorChunk(x, z, e, "CHUNK");
-            Iris.error("======================================");
+            IrisLogging.error("======================================");
 
             for (int i = 0; i < 16; i++) {
                 for (int j = 0; j < 16; j++) {

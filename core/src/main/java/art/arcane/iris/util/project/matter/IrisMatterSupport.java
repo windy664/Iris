@@ -18,9 +18,9 @@
 
 package art.arcane.iris.util.project.matter;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.IrisObject;
 
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.matter.slices.EntityMatter;
 import art.arcane.iris.util.project.matter.slices.IdentifierMatter;
 import art.arcane.iris.util.project.matter.slices.SpawnerMatter;
@@ -90,9 +90,9 @@ public final class IrisMatterSupport {
             long oldSize = folder.length();
             object.read(folder);
             from(object).write(folder);
-            Iris.info("Converted " + folder.getPath() + " Saved " + (oldSize - folder.length()));
+            IrisLogging.info("Converted " + folder.getPath() + " Saved " + (oldSize - folder.length()));
         } catch (Throwable e) {
-            Iris.error("Failed to convert " + folder.getPath());
+            IrisLogging.error("Failed to convert " + folder.getPath());
             e.printStackTrace();
         }
 

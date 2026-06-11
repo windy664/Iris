@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.mantle.components;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.data.cache.Cache;
@@ -37,6 +36,7 @@ import art.arcane.iris.engine.object.ObjectPlaceMode;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.engine.object.IrisStructure;
 import art.arcane.iris.engine.object.IrisStructurePlacement;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.context.ChunkContext;
@@ -90,7 +90,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
 
         boolean trace = IrisSettings.get().getGeneral().isDebug();
         if (trace) {
-            Iris.info("[StructTrace] ORIGIN chunk=" + cx + "," + cz + " structures=" + placement.getStructures()
+            IrisLogging.info("[StructTrace] ORIGIN chunk=" + cx + "," + cz + " structures=" + placement.getStructures()
                     + " underground=" + placement.isUnderground() + " band=" + placement.getMinHeight() + ".." + placement.getMaxHeight());
         }
 
@@ -104,7 +104,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
             int bandMax = Math.min(worldMaxY, Math.max(placement.getMinHeight(), placement.getMaxHeight()));
             if (bandMin > bandMax) {
                 if (trace) {
-                    Iris.info("[StructTrace] BAIL band-inverted chunk=" + cx + "," + cz + " bandMin=" + bandMin + " bandMax=" + bandMax
+                    IrisLogging.info("[StructTrace] BAIL band-inverted chunk=" + cx + "," + cz + " bandMin=" + bandMin + " bandMax=" + bandMax
                             + " worldMinY=" + worldMinY + " worldMaxY=" + worldMaxY);
                 }
                 return;
@@ -122,7 +122,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
         IrisStructure structure = art.arcane.iris.core.loader.IrisData.loadAnyStructure(key, getData());
         if (structure == null) {
             if (trace) {
-                Iris.info("[StructTrace] BAIL structure-load-null chunk=" + cx + "," + cz + " key=" + key);
+                IrisLogging.info("[StructTrace] BAIL structure-load-null chunk=" + cx + "," + cz + " key=" + key);
             }
             return;
         }
@@ -131,13 +131,13 @@ public class IrisStructureComponent extends IrisMantleComponent {
         KList<PlacedStructurePiece> pieces = assembler.assemble(rng);
         if (pieces == null || pieces.isEmpty()) {
             if (trace) {
-                Iris.info("[StructTrace] BAIL no-pieces chunk=" + cx + "," + cz + " key=" + key + " baseY=" + baseY
+                IrisLogging.info("[StructTrace] BAIL no-pieces chunk=" + cx + "," + cz + " key=" + key + " baseY=" + baseY
                         + " pieces=" + (pieces == null ? "null" : "empty"));
             }
             return;
         }
         if (trace) {
-            Iris.info("[StructTrace] ASSEMBLED chunk=" + cx + "," + cz + " key=" + key + " baseY=" + baseY + " pieces=" + pieces.size());
+            IrisLogging.info("[StructTrace] ASSEMBLED chunk=" + cx + "," + cz + " key=" + key + " baseY=" + baseY + " pieces=" + pieces.size());
         }
 
         if (placement.isOverbore()) {
@@ -192,7 +192,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
         }
         long volume = (long) (maxX - minX + 1) * (long) (maxY - minY + 1) * (long) (maxZ - minZ + 1);
         if (volume > MAX_BORE_VOLUME) {
-            Iris.warn("Skipping structure bore of " + volume + " blocks (cap " + MAX_BORE_VOLUME + "); use a smaller structure or larger spacing.");
+            IrisLogging.warn("Skipping structure bore of " + volume + " blocks (cap " + MAX_BORE_VOLUME + "); use a smaller structure or larger spacing.");
             return;
         }
         int mantleOffset = getEngineMantle().getEngine().getMinHeight();
@@ -236,7 +236,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
             work += wx * wy * wz;
         }
         if (work > MAX_OVERBORE_VOLUME) {
-            Iris.warn("Skipping structure overbore of " + work + " blocks (cap " + MAX_OVERBORE_VOLUME + "); reduce overboreRadius/overboreHeight or use larger spacing.");
+            IrisLogging.warn("Skipping structure overbore of " + work + " blocks (cap " + MAX_OVERBORE_VOLUME + "); reduce overboreRadius/overboreHeight or use larger spacing.");
             return;
         }
 
@@ -245,7 +245,7 @@ public class IrisStructureComponent extends IrisMantleComponent {
         CNG roll = CNG.signature(noiseRng.nextParallelRNG(0x2A17));
 
         if (IrisSettings.get().getGeneral().isDebug()) {
-            Iris.info("Overbore carving organic cavern: pieces=" + pieces.size() + " margin=" + margin + " head=" + head + " floorCut=" + floorCut + " work=" + work);
+            IrisLogging.info("Overbore carving organic cavern: pieces=" + pieces.size() + " margin=" + margin + " head=" + head + " floorCut=" + floorCut + " work=" + work);
         }
 
         for (PlacedStructurePiece p : pieces) {

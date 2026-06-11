@@ -18,10 +18,10 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.spi.IrisLogging;
 import com.dfsek.paralithic.Expression;
 import com.dfsek.paralithic.eval.parser.Parser;
 import com.dfsek.paralithic.eval.parser.Scope;
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.IrisExpressionFunction.FunctionContext;
@@ -77,7 +77,7 @@ public class IrisExpression extends IrisRegistrant {
                 scope.addInvocationVariable("z");
             } catch (Throwable e) {
                 e.printStackTrace();
-                Iris.error("Script Variable load error in " + getLoadFile().getPath());
+                IrisLogging.error("Script Variable load error in " + getLoadFile().getPath());
             }
 
             for (IrisExpressionFunction f : functions) {
@@ -90,7 +90,7 @@ public class IrisExpression extends IrisRegistrant {
                 return parser.parse(getExpression(), scope);
             } catch (Throwable e) {
                 e.printStackTrace();
-                Iris.error("Script load error in " + getLoadFile().getPath());
+                IrisLogging.error("Script load error in " + getLoadFile().getPath());
             }
 
             return null;

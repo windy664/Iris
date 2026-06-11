@@ -18,11 +18,11 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -267,7 +267,7 @@ public class IrisObjectPlacement {
                 continue;
             IrisLootTable table = loader.apply(loot.getName());
             if (table == null) {
-                Iris.warn("Couldn't find loot table " + loot.getName());
+                IrisLogging.warn("Couldn't find loot table " + loot.getName());
                 continue;
             }
 

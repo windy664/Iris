@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.data.cache;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.function.NastySupplier;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,7 +96,7 @@ public class AtomicCache<T> {
                 set.set(true);
             }
         } catch (Throwable e) {
-            Iris.error("Atomic cache failure!");
+            IrisLogging.error("Atomic cache failure!");
             e.printStackTrace();
         }
 

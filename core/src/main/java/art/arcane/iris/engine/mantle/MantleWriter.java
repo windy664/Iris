@@ -18,9 +18,9 @@
 
 package art.arcane.iris.engine.mantle;
 
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.matter.TileWrapper;
 import com.google.common.collect.ImmutableList;
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.core.loader.IrisData;
@@ -76,7 +76,7 @@ public class MantleWriter implements IObjectPlacer, AutoCloseable {
                 && IrisToolbelt.isWorldMaintenanceActive(engineMantle.getEngine().getWorld().realWorld());
         final int parallelism = foliaMaintenance ? 1 : (multicore ? Runtime.getRuntime().availableProcessors() / 2 : 4);
         if (foliaMaintenance && IrisSettings.get().getGeneral().isDebug()) {
-            Iris.info("MantleWriter using sequential chunk prefetch for maintenance regen at " + x + "," + z + ".");
+            IrisLogging.info("MantleWriter using sequential chunk prefetch for maintenance regen at " + x + "," + z + ".");
         }
         final var map = multicore ? cachedChunks : new KMap<Long, MantleChunk<Matter>>(d * d, 1f, parallelism);
         mantle.getChunks(
@@ -244,7 +244,7 @@ public class MantleWriter implements IObjectPlacer, AutoCloseable {
     public MantleChunk<Matter> acquireChunk(int cx, int cz) {
         if (cx < this.x - radius || cx > this.x + radius
                 || cz < this.z - radius || cz > this.z + radius) {
-            Iris.error("Mantle Writer Accessed chunk out of bounds" + cx + "," + cz);
+            IrisLogging.error("Mantle Writer Accessed chunk out of bounds" + cx + "," + cz);
             return null;
         }
         final Long key = Cache.key(cx, cz);
@@ -758,7 +758,7 @@ public class MantleWriter implements IObjectPlacer, AutoCloseable {
         try {
             setData(pos.getX(), pos.getY(), pos.getZ(), data);
         } catch (Throwable e) {
-            Iris.error("No set? " + data.toString() + " for " + pos.toString());
+            IrisLogging.error("No set? " + data.toString() + " for " + pos.toString());
         }
     }
 

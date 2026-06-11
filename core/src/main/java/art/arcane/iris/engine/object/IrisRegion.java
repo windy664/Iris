@@ -18,9 +18,9 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.gui.components.RenderType;
 import art.arcane.iris.core.loader.IrisData;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.data.cache.AtomicCache;
@@ -442,14 +442,14 @@ public class IrisRegion extends IrisRegistrant implements IRare {
                     biomes.remove(index);
                 }
 
-                Iris.warn("Couldn't find a suitable color for region " + getName());
+                IrisLogging.warn("Couldn't find a suitable color for region " + getName());
                 return new Color(new RandomColor(rand).randomColor());
             }
 
             try {
                 return Color.decode(this.color);
             } catch (NumberFormatException e) {
-                Iris.warn("Could not parse color \"" + this.color + "\" for region " + getName());
+                IrisLogging.warn("Could not parse color \"" + this.color + "\" for region " + getName());
                 return Color.WHITE;
             }
         });

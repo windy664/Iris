@@ -18,10 +18,10 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.spi.IrisLogging;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.Strictness;
-import art.arcane.iris.Iris;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.util.common.reflect.KeyedType;
 import art.arcane.volmlib.util.collection.KMap;
@@ -108,7 +108,7 @@ public class TileData implements Cloneable {
             toBukkit(block);
             return true;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return false;
@@ -120,7 +120,7 @@ public class TileData implements Cloneable {
             fromBukkit(block);
             return true;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
 

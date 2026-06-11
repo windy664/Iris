@@ -18,10 +18,10 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Required;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.data.B;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -63,7 +63,7 @@ public class IrisCompatabilityBlockFilter {
                 return null;
             }
 
-            Iris.warn("Compat: Using '%s' in place of '%s' since this server doesnt support '%s'", supplement, when, when);
+            IrisLogging.warn("Compat: Using '%s' in place of '%s' since this server doesnt support '%s'", supplement, when, when);
 
             return b;
         });

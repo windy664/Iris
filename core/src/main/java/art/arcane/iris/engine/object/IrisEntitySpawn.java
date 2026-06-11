@@ -19,10 +19,10 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.math.Vector3d;
@@ -169,7 +169,7 @@ public class IrisEntitySpawn implements IRare {
         try {
             IrisEntity irisEntity = getRealEntity(g);
             if (irisEntity == null) { // No entity
-                Iris.debug("      You are trying to spawn an entity that does not exist!");
+                IrisLogging.debug("      You are trying to spawn an entity that does not exist!");
                 return null;
             }
 
@@ -187,14 +187,14 @@ public class IrisEntitySpawn implements IRare {
 
             Entity e = irisEntity.spawn(g, at.add(0.5, 0.5, 0.5), rng.aquire(() -> new RNG(g.getSeedManager().getEntity())));
             if (e != null) {
-                Iris.debug("Spawned " + C.DARK_AQUA + "Entity<" + getEntity() + "> " + C.GREEN + e.getType() + C.LIGHT_PURPLE + " @ " + C.GRAY + e.getLocation().getX() + ", " + e.getLocation().getY() + ", " + e.getLocation().getZ());
+                IrisLogging.debug("Spawned " + C.DARK_AQUA + "Entity<" + getEntity() + "> " + C.GREEN + e.getType() + C.LIGHT_PURPLE + " @ " + C.GRAY + e.getLocation().getX() + ", " + e.getLocation().getY() + ", " + e.getLocation().getZ());
             }
 
             return e;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             e.printStackTrace();
-            Iris.error("      Failed to retrieve real entity @ " + at + " (entity: " + getEntity() + ")");
+            IrisLogging.error("      Failed to retrieve real entity @ " + at + " (entity: " + getEntity() + ")");
             return null;
         }
     }

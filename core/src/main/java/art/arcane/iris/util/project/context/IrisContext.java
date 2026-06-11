@@ -18,10 +18,10 @@
 
 package art.arcane.iris.util.project.context;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;
 import lombok.Data;
@@ -76,7 +76,7 @@ public class IrisContext {
             }
 
             if (!thread.isAlive() || context.engine.isClosed()) {
-                Iris.debug("Dereferenced Context<Engine> " + thread.getName() + " " + thread.threadId());
+                IrisLogging.debug("Dereferenced Context<Engine> " + thread.getName() + " " + thread.threadId());
                 it.remove();
             }
         }

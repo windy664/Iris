@@ -1,10 +1,10 @@
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
@@ -212,7 +212,7 @@ public class UpperDimensionContext implements DataProvider {
                         }
                         return new NoiseBounds(bMin, bMax);
                     } catch (Throwable e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
                         return ZERO_NOISE_BOUNDS;
                     }
                 });

@@ -24,6 +24,7 @@ import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.iris.util.common.data.B;
@@ -118,7 +119,7 @@ public class IrisLoot {
             is.setItemMeta(applyProperties(is, rng, debug, null));
             return BukkitPlatform.applyCustomNbt(is, customNbt);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             return new ItemStack(Material.AIR);
         }
     }
@@ -149,7 +150,7 @@ public class IrisLoot {
         if (!type.startsWith("minecraft:") && type.contains(":")) {
             Optional<ItemStack> opt = Iris.service(ExternalDataSVC.class).getItemStack(Identifier.fromString(type), customNbt);
             if (opt.isEmpty()) {
-                Iris.warn("Unknown Material: " + type);
+                IrisLogging.warn("Unknown Material: " + type);
                 return new ItemStack(Material.AIR);
             }
             ItemStack is = opt.get();

@@ -18,7 +18,6 @@
 
 package art.arcane.iris.engine.modifier;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.decorator.FloatingDecorator;
@@ -36,6 +35,7 @@ import art.arcane.iris.engine.object.IrisDecorationPart;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisFloatingChildBiomes;
 import art.arcane.iris.engine.object.IrisSlopeClip;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.iris.util.project.hunk.Hunk;
@@ -101,7 +101,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                 try {
                     generated.add(layer.get(random.nextParallelRNG(i + j), (wx + j) / layer.getZoom(), j, (wz - j) / layer.getZoom(), data));
                 } catch (Throwable e) {
-                    Iris.reportError(e);
+                    IrisLogging.reportError(e);
                     e.printStackTrace();
                 }
             }
@@ -328,7 +328,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                             RNG colRng = rng.nextParallelRNG((int) FloatingIslandSample.columnSeed(baseSeed, wx, wz));
                             FloatingDecorator.decorateColumn(getEngine(), target, IrisDecorationPart.NONE, xf, zf, wx, wz, topY, max, output, colRng, NOOP_DECORATION_MISS);
                         } catch (Throwable e) {
-                            art.arcane.iris.Iris.reportError(e);
+                            IrisLogging.reportError(e);
                         }
                     }
                 }
@@ -360,7 +360,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                         try {
                             seaSurfaceDecorator.decorate(xf, zf, wx, wx + 1, wx - 1, wz, wz + 1, wz - 1, output, target, fluidTopY, chunkHeight);
                         } catch (Throwable e) {
-                            art.arcane.iris.Iris.reportError(e);
+                            IrisLogging.reportError(e);
                         }
                     }
                 }
@@ -392,7 +392,7 @@ public class IrisFloatingChildBiomeModifier extends EngineAssignedModifier<Platf
                 getEngine().getMantle().getMantle().set(wx, y, wz, matter);
             }
         } catch (Throwable e) {
-            art.arcane.iris.Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 

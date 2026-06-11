@@ -19,10 +19,10 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.annotations.Desc;
 import art.arcane.iris.engine.object.annotations.Snippet;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -352,7 +352,7 @@ public class IrisObjectRotation {
                 }
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
 

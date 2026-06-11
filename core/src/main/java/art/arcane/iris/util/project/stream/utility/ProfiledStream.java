@@ -18,7 +18,7 @@
 
 package art.arcane.iris.util.project.stream.utility;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.math.RollingSequence;
@@ -133,7 +133,7 @@ public class ProfiledStream<T> extends BasicStream<T> {
         try {
             metrics.put(p.getMilliseconds());
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return t;
@@ -146,7 +146,7 @@ public class ProfiledStream<T> extends BasicStream<T> {
         try {
             metrics.put(p.getMilliseconds());
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
 
         return t;

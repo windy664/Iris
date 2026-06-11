@@ -19,7 +19,6 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.data.cache.AtomicCache;
@@ -27,6 +26,7 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.PlacedObject;
 import art.arcane.iris.engine.framework.placer.HeightmapObjectPlacer;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -193,7 +193,7 @@ public class IrisObject extends IrisRegistrant {
         AtomicInteger applied = new AtomicInteger();
         if (blocks.isEmpty()) {
             writeLock.unlock();
-            Iris.warn("Cannot Smart Bore " + getLoadKey() + " because it has 0 blocks in it.");
+            IrisLogging.warn("Cannot Smart Bore " + getLoadKey() + " because it has 0 blocks in it.");
             smartBored = true;
             return;
         }
@@ -302,7 +302,7 @@ public class IrisObject extends IrisRegistrant {
         burst.complete();
         smartBored = true;
         writeLock.unlock();
-        Iris.debug("Smart Bore: " + getLoadKey() + " in " + Form.duration(p.getMilliseconds(), 2) + " (" + Form.f(applied.get()) + ")");
+        IrisLogging.debug("Smart Bore: " + getLoadKey() + " in " + Form.duration(p.getMilliseconds(), 2) + " (" + Form.f(applied.get()) + ")");
     }
 
     public synchronized IrisObject copy() {
@@ -345,7 +345,7 @@ public class IrisObject extends IrisRegistrant {
                 states.put(new Vector3i(din.readShort(), din.readShort(), din.readShort()), TileData.read(din));
             }
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
     }
 
@@ -519,7 +519,7 @@ public class IrisObject extends IrisRegistrant {
             read(fin);
         } catch (Throwable e) {
             if (!(e instanceof HeaderException))
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
             try (var fin = new BufferedInputStream(new FileInputStream(file))) {
                 readLegacy(fin);
             }
@@ -642,7 +642,7 @@ public class IrisObject extends IrisRegistrant {
             blocks.put(v, BukkitBlockState.of(data));
             TileData state = TileData.getTileState(block, legacy);
             if (state != null) {
-                Iris.debug("Saved State " + v);
+                IrisLogging.debug("Saved State " + v);
                 states.put(v, state);
             }
         }
@@ -1032,13 +1032,13 @@ public class IrisObject extends IrisRegistrant {
                     d = entry.getValue();
                     tile = states.get(g);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
-                    Iris.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (cme)");
+                    IrisLogging.reportError(e);
+                    IrisLogging.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (cme)");
                     d = AIR;
                 }
 
                 if (d == null) {
-                    Iris.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (null)");
+                    IrisLogging.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (null)");
                     d = AIR;
                 }
 
@@ -1170,7 +1170,7 @@ public class IrisObject extends IrisRegistrant {
             }
         } catch (Throwable e) {
             e.printStackTrace();
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
         }
         readLock.unlock();
 
@@ -1221,13 +1221,13 @@ public class IrisObject extends IrisRegistrant {
                 try {
                     sourceData = blocks.get(g);
                 } catch (Throwable e) {
-                    Iris.reportError(e);
-                    Iris.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (stilt cme)");
+                    IrisLogging.reportError(e);
+                    IrisLogging.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (stilt cme)");
                     sourceData = AIR;
                 }
 
                 if (sourceData == null) {
-                    Iris.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (stilt null)");
+                    IrisLogging.warn("Failed to read block node " + g.getBlockX() + "," + g.getBlockY() + "," + g.getBlockZ() + " in object " + getLoadKey() + " (stilt null)");
                     sourceData = AIR;
                 }
 
@@ -1446,7 +1446,7 @@ public class IrisObject extends IrisRegistrant {
             return;
         }
         IMPLAUSIBLE_BEDROCK_WARNS.put(fingerprint, now);
-        Iris.warn("Implausible object placement rejected: "
+        IrisLogging.warn("Implausible object placement rejected: "
                 + (key == null ? "<no loadKey>" : key)
                 + " resolved anchorY=" + y + " at (" + x + "," + z + ") mode=" + config.getMode()
                 + " carving=" + config.getCarvingSupport()
@@ -1606,7 +1606,7 @@ public class IrisObject extends IrisRegistrant {
             b.setBlockData((BlockData) Objects.requireNonNull(entry.getValue()).nativeHandle(), false);
 
             if (states.containsKey(i)) {
-                Iris.info(Objects.requireNonNull(states.get(i)).toString());
+                IrisLogging.info(Objects.requireNonNull(states.get(i)).toString());
                 Objects.requireNonNull(states.get(i)).toBukkitTry(b);
             }
         }

@@ -18,10 +18,10 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.project.noise.ExpressionNoise;
@@ -146,7 +146,7 @@ public class IrisGeneratorStyle {
             }
 
             if (!file.delete()) {
-                Iris.debug("Unable to delete stale noise cache " + file.getName());
+                IrisLogging.debug("Unable to delete stale noise cache " + file.getName());
             }
         }
     }

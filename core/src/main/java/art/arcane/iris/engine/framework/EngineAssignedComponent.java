@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.RollingSequence;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -33,7 +33,7 @@ public class EngineAssignedComponent implements EngineComponent {
     private final String name;
 
     public EngineAssignedComponent(Engine engine, String name) {
-        Iris.debug("Engine: " + engine.getCacheID() + " Starting " + name);
+        IrisLogging.debug("Engine: " + engine.getCacheID() + " Starting " + name);
         this.engine = engine;
         this.metrics = new RollingSequence(16);
         this.name = name;

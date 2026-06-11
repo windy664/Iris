@@ -183,6 +183,11 @@ public final class BukkitPlatform implements IrisPlatform {
         }
     }
 
+    @Override
+    public void reportError(Throwable error) {
+        Iris.reportError(error);
+    }
+
     private static final class BukkitCapabilities implements PlatformCapabilities {
         @Override
         public boolean customBiomes() {

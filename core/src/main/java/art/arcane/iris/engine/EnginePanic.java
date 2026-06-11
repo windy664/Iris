@@ -18,7 +18,7 @@
 
 package art.arcane.iris.engine;
 
-import art.arcane.iris.Iris;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KMap;
 
 public class EnginePanic {
@@ -35,14 +35,14 @@ public class EnginePanic {
 
     public static void lastPanic() {
         for (String i : last.keySet()) {
-            Iris.error("Last Panic " + i + ": " + stuff.get(i));
+            IrisLogging.error("Last Panic " + i + ": " + stuff.get(i));
         }
     }
 
     public static void panic() {
         lastPanic();
         for (String i : stuff.keySet()) {
-            Iris.error("Engine Panic " + i + ": " + stuff.get(i));
+            IrisLogging.error("Engine Panic " + i + ": " + stuff.get(i));
         }
     }
 }

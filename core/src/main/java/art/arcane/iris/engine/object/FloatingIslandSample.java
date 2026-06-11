@@ -18,9 +18,9 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
 
@@ -90,7 +90,7 @@ public final class FloatingIslandSample {
     private static void warnNullCng(String styleField, IrisBiome parent) {
         if (NULL_CNG_WARNED.compareAndSet(false, true)) {
             String biomeKey = parent == null ? "<unknown>" : parent.getLoadKey();
-            Iris.warn("Floating child biome on " + biomeKey + " has a null CNG for " + styleField
+            IrisLogging.warn("Floating child biome on " + biomeKey + " has a null CNG for " + styleField
                     + " (style factory returned null or AtomicCache swallowed an exception); skipping floating sampling until pack is fixed");
         }
     }

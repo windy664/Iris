@@ -18,11 +18,11 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisEffect;
 import art.arcane.iris.engine.object.IrisRegion;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.iris.util.common.scheduling.J;
 import lombok.Data;
@@ -56,7 +56,7 @@ public class EnginePlayer {
                     try {
                         j.apply(player, getEngine());
                     } catch (Throwable e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
 
                     }
                 }
@@ -67,7 +67,7 @@ public class EnginePlayer {
                     try {
                         j.apply(player, getEngine());
                     } catch (Throwable e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
 
                     }
                 }
@@ -92,7 +92,7 @@ public class EnginePlayer {
             }
             return false;
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
         return true;

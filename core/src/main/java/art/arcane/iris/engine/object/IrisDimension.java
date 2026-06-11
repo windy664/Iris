@@ -24,6 +24,7 @@ import art.arcane.iris.core.ServerConfigurator.DimensionHeight;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.core.nms.datapack.IDataFixer;
@@ -500,7 +501,7 @@ public class IrisDimension extends IrisRegistrant {
                     try {
                         IO.writeAll(output, json);
                     } catch (IOException e) {
-                        Iris.reportError(e);
+                        IrisLogging.reportError(e);
                         e.printStackTrace();
                     }
                 }
@@ -562,7 +563,7 @@ public class IrisDimension extends IrisRegistrant {
             try {
                 IO.writeAll(output, json);
             } catch (IOException e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             }
         }
@@ -608,7 +609,7 @@ public class IrisDimension extends IrisRegistrant {
             try {
                 IO.writeAll(mcm, raw);
             } catch (IOException e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             }
             Iris.verbose("    Installing Data Pack MCMeta: " + mcm.getPath());
@@ -624,7 +625,7 @@ public class IrisDimension extends IrisRegistrant {
             try {
                 IO.writeAll(dimTypeVanilla, json);
             } catch (IOException e) {
-                Iris.reportError(e);
+                IrisLogging.reportError(e);
                 e.printStackTrace();
             }
         }

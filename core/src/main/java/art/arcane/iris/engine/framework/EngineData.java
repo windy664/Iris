@@ -18,8 +18,8 @@
 
 package art.arcane.iris.engine.framework;
 
+import art.arcane.iris.spi.IrisLogging;
 import com.google.gson.Gson;
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.volmlib.util.io.IO;
 import lombok.Data;
@@ -39,7 +39,7 @@ public class EngineData {
             f.getParentFile().mkdirs();
             return new Gson().fromJson(IO.readAll(f), EngineData.class);
         } catch (Throwable e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
 
         }
 
@@ -51,7 +51,7 @@ public class EngineData {
             f.getParentFile().mkdirs();
             IO.writeAll(f, new Gson().toJson(this));
         } catch (IOException e) {
-            Iris.reportError(e);
+            IrisLogging.reportError(e);
             e.printStackTrace();
         }
     }

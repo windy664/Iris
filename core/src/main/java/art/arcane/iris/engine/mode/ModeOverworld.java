@@ -27,6 +27,7 @@ import art.arcane.iris.engine.framework.EngineMode;
 import art.arcane.iris.engine.framework.EngineStage;
 import art.arcane.iris.engine.framework.IrisEngineMode;
 import art.arcane.iris.engine.modifier.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.scheduling.J;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -118,7 +119,7 @@ public class ModeOverworld extends IrisEngineMode implements EngineMode {
             long now = System.currentTimeMillis();
             long last = lastMaintenanceBypassLog.get();
             if (now - last >= 5000L && lastMaintenanceBypassLog.compareAndSet(last, now)) {
-                art.arcane.iris.Iris.info("Maintenance regen bypass: skipping mantle-backed overworld stages for Folia safety.");
+                IrisLogging.info("Maintenance regen bypass: skipping mantle-backed overworld stages for Folia safety.");
             }
         }
         return active;

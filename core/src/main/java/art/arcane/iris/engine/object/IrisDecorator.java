@@ -18,10 +18,10 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.project.noise.CNG;
@@ -157,7 +157,7 @@ public class IrisDecorator {
 
     public PlatformBlockState getBlockData100(IrisBiome b, RNG rng, double x, double y, double z, IrisData data) {
         if (getBlockData(data).isEmpty()) {
-            Iris.warn("Empty Block Data for " + b.getName());
+            IrisLogging.warn("Empty Block Data for " + b.getName());
             return null;
         }
 
