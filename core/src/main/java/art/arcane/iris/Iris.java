@@ -49,6 +49,8 @@ import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.core.safeguard.IrisSafeguard;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
+import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -911,6 +913,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
     }
 
     public void onEnable() {
+        IrisPlatforms.bind(new BukkitPlatform());
         enable();
         super.onEnable();
         Bukkit.getPluginManager().registerEvents(this, this);

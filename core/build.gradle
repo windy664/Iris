@@ -61,6 +61,8 @@ boolean hasSentryAuthToken = sentryAuthToken != null && !sentryAuthToken.isBlank
  * these dependencies if they are available on mvn central.
  */
 dependencies {
+    api(project(':spi'))
+
     // Provided or Classpath
     compileOnly(libs.spigot)
     compileOnly(libs.log4j.api)
