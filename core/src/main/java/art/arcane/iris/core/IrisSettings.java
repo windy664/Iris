@@ -193,6 +193,7 @@ public class IrisSettings {
         public int objectLoaderCacheSize = 4_096;
         public int tectonicPlateSize = -1;
         public int mantleCleanupDelay = 200;
+        public boolean simdKernels = true;
 
         public int getTectonicPlateSize() {
             if (tectonicPlateSize > 0)

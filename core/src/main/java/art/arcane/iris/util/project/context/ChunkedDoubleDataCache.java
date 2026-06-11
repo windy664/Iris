@@ -2,6 +2,7 @@ package art.arcane.iris.util.project.context;
 
 import art.arcane.iris.util.project.stream.ProceduralStream;
 import art.arcane.iris.util.project.stream.utility.ChunkFillableDoubleStream2D;
+import art.arcane.iris.util.simd.SimdSupport;
 import art.arcane.volmlib.util.documentation.BlockCoordinates;
 
 import java.util.Arrays;
@@ -56,9 +57,7 @@ public class ChunkedDoubleDataCache {
         if (stream instanceof ChunkFillableDoubleStream2D cachedStream) {
             cachedStream.fillChunkDoubles(x, z, data);
             if (roundedTarget != null) {
-                for (int index = 0; index < 256; index++) {
-                    roundedTarget[index] = (int) Math.round(data[index]);
-                }
+                SimdSupport.kernels().roundToInt(data, roundedTarget, 256);
             }
             return;
         }

@@ -34,6 +34,8 @@ import art.arcane.iris.engine.object.IrisRange;
 import art.arcane.iris.util.project.context.ChunkContext;
 import art.arcane.iris.util.project.stream.ProceduralStream;
 import art.arcane.iris.util.project.stream.utility.ChunkFillableDoubleStream2D;
+import art.arcane.iris.util.simd.SimdKernels;
+import art.arcane.iris.util.simd.SimdSupport;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.mantle.flag.ReservedFlag;
 import art.arcane.volmlib.util.math.PowerOfTwoCoordinates;
@@ -230,14 +232,9 @@ public class MantleCarvingComponent extends IrisMantleComponent {
                 continue;
             }
 
-            double totalWeight = 0D;
-            double maxWeight = 0D;
-            for (double weight : weights) {
-                totalWeight += weight;
-                if (weight > maxWeight) {
-                    maxWeight = weight;
-                }
-            }
+            SimdKernels kernels = SimdSupport.kernels();
+            double totalWeight = kernels.sum(weights, weights.length);
+            double maxWeight = kernels.max(weights, weights.length);
 
             if (maxWeight < MIN_WEIGHT) {
                 continue;

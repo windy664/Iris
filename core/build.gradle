@@ -214,8 +214,13 @@ tasks.named('compileJava', JavaCompile).configure {
      * We need parameter meta for the decree command system
      */
     options.compilerArgs.add('-parameters')
+    options.compilerArgs.addAll(['--add-modules', 'jdk.incubator.vector'])
     options.encoding = 'UTF-8'
     options.debugOptions.debugLevel = 'none'
+}
+
+tasks.named('test', Test).configure {
+    jvmArgs('--add-modules', 'jdk.incubator.vector')
 }
 
 tasks.named('processResources').configure {
