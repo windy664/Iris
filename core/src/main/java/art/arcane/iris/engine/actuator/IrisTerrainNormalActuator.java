@@ -215,6 +215,7 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
         int fluidHeight = dimension.getFluidHeight();
         int clampedFluidHeight = Math.min(chunkHeight, fluidHeight);
         boolean bedrockEnabled = dimension.isBedrock();
+        boolean hideOres = dimension.isHideOresForHiddenOre();
         ChunkedDataCache<IrisBiome> biomeCache = context.getBiome();
         ChunkedDataCache<IrisRegion> regionCache = context.getRegion();
         ChunkedDataCache<BlockData> fluidCache = context.getFluid();
@@ -235,8 +236,8 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<BlockData>
             int topY = Math.min(hf, chunkHeight - 1);
             BlockData fluid = fluidCache.get(xf, zf);
             BlockData rock = rockCache.get(xf, zf);
-            boolean hasSurfaceOres = biome.hasSurfaceOres() || region.hasSurfaceOres() || dimension.hasSurfaceOres();
-            boolean hasUndergroundOres = biome.hasUndergroundOres() || region.hasUndergroundOres() || dimension.hasUndergroundOres();
+            boolean hasSurfaceOres = !hideOres && (biome.hasSurfaceOres() || region.hasSurfaceOres() || dimension.hasSurfaceOres());
+            boolean hasUndergroundOres = !hideOres && (biome.hasUndergroundOres() || region.hasUndergroundOres() || dimension.hasUndergroundOres());
             KList<BlockData> blocks = null;
             KList<BlockData> fblocks = null;
 

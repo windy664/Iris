@@ -140,6 +140,8 @@ public class IrisDimension extends IrisRegistrant {
     private boolean debugSmartBore = false;
     @Desc("Generate decorations or not")
     private boolean decorate = true;
+    @Desc("When true, every ore block the generator would place (terrain ores, deposits, ores inside objects) is replaced with its base material such as stone, deepslate or netherrack, so drop-control plugins like HiddenOre can manage ore rewards themselves")
+    private boolean hideOresForHiddenOre = false;
     @Desc("Use post processing or not")
     private boolean postProcessing = true;
     @Desc("Add slabs in post processing")

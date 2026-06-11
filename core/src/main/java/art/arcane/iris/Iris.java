@@ -70,6 +70,7 @@ import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.plugin.chunk.ChunkTickets;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.iris.util.common.misc.ServerProperties;
+import art.arcane.iris.util.simd.SimdSupport;
 import art.arcane.volmlib.util.scheduling.Queue;
 import art.arcane.volmlib.util.scheduling.ShurikenQueue;
 import io.papermc.lib.PaperLib;
@@ -547,6 +548,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
 
     private void enable() {
         PaperLibBootstrap.install();
+        SimdSupport.install();
         services = new KMap<>();
         setupAudience();
         Bindings.setupSentry();
