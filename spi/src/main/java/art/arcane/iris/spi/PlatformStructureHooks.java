@@ -18,27 +18,23 @@
 
 package art.arcane.iris.spi;
 
-import java.io.File;
+import java.util.List;
 
 /**
- * Root platform service provided by each adapter; the single entry point core uses to reach the host platform.
+ * Neutral access to the host platform's structure, structure-set and configured-feature registries plus placement entry points.
  */
-public interface IrisPlatform {
-    String platformName();
+public interface PlatformStructureHooks {
+    List<String> structureKeys();
 
-    String minecraftVersion();
+    List<String> structureSetKeys();
 
-    PlatformRegistries registries();
+    List<String> structureBiomeKeys(String structureKey);
 
-    PlatformScheduler scheduler();
+    List<String> objectFeatureKeys();
 
-    PlatformCapabilities capabilities();
+    boolean placeFeature(PlatformWorld world, int x, int y, int z, String featureKey, long seed);
 
-    PlatformStructureHooks structureHooks();
+    int[] placeStructure(PlatformWorld world, int chunkX, int chunkZ, String structureKey, long seed, int maxSpan);
 
-    File dataFolder();
-
-    void dispatchConsoleCommand(String command);
-
-    void log(LogLevel level, String message);
+    boolean supportsStructurePlacement();
 }

@@ -21,6 +21,7 @@ package art.arcane.iris.engine.framework;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisWorld;
+import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.volmlib.util.collection.KList;
 
 import java.util.Collections;
@@ -112,7 +113,7 @@ public final class StructureReachability {
                 possible.add(key.toLowerCase());
             }
         }
-        for (String biomeKey : INMS.get().getStructureBiomeKeys(structureKey)) {
+        for (String biomeKey : IrisPlatforms.get().structureHooks().structureBiomeKeys(structureKey)) {
             if (biomeKey != null && !possible.contains(biomeKey.toLowerCase())) {
                 missing.add(biomeKey);
             }

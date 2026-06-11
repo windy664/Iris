@@ -26,6 +26,8 @@ import art.arcane.iris.spi.LogLevel;
 import art.arcane.iris.spi.PlatformCapabilities;
 import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
+import art.arcane.iris.spi.PlatformStructureHooks;
+import art.arcane.iris.spi.PlatformWorld;
 import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -44,6 +46,11 @@ public final class BukkitPlatform implements IrisPlatform {
     private final BukkitRegistries registries = new BukkitRegistries();
     private final BukkitScheduler scheduler = new BukkitScheduler();
     private final PlatformCapabilities capabilities = new BukkitCapabilities();
+    private final BukkitStructureHooks structureHooks = new BukkitStructureHooks();
+
+    public static World unwrapWorld(PlatformWorld world) {
+        return (World) world.nativeHandle();
+    }
 
     public static Class<?> classifyMantleValue(Object value) {
         if (value instanceof World) {
@@ -102,6 +109,11 @@ public final class BukkitPlatform implements IrisPlatform {
     @Override
     public PlatformCapabilities capabilities() {
         return capabilities;
+    }
+
+    @Override
+    public PlatformStructureHooks structureHooks() {
+        return structureHooks;
     }
 
     @Override
