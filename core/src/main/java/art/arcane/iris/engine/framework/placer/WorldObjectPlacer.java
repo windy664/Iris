@@ -8,6 +8,7 @@ import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.core.events.IrisLootEvent;
 import art.arcane.iris.engine.mantle.EngineMantle;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.object.IObjectPlacer;
 import art.arcane.iris.engine.object.InventorySlotType;
 import art.arcane.iris.engine.object.IrisLootTable;
@@ -71,7 +72,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
 
         if (slot != null) {
             RNG rx = new RNG(Cache.key(x, z));
-            KList<IrisLootTable> tables = engine.getLootTables(rx, block);
+            KList<IrisLootTable> tables = EngineBukkitOps.getLootTables(engine, rx, block);
 
             try {
                 Bukkit.getPluginManager().callEvent(new IrisLootEvent(engine, block, slot, tables));
@@ -83,7 +84,7 @@ public class WorldObjectPlacer implements IObjectPlacer {
                 if (tables.isEmpty())
                     return;
                 InventoryHolder m = (InventoryHolder) block.getState();
-                engine.addItems(false, m.getInventory(), rx, tables, slot, world, x, y, z, 15);
+                EngineBukkitOps.addItems(engine, false, m.getInventory(), rx, tables, slot, world, x, y, z, 15);
             } catch (Throwable e) {
                 IrisLogging.reportError(e);
             }

@@ -36,18 +36,12 @@ import java.util.stream.StreamSupport;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class LegacyTileData extends TileData {
-    private static final Map<Integer, Pair<Builder, IOFunction<DataInputStream, Handler>>> legacy = Map.of(
-            0, new Pair<>(SignHandler::fromBukkit, SignHandler::new),
-            1, new Pair<>(SpawnerHandler::fromBukkit, SpawnerHandler::new),
-            2, new Pair<>(BannerHandler::fromBukkit, BannerHandler::new),
-            3, new Pair<>(LootableHandler::fromBukkit, LootableHandler::new));
-    private static final AtomicCache<Tag<Material>> SIGNS = new AtomicCache<>();
     private final int id;
     private final Handler handler;
 
     public LegacyTileData(DataInputStream in) throws IOException {
         id = in.readShort();
-        var factory = legacy.get(id);
+        Pair<Builder, IOFunction<DataInputStream, Handler>> factory = Handlers.LEGACY.get(id);
         if (factory == null)
             throw new IOException("Unknown tile type: " + id);
         handler = factory.getB().apply(in);
@@ -60,14 +54,22 @@ public class LegacyTileData extends TileData {
 
     @Nullable
     public static LegacyTileData fromBukkit(@NonNull BlockState tileState) {
-        var type = tileState.getType();
-        for (var id : legacy.keySet()) {
-            var factory = legacy.get(id);
-            var handler = factory.getA().apply(tileState, type);
+        Material type = tileState.getType();
+        for (Integer id : Handlers.LEGACY.keySet()) {
+            Pair<Builder, IOFunction<DataInputStream, Handler>> factory = Handlers.LEGACY.get(id);
+            Handler handler = factory.getA().apply(tileState, type);
             if (handler != null)
                 return new LegacyTileData(id, handler);
         }
         return null;
+    }
+
+    private static final class Handlers {
+        private static final Map<Integer, Pair<Builder, IOFunction<DataInputStream, Handler>>> LEGACY = Map.of(
+                0, new Pair<>(SignHandler::fromBukkit, SignHandler::new),
+                1, new Pair<>(SpawnerHandler::fromBukkit, SpawnerHandler::new),
+                2, new Pair<>(BannerHandler::fromBukkit, BannerHandler::new),
+                3, new Pair<>(LootableHandler::fromBukkit, LootableHandler::new));
     }
 
     @Override
@@ -411,34 +413,42 @@ public class LegacyTileData extends TileData {
     }
 
     private static Tag<Material> signsTag() {
-        return SIGNS.aquire(() -> {
-            var signs = Bukkit.getTag("blocks", NamespacedKey.minecraft("all_signs"), Material.class);
-            if (signs != null)
-                return signs;
-            return new Tag<>() {
-                @Override
-                public boolean isTagged(@NotNull Material item) {
-                    NamespacedKey key = KeyedType.getKey(item);
-                    if (key != null) {
-                        return key.getKey().endsWith("_sign");
+        return SignTags.get();
+    }
+
+    private static final class SignTags {
+        private static final AtomicCache<Tag<Material>> SIGNS = new AtomicCache<>();
+
+        private static Tag<Material> get() {
+            return SIGNS.aquire(() -> {
+                Tag<Material> signs = Bukkit.getTag("blocks", NamespacedKey.minecraft("all_signs"), Material.class);
+                if (signs != null)
+                    return signs;
+                return new Tag<>() {
+                    @Override
+                    public boolean isTagged(@NotNull Material item) {
+                        NamespacedKey key = KeyedType.getKey(item);
+                        if (key != null) {
+                            return key.getKey().endsWith("_sign");
+                        }
+                        return item.name().toLowerCase(Locale.ROOT).endsWith("_sign");
                     }
-                    return item.name().toLowerCase(Locale.ROOT).endsWith("_sign");
-                }
 
-                @NotNull
-                @Override
-                public Set<Material> getValues() {
-                    return StreamSupport.stream(Registry.MATERIAL.spliterator(), false)
-                            .filter(this::isTagged)
-                            .collect(Collectors.toUnmodifiableSet());
-                }
+                    @NotNull
+                    @Override
+                    public Set<Material> getValues() {
+                        return StreamSupport.stream(Registry.MATERIAL.spliterator(), false)
+                                .filter(this::isTagged)
+                                .collect(Collectors.toUnmodifiableSet());
+                    }
 
-                @NotNull
-                @Override
-                public NamespacedKey getKey() {
-                    return NamespacedKey.minecraft("all_signs");
-                }
-            };
-        });
+                    @NotNull
+                    @Override
+                    public NamespacedKey getKey() {
+                        return NamespacedKey.minecraft("all_signs");
+                    }
+                };
+            });
+        }
     }
 }

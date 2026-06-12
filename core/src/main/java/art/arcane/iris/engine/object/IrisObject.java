@@ -1059,8 +1059,8 @@ public class IrisObject extends IrisRegistrant {
                 }
 
                 if (placer.isPreventingDecay() && ((BlockData) data.nativeHandle()) instanceof Leaves && !((Leaves) ((BlockData) data.nativeHandle())).isPersistent()) {
-                    Leaves leaves = (Leaves) ((BlockData) data.nativeHandle()).clone();
-                    leaves.setPersistent(true);
+                    BlockData leaves = ((BlockData) data.nativeHandle()).clone();
+                    ((Leaves) leaves).setPersistent(true);
                     data = BukkitBlockState.of(leaves);
                 }
 
@@ -1119,13 +1119,14 @@ public class IrisObject extends IrisRegistrant {
                 }
 
                 if (((BlockData) data.nativeHandle()) instanceof Waterlogged && shouldAutoWaterlogBlock(placer, config, yv, xx, yy, zz)) {
-                    Waterlogged waterlogged = (Waterlogged) ((BlockData) data.nativeHandle()).clone();
-                    waterlogged.setWaterlogged(true);
+                    BlockData waterlogged = ((BlockData) data.nativeHandle()).clone();
+                    ((Waterlogged) waterlogged).setWaterlogged(true);
                     data = BukkitBlockState.of(waterlogged);
                 }
 
                 if (BukkitBlockResolution.isVineBlock((BlockData) data.nativeHandle())) {
-                    MultipleFacing f = (MultipleFacing) ((BlockData) data.nativeHandle()).clone();
+                    BlockData fData = ((BlockData) data.nativeHandle()).clone();
+                    MultipleFacing f = (MultipleFacing) fData;
                     boolean facesChanged = false;
                     for (BlockFace face : f.getAllowedFaces()) {
                         PlatformBlockState facingState = placer.get(xx + face.getModX(), yy + face.getModY(), zz + face.getModZ());
@@ -1136,7 +1137,7 @@ public class IrisObject extends IrisRegistrant {
                         }
                     }
                     if (facesChanged) {
-                        data = BukkitBlockState.of(f);
+                        data = BukkitBlockState.of(fData);
                     }
                 }
 
@@ -1344,8 +1345,8 @@ public class IrisObject extends IrisRegistrant {
                 int highest = placer.getHighest(xx, zz, getLoader(), true);
 
                 if (((BlockData) d.nativeHandle()) instanceof Waterlogged && shouldAutoWaterlogBlock(placer, config, yv, xx, highest, zz)) {
-                    Waterlogged waterlogged = (Waterlogged) ((BlockData) d.nativeHandle()).clone();
-                    waterlogged.setWaterlogged(true);
+                    BlockData waterlogged = ((BlockData) d.nativeHandle()).clone();
+                    ((Waterlogged) waterlogged).setWaterlogged(true);
                     d = BukkitBlockState.of(waterlogged);
                 }
 
@@ -1385,7 +1386,8 @@ public class IrisObject extends IrisRegistrant {
                     }
 
                     if (BukkitBlockResolution.isVineBlock((BlockData) d.nativeHandle())) {
-                        MultipleFacing f = (MultipleFacing) ((BlockData) d.nativeHandle()).clone();
+                        BlockData fData = ((BlockData) d.nativeHandle()).clone();
+                        MultipleFacing f = (MultipleFacing) fData;
                         boolean facesChanged = false;
                         for (BlockFace face : f.getAllowedFaces()) {
                             PlatformBlockState facingState = placer.get(xx + face.getModX(), j + face.getModY(), zz + face.getModZ());
@@ -1396,7 +1398,7 @@ public class IrisObject extends IrisRegistrant {
                             }
                         }
                         if (facesChanged) {
-                            d = BukkitBlockState.of(f);
+                            d = BukkitBlockState.of(fData);
                         }
                     }
                     placer.set(xx, j, zz, d);

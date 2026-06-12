@@ -179,6 +179,12 @@ public class IrisEffect {
         });
     }
 
+    private static final class BukkitFx {
+        private static void run(Player p, Runnable r) {
+            J.runEntity(p, r);
+        }
+    }
+
     public void apply(Player p, Engine g) {
         if (!canTick()) {
             return;
@@ -188,7 +194,7 @@ public class IrisEffect {
             return;
         }
 
-        J.runEntity(p, () -> {
+        BukkitFx.run(p, () -> {
             if (sound != null) {
                 Location part = p.getLocation().clone().add(RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance));
                 p.playSound(part, getSound(), (float) volume, (float) RNG.r.d(minPitch, maxPitch));

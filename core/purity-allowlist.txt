@@ -51,7 +51,6 @@ art/arcane/iris/core/runtime/ChunkClearer.java
 art/arcane/iris/core/runtime/ChunkJobReporter.java
 art/arcane/iris/core/runtime/GoldenHashScanner.java
 art/arcane/iris/core/runtime/InPlaceChunkRegenerator.java
-art/arcane/iris/core/runtime/ObjectStudioLayout.java
 art/arcane/iris/core/runtime/PaperLikeRuntimeControlBackend.java
 art/arcane/iris/core/runtime/StudioOpenCoordinator.java
 art/arcane/iris/core/runtime/WorldRuntimeControlBackend.java
@@ -83,12 +82,10 @@ art/arcane/iris/engine/actuator/IrisBiomeActuator.java
 art/arcane/iris/engine/data/chunk/LinkedTerrainChunk.java
 art/arcane/iris/engine/data/chunk/TerrainChunk.java
 art/arcane/iris/engine/decorator/DecoratorCore.java
-art/arcane/iris/engine/framework/BlockUpdater.java
 art/arcane/iris/engine/framework/Engine.java
 art/arcane/iris/engine/framework/EngineAssignedWorldManager.java
 art/arcane/iris/engine/framework/EnginePlayer.java
 art/arcane/iris/engine/framework/EngineWorldManager.java
-art/arcane/iris/engine/framework/LootProvider.java
 art/arcane/iris/engine/framework/placer/WorldObjectPlacer.java
 art/arcane/iris/engine/mantle/EngineMantle.java
 art/arcane/iris/engine/mantle/MantleWriter.java
@@ -123,7 +120,6 @@ art/arcane/iris/engine/object/IrisLootTable.java
 art/arcane/iris/engine/object/IrisObject.java
 art/arcane/iris/engine/object/IrisObjectPlacement.java
 art/arcane/iris/engine/object/IrisObjectRotation.java
-art/arcane/iris/engine/object/IrisObjectTranslate.java
 art/arcane/iris/engine/object/IrisPotionEffect.java
 art/arcane/iris/engine/object/IrisProceduralBlocks.java
 art/arcane/iris/engine/object/IrisSurface.java
@@ -151,6 +147,7 @@ art/arcane/iris/engine/object/tree/TreePlausibility.java
 art/arcane/iris/engine/platform/BukkitChunkGenerator.java
 art/arcane/iris/engine/platform/DummyBiomeProvider.java
 art/arcane/iris/engine/platform/DummyChunkGenerator.java
+art/arcane/iris/engine/platform/EngineBukkitOps.java
 art/arcane/iris/engine/platform/studio/generators/ObjectStudioGenerator.java
 art/arcane/iris/platform/bukkit/BukkitBiome.java
 art/arcane/iris/platform/bukkit/BukkitBlockResolution.java
@@ -162,7 +159,6 @@ art/arcane/iris/platform/bukkit/BukkitRegistries.java
 art/arcane/iris/platform/bukkit/BukkitScheduler.java
 art/arcane/iris/platform/bukkit/BukkitWorld.java
 art/arcane/iris/util/common/data/IrisCustomData.java
-art/arcane/iris/util/common/data/VectorMap.java
 art/arcane/iris/util/common/data/registry/Attributes.java
 art/arcane/iris/util/common/data/registry/KeyedRegistry.java
 art/arcane/iris/util/common/data/registry/Materials.java
@@ -183,7 +179,6 @@ art/arcane/iris/util/common/inventorygui/Window.java
 art/arcane/iris/util/common/inventorygui/WindowResolution.java
 art/arcane/iris/util/common/math/AxisAlignedBB.java
 art/arcane/iris/util/common/math/Direction.java
-art/arcane/iris/util/common/math/Vector3i.java
 art/arcane/iris/util/common/math/VectorMath.java
 art/arcane/iris/util/common/misc/Bindings.java
 art/arcane/iris/util/common/nbt/mca/Chunk.java

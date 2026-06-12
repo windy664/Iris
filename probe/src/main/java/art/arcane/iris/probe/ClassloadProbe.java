@@ -47,6 +47,11 @@ public final class ClassloadProbe {
             "art.arcane.iris.util.common.misc.Bindings",
             "art.arcane.iris.util.common.misc.SlimJar",
             "art.arcane.iris.util.common.misc.ServerProperties",
+            "art.arcane.iris.util.common.data.IrisCustomData",
+            "art.arcane.iris.engine.IrisWorldManager",
+            "art.arcane.iris.engine.framework.EngineAssignedWorldManager",
+            "art.arcane.iris.engine.object.StudioMode",
+            "art.arcane.iris.engine.framework.placer.WorldObjectPlacer",
     };
 
     public static void main(String[] args) throws IOException {
@@ -87,6 +92,9 @@ public final class ClassloadProbe {
                 Class.forName(name, true, ClassloadProbe.class.getClassLoader());
                 loaded++;
             } catch (Throwable failure) {
+                if (System.getenv("PROBE_TRACE") != null && name.contains(System.getenv("PROBE_TRACE"))) {
+                    failure.printStackTrace(System.out);
+                }
                 String cause = rootCause(failure);
                 if (critical) {
                     criticalFailures.put(name, cause);

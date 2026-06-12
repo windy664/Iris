@@ -18,21 +18,10 @@
 
 package art.arcane.iris.engine.framework;
 
-import art.arcane.iris.engine.object.InventorySlotType;
 import art.arcane.iris.engine.object.IrisLootReference;
 import art.arcane.iris.engine.object.IrisLootTable;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.volmlib.util.math.RNG;
-import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.inventory.Inventory;
 
 public interface LootProvider {
-    void scramble(Inventory inventory, RNG rng);
-
     void injectTables(KList<IrisLootTable> list, IrisLootReference r, boolean fallback);
-
-    KList<IrisLootTable> getLootTables(RNG rng, Block b);
-
-    void addItems(boolean debug, Inventory inv, RNG rng, KList<IrisLootTable> tables, InventorySlotType slot, World world, int x, int y, int z, int mgf);
 }

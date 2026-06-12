@@ -25,6 +25,7 @@ import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedWorldManager;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
@@ -281,7 +282,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
                 warmupMantleChunkAsync(chunkX, chunkZ);
                 return;
             }
-            getEngine().updateChunk(chunk);
+            EngineBukkitOps.updateChunk(getEngine(), chunk);
         }
 
         if (!isEntitySpawningEnabledForCurrentWorld()) {
@@ -585,7 +586,7 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
         Predicate<IrisSpawner> filter = i -> i.canSpawn(getEngine(), c.getX(), c.getZ());
         ChunkCounter counter = new ChunkCounter(c.getEntities());
 
-        IrisBiome biome = getEngine().getSurfaceBiome(c);
+        IrisBiome biome = EngineBukkitOps.getSurfaceBiome(getEngine(), c);
         IrisEntitySpawn v = spawnRandomly(Stream.concat(getData().getSpawnerLoader()
                                 .loadAll(getDimension().getEntitySpawners())
                                 .shuffleCopy(RNG.r)
@@ -978,11 +979,11 @@ public class IrisWorldManager extends EngineAssignedWorldManager {
             });
 
             KList<ItemStack> d = new KList<>();
-            IrisBiome b = getEngine().getBiome(e.getBlock().getLocation().clone().subtract(0, getEngine().getWorld().minHeight(), 0));
+            IrisBiome b = EngineBukkitOps.getBiome(getEngine(), e.getBlock().getLocation().clone().subtract(0, getEngine().getWorld().minHeight(), 0));
             List<IrisBlockDrops> dropProviders = filterDrops(b.getBlockDrops(), e, getData());
 
             if (dropProviders.stream().noneMatch(IrisBlockDrops::isSkipParents)) {
-                IrisRegion r = getEngine().getRegion(e.getBlock().getLocation());
+                IrisRegion r = EngineBukkitOps.getRegion(getEngine(), e.getBlock().getLocation());
                 dropProviders.addAll(filterDrops(r.getBlockDrops(), e, getData()));
                 dropProviders.addAll(filterDrops(getEngine().getDimension().getBlockDrops(), e, getData()));
             }

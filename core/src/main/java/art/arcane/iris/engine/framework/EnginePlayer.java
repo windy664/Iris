@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.framework;
 
 import art.arcane.iris.core.IrisSettings;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisEffect;
 import art.arcane.iris.engine.object.IrisRegion;
@@ -87,8 +88,8 @@ public class EnginePlayer {
             if (ticksSinceLastSample() > 55 && current.distanceSquared(lastLocation) > 9 * 9) {
                 lastLocation = current;
                 lastSample = M.ms();
-                biome = engine.getBiome(current);
-                region = engine.getRegion(current);
+                biome = EngineBukkitOps.getBiome(engine, current);
+                region = EngineBukkitOps.getRegion(engine, current);
             }
             return false;
         } catch (Throwable e) {

@@ -24,6 +24,7 @@ import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.core.service.ExternalDataSVC;
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.platform.bukkit.BukkitWorld;
@@ -247,34 +248,7 @@ public class IrisEntity extends IrisRegistrant {
             Lootable l = (Lootable) e;
 
             if (getLoot().getTables().isNotEmpty()) {
-                Location finalAt = at;
-                l.setLootTable(new LootTable() {
-                    @Override
-                    public NamespacedKey getKey() {
-                        return new NamespacedKey("iris", "loot-" + IrisEntity.this.hashCode());
-                    }
-
-                    @Override
-                    public Collection<ItemStack> populateLoot(Random random, LootContext context) {
-                        KList<ItemStack> items = new KList<>();
-
-                        for (String fi : getLoot().getTables()) {
-                            IrisLootTable i = gen.getData().getLootLoader().load(fi);
-                            items.addAll(i.getLoot(gen.isStudio(), rng.nextParallelRNG(345911), InventorySlotType.STORAGE, finalAt.getWorld(), finalAt.getBlockX(), finalAt.getBlockY(), finalAt.getBlockZ()));
-                        }
-
-                        return items;
-                    }
-
-                    @Override
-                    public void fillInventory(Inventory inventory, Random random, LootContext context) {
-                        for (ItemStack i : populateLoot(random, context)) {
-                            inventory.addItem(i);
-                        }
-
-                        gen.scramble(inventory, rng);
-                    }
-                });
+                BukkitOps.bindLoot(this, gen, l, at, rng);
             }
         }
 
@@ -326,7 +300,7 @@ public class IrisEntity extends IrisRegistrant {
         if (e instanceof Villager) {
             Villager villager = (Villager) e;
             villager.setRemoveWhenFarAway(false);
-            J.runEntity(villager, () -> villager.setPersistent(true), 1);
+            BukkitOps.persistVillager(villager);
         }
 
         if (e instanceof Mob) {
@@ -456,6 +430,42 @@ public class IrisEntity extends IrisRegistrant {
 
     public boolean isSpecialType() {
         return specialType != null && !specialType.equals("");
+    }
+
+    private static final class BukkitOps {
+        private static void persistVillager(Villager villager) {
+            J.runEntity(villager, () -> villager.setPersistent(true), 1);
+        }
+
+        private static void bindLoot(IrisEntity entity, Engine gen, Lootable l, Location finalAt, RNG rng) {
+            l.setLootTable(new LootTable() {
+                @Override
+                public NamespacedKey getKey() {
+                    return new NamespacedKey("iris", "loot-" + entity.hashCode());
+                }
+
+                @Override
+                public Collection<ItemStack> populateLoot(Random random, LootContext context) {
+                    KList<ItemStack> items = new KList<>();
+
+                    for (String fi : entity.getLoot().getTables()) {
+                        IrisLootTable i = gen.getData().getLootLoader().load(fi);
+                        items.addAll(i.getLoot(gen.isStudio(), rng.nextParallelRNG(345911), InventorySlotType.STORAGE, finalAt.getWorld(), finalAt.getBlockX(), finalAt.getBlockY(), finalAt.getBlockZ()));
+                    }
+
+                    return items;
+                }
+
+                @Override
+                public void fillInventory(Inventory inventory, Random random, LootContext context) {
+                    for (ItemStack i : populateLoot(random, context)) {
+                        inventory.addItem(i);
+                    }
+
+                    EngineBukkitOps.scramble(gen, inventory, rng);
+                }
+            });
+        }
     }
 
     @Override

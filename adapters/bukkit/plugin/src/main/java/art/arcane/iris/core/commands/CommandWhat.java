@@ -26,6 +26,7 @@ import art.arcane.iris.core.edit.BlockSignal;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.util.common.director.DirectorExecutor;
@@ -96,7 +97,7 @@ public class CommandWhat implements DirectorExecutor {
     public void region() {
         try {
             Chunk chunk = world().getChunkAt(player().getLocation().getBlockZ() / 16, player().getLocation().getBlockZ() /  16);
-            IrisRegion r = engine().getRegion(chunk);
+            IrisRegion r = EngineBukkitOps.getRegion(engine(), chunk);
             sender().sendMessage("IRegion: " + r.getLoadKey() + " (" + r.getName() + ")");
 
         } catch (Throwable e) {

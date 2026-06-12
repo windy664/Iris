@@ -20,6 +20,7 @@ package art.arcane.iris.util.common.director.context;
 
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.object.IrisRegion;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.util.common.director.DirectorContextHandler;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 
@@ -32,7 +33,7 @@ public class RegionContextHandler implements DirectorContextHandler<IrisRegion> 
         if (sender.isPlayer()
                 && IrisToolbelt.isIrisWorld(sender.player().getWorld())
                 && IrisToolbelt.access(sender.player().getWorld()).getEngine() != null) {
-            return IrisToolbelt.access(sender.player().getWorld()).getEngine().getRegion(sender.player().getLocation());
+            return EngineBukkitOps.getRegion(IrisToolbelt.access(sender.player().getWorld()).getEngine(), sender.player().getLocation());
         }
 
         return null;

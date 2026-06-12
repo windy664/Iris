@@ -21,6 +21,7 @@ package art.arcane.iris.core.runtime;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.spi.PlatformBiome;
@@ -175,7 +176,7 @@ public final class InPlaceChunkRegenerator {
             }
         }
 
-        engine.updateChunk(chunk);
+        EngineBukkitOps.updateChunk(engine, chunk);
         world.refreshChunk(chunkX, chunkZ);
     }
 

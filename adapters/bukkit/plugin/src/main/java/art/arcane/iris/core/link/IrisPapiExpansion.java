@@ -21,6 +21,7 @@ package art.arcane.iris.core.link;
 import art.arcane.iris.Iris;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Location;
@@ -73,15 +74,15 @@ public class IrisPapiExpansion extends PlaceholderExpansion {
             }
         } else if (p.equalsIgnoreCase("region_name")) {
             if (a != null) {
-                return a.getEngine().getRegion(l).getName();
+                return EngineBukkitOps.getRegion(a.getEngine(), l).getName();
             }
         } else if (p.equalsIgnoreCase("region_id")) {
             if (a != null) {
-                return a.getEngine().getRegion(l).getLoadKey();
+                return EngineBukkitOps.getRegion(a.getEngine(), l).getLoadKey();
             }
         } else if (p.equalsIgnoreCase("region_file")) {
             if (a != null) {
-                return a.getEngine().getRegion(l).getLoadFile().getPath();
+                return EngineBukkitOps.getRegion(a.getEngine(), l).getLoadFile().getPath();
             }
         } else if (p.equalsIgnoreCase("terrain_slope")) {
             if (a != null) {

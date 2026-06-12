@@ -47,7 +47,9 @@ import java.util.Map;
 @Desc("Configures rotation for iris")
 @Data
 public class IrisObjectRotation {
-    private static final List<BlockFace> WALL_FACES = List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST);
+    private static final class Faces {
+        private static final List<BlockFace> WALL_FACES = List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST);
+    }
 
     @Desc("If this rotator is enabled or not")
     private boolean enabled = true;
@@ -332,17 +334,17 @@ public class IrisObjectRotation {
             } else if (d instanceof Wall wall) {
                 KMap<BlockFace, Wall.Height> faces = new KMap<>();
 
-                for (BlockFace i : WALL_FACES) {
+                for (BlockFace i : Faces.WALL_FACES) {
                     Wall.Height h = wall.getHeight(i);
                     IrisBlockVector bv = new IrisBlockVector(i.getModX(), i.getModY(), i.getModZ());
                     bv = rotate(bv.clone(), spinx, spiny, spinz);
                     BlockFace r = getFace(bv);
-                    if (WALL_FACES.contains(r)) {
+                    if (Faces.WALL_FACES.contains(r)) {
                         faces.put(r, h);
                     }
                 }
 
-                for (BlockFace i : WALL_FACES) {
+                for (BlockFace i : Faces.WALL_FACES) {
                     wall.setHeight(i, faces.getOrDefault(i, Wall.Height.NONE));
                 }
             } else if (d instanceof RedstoneWire wire) {

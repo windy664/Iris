@@ -23,6 +23,7 @@ import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.service.ObjectStudioSaveService;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.IrisStructureLocator;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.framework.StructureReachability;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
@@ -57,7 +58,7 @@ public class CommandFind implements DirectorExecutor {
             return;
         }
 
-        e.gotoBiome(biome, player(), teleport);
+        EngineBukkitOps.gotoBiome(e, biome, player(), teleport);
     }
 
     @Director(description = "Find a region")
@@ -74,7 +75,7 @@ public class CommandFind implements DirectorExecutor {
             return;
         }
 
-        e.gotoRegion(region, player(), teleport);
+        EngineBukkitOps.gotoRegion(e, region, player(), teleport);
     }
 
     @Director(description = "Find a point of interest.")
@@ -90,7 +91,7 @@ public class CommandFind implements DirectorExecutor {
             return;
         }
 
-        e.gotoPOI(type, player(), teleport);
+        EngineBukkitOps.gotoPOI(e, type, player(), teleport);
     }
 
     @Director(description = "Find a structure (a vanilla key like minecraft:village_plains or minecraft:stronghold, or an imported iris structure key)")
@@ -106,7 +107,7 @@ public class CommandFind implements DirectorExecutor {
         }
 
         if (IrisStructureLocator.isPlaced(e, structure)) {
-            e.gotoStructure(structure, player(), true);
+            EngineBukkitOps.gotoStructure(e, structure, player(), true);
             return;
         }
 
@@ -180,7 +181,7 @@ public class CommandFind implements DirectorExecutor {
         }
 
         if (e.hasObjectPlacement(object)) {
-            e.gotoObject(object, player(), teleport);
+            EngineBukkitOps.gotoObject(e, object, player(), teleport);
             return;
         }
 

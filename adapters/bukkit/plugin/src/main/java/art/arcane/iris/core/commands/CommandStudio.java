@@ -32,6 +32,7 @@ import art.arcane.iris.core.structure.StructureImporter;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
+import art.arcane.iris.engine.platform.EngineBukkitOps;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -246,11 +247,11 @@ public class CommandStudio implements DirectorExecutor {
     ) {
         if (noStudio()) return;
 
-        KList<IrisLootTable> tables = engine().getLootTables(RNG.r, player().getLocation().getBlock());
+        KList<IrisLootTable> tables = EngineBukkitOps.getLootTables(engine(), RNG.r, player().getLocation().getBlock());
         Inventory inv = Bukkit.createInventory(null, 27 * 2);
 
         try {
-            engine().addItems(true, inv, RNG.r, tables, InventorySlotType.STORAGE, player().getWorld(), player().getLocation().getBlockX(), player().getLocation().getBlockY(), player().getLocation().getBlockZ(), 1);
+            EngineBukkitOps.addItems(engine(), true, inv, RNG.r, tables, InventorySlotType.STORAGE, player().getWorld(), player().getLocation().getBlockX(), player().getLocation().getBlockY(), player().getLocation().getBlockZ(), 1);
         } catch (Throwable e) {
             Iris.reportError(e);
             sender().sendMessage(C.RED + "Cannot add items to virtual inventory because of: " + e.getMessage());
@@ -277,7 +278,7 @@ public class CommandStudio implements DirectorExecutor {
                 inv.clear();
             }
 
-            engine.addItems(true, inv, new RNG(RNG.r.imax()), tables, InventorySlotType.STORAGE, player.getWorld(), player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ(), 1);
+            EngineBukkitOps.addItems(engine, true, inv, new RNG(RNG.r.imax()), tables, InventorySlotType.STORAGE, player.getWorld(), player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ(), 1);
         }, fast ? 5 : 35));
 
         sender().sendMessage(C.GREEN + "Opening inventory now!");
