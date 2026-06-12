@@ -42,6 +42,11 @@ plugins {
 
 group = 'art.arcane'
 version = providers.gradleProperty('irisVersion').getOrElse('4.0.0-26.1')
+
+project(':core') {
+    group = 'art.arcane'
+    version = rootProject.version
+}
 String minecraftVersion = providers.gradleProperty('minecraftVersion').getOrElse('26.1.2')
 String volmLibCoordinate = providers.gradleProperty('volmLibCoordinate')
     .orElse('com.github.VolmitSoftware:VolmLib:master-SNAPSHOT')
@@ -128,11 +133,17 @@ tasks.register('buildBukkit', Copy) {
     into(layout.projectDirectory.dir('dist'))
 }
 
+tasks.register('fabricJar', Exec) {
+    group = 'iris'
+    workingDir = layout.projectDirectory.dir('adapters/fabric').asFile
+    String wrapperScript = System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew'
+    commandLine(layout.projectDirectory.file(wrapperScript).asFile.absolutePath, 'shadowJar', '--console=plain')
+}
+
 tasks.register('buildFabric', Copy) {
     group = 'iris'
-    dependsOn(':adapters:fabric:jar')
-    from(project(':adapters:fabric').layout.buildDirectory.file("libs/Iris-${project.version}-fabric-skeleton.jar"))
-    rename { "Iris-${project.version}+mc${minecraftVersion}-fabric-skeleton.jar" }
+    dependsOn('fabricJar')
+    from(layout.projectDirectory.file("adapters/fabric/build/libs/Iris-${project.version}+mc${minecraftVersion}-fabric.jar"))
     into(layout.projectDirectory.dir('dist'))
 }
 

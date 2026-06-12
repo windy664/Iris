@@ -1,9 +1,39 @@
+/*
+ * Iris is a World Generator for Minecraft Servers
+ * Copyright (c) 2026 Arcane Arts (Volmit Software)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 plugins {
     id 'java'
+    id 'net.fabricmc.fabric-loom' version '1.17.11'
+    alias(libs.plugins.shadow)
 }
 
+Properties rootProperties = new Properties()
+file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
+String irisVersion = providers.gradleProperty('irisVersion').getOrElse(rootProperties.getProperty('irisVersion', '4.0.0-26.1'))
+String minecraftVersion = providers.gradleProperty('minecraftVersion').getOrElse(rootProperties.getProperty('minecraftVersion', '26.1.2'))
+String fabricLoaderVersion = providers.gradleProperty('fabricLoaderVersion').getOrElse('0.19.3')
+
 group = 'art.arcane'
-version = rootProject.version
+version = irisVersion
 
 java {
     toolchain {
@@ -11,17 +41,85 @@ java {
     }
 }
 
+repositories {
+    mavenCentral()
+    maven {
+        name = 'FabricMC'
+        url = uri('https://maven.fabricmc.net/')
+    }
+    maven { url = uri('https://repo.codemc.org/repository/maven-public/') }
+    maven { url = uri('https://jitpack.io') }
+}
+
+configurations {
+    bundle {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+configurations.named('bundle').configure {
+    exclude(group: 'com.google.code.gson')
+    exclude(group: 'com.google.guava')
+    exclude(group: 'commons-io')
+    exclude(group: 'org.apache.commons', module: 'commons-lang3')
+    exclude(group: 'it.unimi.dsi', module: 'fastutil')
+    exclude(group: 'org.slf4j')
+    exclude(group: 'org.apache.logging.log4j')
+    exclude(group: 'de.crazydev22.slimjar.helper')
+    exclude(group: 'de.crazydev22.slimjar')
+    exclude(group: 'io.github.slimjar')
+}
+
 dependencies {
-    implementation(project(':spi'))
+    minecraft("com.mojang:minecraft:${minecraftVersion}")
+    implementation("net.fabricmc:fabric-loader:${fabricLoaderVersion}")
+    compileOnly('org.slf4j:slf4j-api:2.0.17')
+
+    bundle("art.arcane:core:${irisVersion}")
+    bundle("art.arcane:spi:${irisVersion}")
+    bundle('com.github.VolmitSoftware:VolmLib:master-SNAPSHOT')
+
+    bundle(libs.paralithic)
+    bundle(libs.lru)
+    bundle(libs.kotlin.stdlib)
+    bundle(libs.kotlin.coroutines)
+    bundle(libs.commons.lang)
+    bundle(libs.commons.math3)
+    bundle(libs.caffeine)
+    bundle(libs.lz4)
+    bundle(libs.zip)
+    bundle(libs.sentry)
+    bundle(libs.oshi)
+    bundle(libs.byteBuddy.core)
+    bundle(libs.byteBuddy.agent)
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    options.encoding = 'UTF-8'
+    options.release.set(25)
 }
 
 processResources {
     inputs.property('version', project.version)
+    inputs.property('minecraftVersion', minecraftVersion)
     filesMatching('fabric.mod.json') {
-        expand('version': project.version)
+        expand('version': project.version, 'minecraftVersion': minecraftVersion)
     }
 }
 
-tasks.named('jar', Jar).configure {
-    archiveFileName.set("Iris-${project.version}-fabric-skeleton.jar")
+tasks.named('shadowJar', ShadowJar).configure {
+    archiveFileName.set("Iris-${project.version}+mc${minecraftVersion}-fabric.jar")
+    configurations = [project.configurations.named('bundle').get()]
+    mergeServiceFiles()
+    exclude('META-INF/maven/**')
+    exclude('META-INF/proguard/**')
+    exclude('META-INF/*.SF')
+    exclude('META-INF/*.DSA')
+    exclude('META-INF/*.RSA')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('assemble').configure {
+    dependsOn(tasks.named('shadowJar'))
 }

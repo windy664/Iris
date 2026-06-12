@@ -3,11 +3,19 @@
   "id": "irisworldgen",
   "version": "${version}",
   "name": "Iris",
-  "description": "Iris World Generation Engine (Fabric adapter - SKELETON, worldgen not yet wired)",
+  "description": "Iris World Generation Engine (Fabric adapter - packaging + core bundle; worldgen wiring lands next milestone)",
   "authors": ["Arcane Arts (Volmit Software)"],
+  "contact": {
+    "sources": "https://github.com/VolmitSoftware/Iris"
+  },
   "license": "GPL-3.0",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "main": ["art.arcane.iris.fabric.IrisFabricBootstrap"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "~${minecraftVersion}",
+    "java": ">=25"
   }
 }

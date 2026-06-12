@@ -18,8 +18,46 @@
 
 package art.arcane.iris.fabric;
 
-public final class IrisFabricBootstrap {
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public final class IrisFabricBootstrap implements ModInitializer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
+    private static final String[] CORE_SELF_TEST_CLASSES = {
+        "art.arcane.iris.engine.IrisEngine",
+        "art.arcane.iris.util.common.data.B",
+        "art.arcane.iris.core.loader.IrisData"
+    };
+
+    @Override
     public void onInitialize() {
-        throw new UnsupportedOperationException("The Iris Fabric adapter is a build skeleton; worldgen is not wired yet (see CROSSPLATFORM_PLAN.md Phase 4).");
+        FabricLoader loader = FabricLoader.getInstance();
+        String modVersion = loader.getModContainer("irisworldgen")
+            .map((ModContainer container) -> container.getMetadata().getVersion().getFriendlyString())
+            .orElse("unknown");
+        String minecraftVersion = loader.getModContainer("minecraft")
+            .map((ModContainer container) -> container.getMetadata().getVersion().getFriendlyString())
+            .orElse("unknown");
+        LOGGER.info("Iris {} bootstrapping on Minecraft {} (Fabric)", modVersion, minecraftVersion);
+
+        int loadedClasses = 0;
+        for (String className : CORE_SELF_TEST_CLASSES) {
+            try {
+                Class.forName(className, true, IrisFabricBootstrap.class.getClassLoader());
+                loadedClasses++;
+            } catch (Throwable error) {
+                LOGGER.error("Iris core self-test failed to initialize {}", className, error);
+            }
+        }
+
+        if (loadedClasses != CORE_SELF_TEST_CLASSES.length) {
+            throw new IllegalStateException("Iris core self-test failed: only " + loadedClasses + " of " + CORE_SELF_TEST_CLASSES.length + " engine classes initialized");
+        }
+
+        LOGGER.info("Iris core loaded ({} classes ok)", loadedClasses);
+        LOGGER.info("Iris worldgen is not wired on Fabric yet; this build verifies packaging and engine classloading");
     }
 }
