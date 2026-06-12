@@ -9,8 +9,17 @@ application {
     mainClass = 'art.arcane.iris.probe.ClassloadProbe'
 }
 
+String volmLibCoordinate = providers.gradleProperty('volmLibCoordinate')
+    .orElse('com.github.VolmitSoftware:VolmLib:master-SNAPSHOT')
+    .get()
+
 dependencies {
     implementation(project(':core'))
+    compileOnly(libs.spigot)
+    compileOnly(volmLibCoordinate) {
+        changing = true
+        transitive = false
+    }
     runtimeOnly(libs.paralithic)
     runtimeOnly(libs.gson)
     runtimeOnly(libs.lru)
@@ -33,5 +42,20 @@ dependencies {
 tasks.named('run', JavaExec).configure {
     args(project(':core').layout.buildDirectory.dir('classes/java/main').get().asFile.absolutePath)
     jvmArgs('--add-modules', 'jdk.incubator.vector')
+    dependsOn(':core:compileJava')
+}
+
+String probePack = providers.gradleProperty('probePack')
+    .orElse('/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/plugin-consumers/instances/purpur-26.1.2/plugins/Iris/packs/overworld')
+    .get()
+String probeRadius = providers.gradleProperty('probeRadius').orElse('2').get()
+
+tasks.register('genProbe', JavaExec) {
+    group = 'verification'
+    description = 'Constructs a real Iris engine over a real pack and generates chunks into buffers on a Bukkit-free JVM.'
+    mainClass = 'art.arcane.iris.probe.GenerationProbe'
+    classpath = sourceSets.main.runtimeClasspath
+    jvmArgs('--add-modules', 'jdk.incubator.vector')
+    args(probePack, probeRadius)
     dependsOn(':core:compileJava')
 }

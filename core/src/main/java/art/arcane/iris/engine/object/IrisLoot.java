@@ -59,6 +59,7 @@ import java.util.Optional;
 @Data
 public class IrisLoot {
     private final transient AtomicCache<CNG> chance = new AtomicCache<>();
+    private final transient AtomicCache<DyeColor> dyeColorResolved = new AtomicCache<>();
     @Desc("The target inventory slot types to fill this loot with")
     private InventorySlotType slotTypes = InventorySlotType.STORAGE;
     @MinNumber(1)
@@ -85,9 +86,9 @@ public class IrisLoot {
     private Integer customModel = null;
     @Desc("Set this to true to prevent it from being broken")
     private boolean unbreakable = false;
-    @ArrayType(min = 1, type = ItemFlag.class)
+    @ArrayType(min = 1, type = String.class)
     @Desc("The item flags to add")
-    private KList<ItemFlag> itemFlags = new KList<>();
+    private KList<String> itemFlags = new KList<>();
     @Desc("Apply enchantments to this item")
     @ArrayType(min = 1, type = IrisEnchantment.class)
     private KList<IrisEnchantment> enchantments = new KList<>();
@@ -102,7 +103,7 @@ public class IrisLoot {
     @Desc("This is the item or block type. Does not accept minecraft:*, only materials such as DIAMOND_SWORD or DIRT. The exception are modded materials, as they require a namespace.")
     private String type = "";
     @Desc("The dye color")
-    private DyeColor dyeColor = null;
+    private String dyeColor = null;
     @Desc("The leather armor color")
     private String leatherColor = null;
     @Desc("Defines a custom NBT Tag for the item.")
@@ -110,6 +111,33 @@ public class IrisLoot {
 
     public Material getType() {
         return BukkitBlockResolution.getMaterial(type);
+    }
+
+    public DyeColor getDyeColor() {
+        if (dyeColor == null) {
+            return null;
+        }
+        return dyeColorResolved.aquire(() -> {
+            try {
+                return DyeColor.valueOf(dyeColor);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        });
+    }
+
+    private KList<ItemFlag> getResolvedItemFlags() {
+        KList<ItemFlag> resolved = new KList<>();
+        for (String flag : itemFlags) {
+            if (flag == null) {
+                continue;
+            }
+            try {
+                resolved.add(ItemFlag.valueOf(flag));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return resolved;
     }
 
     public ItemStack get(boolean debug, RNG rng) {
@@ -175,7 +203,7 @@ public class IrisLoot {
         }
 
         m.setUnbreakable(isUnbreakable());
-        for (ItemFlag i : getItemFlags()) {
+        for (ItemFlag i : getResolvedItemFlags()) {
             m.addItemFlags(i);
         }
 

@@ -23,29 +23,28 @@ import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.studio.generators.BiomeBuffetGenerator;
 import art.arcane.iris.engine.platform.studio.generators.ObjectStudioGenerator;
 
-import java.util.function.Consumer;
-
 @Desc("Represents a studio mode")
 public enum StudioMode {
-    NORMAL(i -> i.setStudioGenerator(null)),
-    BIOME_BUFFET_1x1(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 1))),
-    BIOME_BUFFET_3x3(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 3))),
-    BIOME_BUFFET_5x5(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 5))),
-    BIOME_BUFFET_9x9(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 9))),
-    BIOME_BUFFET_18x18(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 18))),
-    BIOME_BUFFET_36x36(i -> i.setStudioGenerator(new BiomeBuffetGenerator(i.getEngine(), 36))),
-    REGION_BUFFET(i -> i.setStudioGenerator(null)),
-    OBJECT_BUFFET(i -> i.setStudioGenerator(new ObjectStudioGenerator(i.getEngine()))),
-
-    ;
-
-    private final Consumer<BukkitChunkGenerator> injector;
-
-    StudioMode(Consumer<BukkitChunkGenerator> injector) {
-        this.injector = injector;
-    }
+    NORMAL,
+    BIOME_BUFFET_1x1,
+    BIOME_BUFFET_3x3,
+    BIOME_BUFFET_5x5,
+    BIOME_BUFFET_9x9,
+    BIOME_BUFFET_18x18,
+    BIOME_BUFFET_36x36,
+    REGION_BUFFET,
+    OBJECT_BUFFET;
 
     public void inject(BukkitChunkGenerator c) {
-        injector.accept(c);
+        switch (this) {
+            case NORMAL, REGION_BUFFET -> c.setStudioGenerator(null);
+            case BIOME_BUFFET_1x1 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 1));
+            case BIOME_BUFFET_3x3 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 3));
+            case BIOME_BUFFET_5x5 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 5));
+            case BIOME_BUFFET_9x9 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 9));
+            case BIOME_BUFFET_18x18 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 18));
+            case BIOME_BUFFET_36x36 -> c.setStudioGenerator(new BiomeBuffetGenerator(c.getEngine(), 36));
+            case OBJECT_BUFFET -> c.setStudioGenerator(new ObjectStudioGenerator(c.getEngine()));
+        }
     }
 }

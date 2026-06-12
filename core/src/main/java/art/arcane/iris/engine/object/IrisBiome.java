@@ -32,18 +32,19 @@ import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.common.data.DataProvider;
+import art.arcane.iris.util.common.data.registry.RegistryUtil;
 import art.arcane.volmlib.util.data.VanillaBiomeMap;
 import art.arcane.volmlib.util.inventorygui.RandomColor;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.common.plugin.VolmitSender;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import art.arcane.iris.spi.PlatformBlockState;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Biome;
 
 import java.awt.*;
@@ -51,7 +52,6 @@ import java.util.EnumMap;
 
 @Accessors(chain = true)
 @NoArgsConstructor
-@AllArgsConstructor
 @Desc("Represents a biome in iris. Biomes are placed inside of regions and hold objects.\nA biome consists of layers (block palletes), decorations, objects & generators.")
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -81,6 +81,10 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     private final transient AtomicCache<KList<IrisOreGenerator>> surfaceOreCache = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> undergroundOreCache = new AtomicCache<>();
     private final transient AtomicCache<EnumMap<IrisDecorationPart, IrisDecorator[]>> decoratorBuckets = new AtomicCache<>();
+    private final transient AtomicCache<Biome> derivativeResolved = new AtomicCache<>();
+    private final transient AtomicCache<Biome> vanillaDerivativeResolved = new AtomicCache<>();
+    private final transient AtomicCache<KList<Biome>> biomeScatterResolved = new AtomicCache<>();
+    private final transient AtomicCache<KList<Biome>> biomeSkyScatterResolved = new AtomicCache<>();
     private static final IrisDecorator[] EMPTY_BUCKET = new IrisDecorator[0];
     @MinNumber(2)
     @Required
@@ -120,16 +124,16 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     private String color = null;
     @Required
     @Desc("The raw derivative of this biome. This is required or the terrain will not properly generate. Use any vanilla biome type. Look in examples/biome-list.txt")
-    private Biome derivative = Biome.THE_VOID;
+    private String derivative = "minecraft:the_void";
     @Required
     @Desc("Override the derivative when vanilla places structures to this derivative. This is useful for example if you have an ocean biome, but you have set the derivative to desert to get a brown-ish color. To prevent desert structures from spawning on top of your ocean, you can set your vanillaDerivative to ocean, to allow for vanilla structures. Not defining this value will simply select the derivative.")
-    private Biome vanillaDerivative = null;
-    @ArrayType(min = 1, type = Biome.class)
+    private String vanillaDerivative = null;
+    @ArrayType(min = 1, type = String.class)
     @Desc("You can instead specify multiple biome derivatives to randomly scatter colors in this biome")
-    private KList<Biome> biomeScatter = new KList<>();
-    @ArrayType(min = 1, type = Biome.class)
+    private KList<String> biomeScatter = new KList<>();
+    @ArrayType(min = 1, type = String.class)
     @Desc("Since 1.13 supports 3D biomes, you can add different derivative colors for anything above the terrain. (Think swampy tree leaves with a desert looking grass surface)")
-    private KList<Biome> biomeSkyScatter = new KList<>();
+    private KList<String> biomeSkyScatter = new KList<>();
     @DependsOn({"children"})
     @Desc("If this biome has children biomes, and the gen layer chooses one of this biomes children, how much smaller will it be (inside of this biome). Higher values means a smaller biome relative to this biome's size. Set higher than 1.0 and below 3.0 for best results.")
     private double childShrinkFactor = 1.5;
@@ -259,8 +263,39 @@ public class IrisBiome extends IrisRegistrant implements IRare {
         });
     }
 
+    public Biome getDerivative() {
+        return derivativeResolved.aquire(() -> resolveBiomeKey(derivative));
+    }
+
     public Biome getVanillaDerivative() {
-        return vanillaDerivative == null ? derivative : vanillaDerivative;
+        Biome resolved = vanillaDerivative == null
+                ? null
+                : vanillaDerivativeResolved.aquire(() -> resolveBiomeKey(vanillaDerivative));
+        return resolved == null ? getDerivative() : resolved;
+    }
+
+    private KList<Biome> getBiomeScatterResolved() {
+        return biomeScatterResolved.aquire(() -> resolveBiomeKeys(biomeScatter));
+    }
+
+    private KList<Biome> getBiomeSkyScatterResolved() {
+        return biomeSkyScatterResolved.aquire(() -> resolveBiomeKeys(biomeSkyScatter));
+    }
+
+    private static KList<Biome> resolveBiomeKeys(KList<String> keys) {
+        KList<Biome> resolved = new KList<>();
+        for (String key : keys) {
+            resolved.add(resolveBiomeKey(key));
+        }
+        return resolved;
+    }
+
+    private static Biome resolveBiomeKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        NamespacedKey namespacedKey = NamespacedKey.fromString(key);
+        return namespacedKey == null ? null : RegistryUtil.lookup(Biome.class).get(namespacedKey);
     }
 
     public boolean isCustom() {
@@ -676,14 +711,14 @@ public class IrisBiome extends IrisRegistrant implements IRare {
 
     public Biome getSkyBiome(RNG rng, double x, double y, double z) {
         if (biomeSkyScatter.size() == 1) {
-            return biomeSkyScatter.get(0);
+            return getBiomeSkyScatterResolved().get(0);
         }
 
         if (biomeSkyScatter.isEmpty()) {
             return getGroundBiome(rng, x, y, z);
         }
 
-        return biomeSkyScatter.get(getBiomeGenerator(rng).fit(0, biomeSkyScatter.size() - 1, x, y, z));
+        return getBiomeSkyScatterResolved().get(getBiomeGenerator(rng).fit(0, biomeSkyScatter.size() - 1, x, y, z));
     }
 
     public IrisBiomeCustom getCustomBiome(RNG rng, double x, double y, double z) {
@@ -729,10 +764,10 @@ public class IrisBiome extends IrisRegistrant implements IRare {
         }
 
         if (biomeScatter.size() == 1) {
-            return biomeScatter.get(0);
+            return getBiomeScatterResolved().get(0);
         }
 
-        return getBiomeGenerator(rng).fit(biomeScatter, x, y, z);
+        return getBiomeGenerator(rng).fit(getBiomeScatterResolved(), x, y, z);
     }
 
     public PlatformBlockState getSurfaceBlock(int x, int z, RNG rng, IrisData idm) {

@@ -13,6 +13,16 @@ import java.lang.reflect.Method;
 
 public class KeyedType {
     private static final boolean KEYED_LENIENT = Boolean.getBoolean("iris.keyed-lenient");
+    private static final boolean KEYED_PRESENT = detectKeyed();
+
+    private static boolean detectKeyed() {
+        try {
+            Class.forName("org.bukkit.Keyed", false, KeyedType.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
 
     public static String[] values(Class<?> type) {
         if (!isKeyed(type)) return new String[0];
@@ -25,6 +35,7 @@ public class KeyedType {
     }
 
     public static boolean isKeyed(Class<?> type) {
+        if (!KEYED_PRESENT) return false;
         if (KEYED_LENIENT) return !RegistryUtil.lookup(type).isEmpty();
         return Keyed.class.isAssignableFrom(type);
     }

@@ -43,7 +43,6 @@ import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.common.plugin.VolmitSender;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -62,7 +61,6 @@ import java.util.Locale;
 import java.util.Map;
 
 @Accessors(chain = true)
-@AllArgsConstructor
 @NoArgsConstructor
 @Desc("Represents a dimension")
 @Data
@@ -157,7 +155,7 @@ public class IrisDimension extends IrisRegistrant {
     @Desc("forceConvertTo320Height")
     private Boolean forceConvertTo320Height = false;
     @Desc("The world environment")
-    private Environment environment = Environment.NORMAL;
+    private IrisEnvironment environment = IrisEnvironment.NORMAL;
     @RegistryListResource(IrisRegion.class)
     @Required
     @ArrayType(min = 1, type = String.class)
@@ -395,7 +393,16 @@ public class IrisDimension extends IrisRegistrant {
     }
 
     public Environment getEnvironment() {
-        return environment;
+        if (environment == null) {
+            return null;
+        }
+
+        return switch (environment) {
+            case NORMAL -> Environment.NORMAL;
+            case NETHER -> Environment.NETHER;
+            case THE_END -> Environment.THE_END;
+            case CUSTOM -> Environment.CUSTOM;
+        };
     }
 
     public boolean hasFocusRegion() {
@@ -505,7 +512,7 @@ public class IrisDimension extends IrisRegistrant {
     }
 
     public Dimension getBaseDimension() {
-        return switch (getEnvironment()) {
+        return switch (environment) {
             case NETHER -> Dimension.NETHER;
             case THE_END -> Dimension.END;
             default -> Dimension.OVERWORLD;

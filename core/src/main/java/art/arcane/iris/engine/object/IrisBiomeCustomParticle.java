@@ -18,11 +18,14 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.util.common.data.registry.RegistryUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 
 @Snippet("custom-biome-particle")
@@ -32,12 +35,20 @@ import org.bukkit.Particle;
 @Desc("A custom biome ambient particle")
 @Data
 public class IrisBiomeCustomParticle {
+    private final transient AtomicCache<Particle> particleResolved = new AtomicCache<>();
     @Required
     @Desc("The biome's particle type")
-    private Particle particle = Particle.FLASH;
+    private String particle = "minecraft:flash";
 
     @MinNumber(1)
     @MaxNumber(10000)
     @Desc("The rarity")
     private int rarity = 35;
+
+    public Particle getParticle() {
+        return particleResolved.aquire(() -> {
+            NamespacedKey namespacedKey = NamespacedKey.fromString(particle);
+            return namespacedKey == null ? null : RegistryUtil.lookup(Particle.class).get(namespacedKey);
+        });
+    }
 }

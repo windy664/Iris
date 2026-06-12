@@ -21,6 +21,7 @@ package art.arcane.iris.util.project.matter.slices;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.engine.object.IrisPosition;
+import art.arcane.iris.util.project.matter.IrisMatterSupport;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.data.Varint;
@@ -52,6 +53,12 @@ public class EntityMatter extends RawMatter<MatterEntityGroup> {
 
     public EntityMatter(int width, int height, int depth) {
         super(width, height, depth, MatterEntityGroup.class);
+        if (IrisMatterSupport.isBukkitPresent()) {
+            registerBukkitIO();
+        }
+    }
+
+    private void registerBukkitIO() {
         registerWriter(World.class, ((w, d, x, y, z) -> {
             for (MatterEntity i : d.getEntities()) {
                 Location realPosition = new Location(w, x + i.getXOff(), y + i.getYOff(), z + i.getZOff());

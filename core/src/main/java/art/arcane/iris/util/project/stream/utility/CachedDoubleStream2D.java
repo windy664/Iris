@@ -1,7 +1,7 @@
 package art.arcane.iris.util.project.stream.utility;
 
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.MeteredCache;
 import art.arcane.iris.util.project.stream.BasicStream;
@@ -19,7 +19,7 @@ public class CachedDoubleStream2D extends BasicStream<Double> implements Procedu
         this.stream = stream;
         this.engine = engine;
         this.cache = new WorldCache2DDouble((x, z) -> stream.getDouble(x, z), size);
-        IrisServices.get(PreservationSVC.class).registerCache(this);
+        IrisServices.get(PreservationRegistry.class).registerCache(this);
     }
 
     @Override

@@ -24,12 +24,14 @@ import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;
+import art.arcane.iris.util.common.data.registry.RegistryUtil;
 import art.arcane.iris.util.common.scheduling.J;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
@@ -47,11 +49,13 @@ import org.bukkit.util.Vector;
 public class IrisEffect {
     private final transient AtomicCache<PotionEffectType> pt = new AtomicCache<>();
     private final transient AtomicCache<ChronoLatch> latch = new AtomicCache<>();
+    private final transient AtomicCache<Particle> particleEffectResolved = new AtomicCache<>();
+    private final transient AtomicCache<Sound> soundResolved = new AtomicCache<>();
     @RegistryListPotionEffect
     @Desc("The potion effect to apply in this area")
     private String potionEffect = "";
     @Desc("The particle effect to apply in the area")
-    private Particle particleEffect = null;
+    private String particleEffect = null;
     @DependsOn({"particleEffect"})
     @MinNumber(-32)
     @MaxNumber(32)
@@ -82,7 +86,7 @@ public class IrisEffect {
     @Desc("Randomize the altZ by -altZ to altZ")
     private boolean randomAltZ = true;
     @Desc("The sound to play")
-    private Sound sound = null;
+    private String sound = null;
     @DependsOn({"sound"})
     @MinNumber(0)
     @MaxNumber(512)
@@ -155,6 +159,25 @@ public class IrisEffect {
         return latch.aquire(() -> new ChronoLatch(interval)).flip();
     }
 
+    public Particle getParticleEffect() {
+        if (particleEffect == null) {
+            return null;
+        }
+        return particleEffectResolved.aquire(() -> resolveKeyed(Particle.class, particleEffect));
+    }
+
+    public Sound getSound() {
+        if (sound == null) {
+            return null;
+        }
+        return soundResolved.aquire(() -> resolveKeyed(Sound.class, sound));
+    }
+
+    private static <T> T resolveKeyed(Class<T> type, String key) {
+        NamespacedKey namespacedKey = NamespacedKey.fromString(key);
+        return namespacedKey == null ? null : RegistryUtil.lookup(type).get(namespacedKey);
+    }
+
     public PotionEffectType getRealType() {
         return pt.aquire(() ->
         {
@@ -195,19 +218,21 @@ public class IrisEffect {
         }
 
         BukkitFx.run(p, () -> {
-            if (sound != null) {
+            Sound soundType = getSound();
+            Particle particleType = getParticleEffect();
+            if (soundType != null) {
                 Location part = p.getLocation().clone().add(RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance));
-                p.playSound(part, getSound(), (float) volume, (float) RNG.r.d(minPitch, maxPitch));
+                p.playSound(part, soundType, (float) volume, (float) RNG.r.d(minPitch, maxPitch));
             }
 
-            if (particleEffect != null) {
+            if (particleType != null) {
                 Location part = p.getLocation().clone().add(p.getLocation().getDirection().clone().multiply(RNG.r.i(particleDistance) + particleAway)).clone().add(p.getLocation().getDirection().clone().rotateAroundY(Math.toRadians(90)).multiply(RNG.r.d(-particleDistanceWidth, particleDistanceWidth)));
 
                 part.setY(Math.round(g.getHeight(part.getBlockX(), part.getBlockZ())) + 1);
                 part.add(RNG.r.d(), 0, RNG.r.d());
                 int offset = p.getWorld().getMinHeight();
                 if (extra != 0) {
-                    p.spawnParticle(particleEffect, part.getX(), part.getY() + offset + RNG.r.i(particleOffset),
+                    p.spawnParticle(particleType, part.getX(), part.getY() + offset + RNG.r.i(particleOffset),
                             part.getZ(),
                             particleCount,
                             randomAltX ? RNG.r.d(-particleAltX, particleAltX) : particleAltX,
@@ -215,7 +240,7 @@ public class IrisEffect {
                             randomAltZ ? RNG.r.d(-particleAltZ, particleAltZ) : particleAltZ,
                             extra);
                 } else {
-                    p.spawnParticle(particleEffect, part.getX(), part.getY() + offset + RNG.r.i(particleOffset), part.getZ(),
+                    p.spawnParticle(particleType, part.getX(), part.getY() + offset + RNG.r.i(particleOffset), part.getZ(),
                             particleCount,
                             randomAltX ? RNG.r.d(-particleAltX, particleAltX) : particleAltX,
                             randomAltY ? RNG.r.d(-particleAltY, particleAltY) : particleAltY,
@@ -256,17 +281,19 @@ public class IrisEffect {
         }
 
         J.runEntity(p, () -> {
-            if (sound != null) {
+            Sound soundType = getSound();
+            Particle particleType = getParticleEffect();
+            if (soundType != null) {
                 Location part = p.getLocation().clone().add(RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance), RNG.r.i(-soundDistance, soundDistance));
-                p.getWorld().playSound(part, getSound(), (float) volume, (float) RNG.r.d(minPitch, maxPitch));
+                p.getWorld().playSound(part, soundType, (float) volume, (float) RNG.r.d(minPitch, maxPitch));
             }
 
-            if (particleEffect != null) {
+            if (particleType != null) {
                 Location part = p.getLocation().clone().add(0, 0.25, 0).add(new Vector(1, 1, 1).multiply(RNG.r.d())).subtract(new Vector(1, 1, 1).multiply(RNG.r.d()));
                 part.add(RNG.r.d(), 0, RNG.r.d());
                 int offset = p.getWorld().getMinHeight();
                 if (extra != 0) {
-                    p.getWorld().spawnParticle(particleEffect, part.getX(), part.getY() + offset + RNG.r.i(particleOffset),
+                    p.getWorld().spawnParticle(particleType, part.getX(), part.getY() + offset + RNG.r.i(particleOffset),
                             part.getZ(),
                             particleCount,
                             randomAltX ? RNG.r.d(-particleAltX, particleAltX) : particleAltX,
@@ -274,7 +301,7 @@ public class IrisEffect {
                             randomAltZ ? RNG.r.d(-particleAltZ, particleAltZ) : particleAltZ,
                             extra);
                 } else {
-                    p.getWorld().spawnParticle(particleEffect, part.getX(), part.getY() + offset + RNG.r.i(particleOffset), part.getZ(),
+                    p.getWorld().spawnParticle(particleType, part.getX(), part.getY() + offset + RNG.r.i(particleOffset), part.getZ(),
                             particleCount,
                             randomAltX ? RNG.r.d(-particleAltX, particleAltX) : particleAltX,
                             randomAltY ? RNG.r.d(-particleAltY, particleAltY) : particleAltY,

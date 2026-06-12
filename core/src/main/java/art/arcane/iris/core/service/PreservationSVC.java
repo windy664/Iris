@@ -21,6 +21,7 @@ package art.arcane.iris.core.service;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.MeteredCache;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.util.project.context.IrisContext;
 import art.arcane.volmlib.util.data.KCache;
 import art.arcane.volmlib.util.format.Form;
@@ -36,7 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class PreservationSVC implements IrisService {
+public class PreservationSVC implements IrisService, PreservationRegistry {
     private final List<Thread> threads = new CopyOnWriteArrayList<>();
     private final List<ExecutorService> services = new CopyOnWriteArrayList<>();
     private final List<WeakReference<MeteredCache>> caches = new CopyOnWriteArrayList<>();

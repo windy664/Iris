@@ -19,7 +19,7 @@
 package art.arcane.iris.util.project.stream.utility;
 
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.MeteredCache;
 import art.arcane.volmlib.util.cache.ChunkCache2D;
@@ -38,7 +38,7 @@ public class CachedStream2D<T> extends BasicStream<T> implements ProceduralStrea
         this.stream = stream;
         this.engine = engine;
         cache = new WorldCache2D<>(stream::get, size, () -> new ChunkCache2D<>("iris"));
-        IrisServices.get(PreservationSVC.class).registerCache(this);
+        IrisServices.get(PreservationRegistry.class).registerCache(this);
     }
 
     @Override

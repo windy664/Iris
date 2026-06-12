@@ -38,7 +38,6 @@ import art.arcane.iris.util.common.plugin.Chunks;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -66,7 +65,6 @@ import static art.arcane.iris.util.common.data.registry.Particles.ITEM;
 @SuppressWarnings("ALL")
 @Accessors(chain = true)
 @NoArgsConstructor
-@AllArgsConstructor
 
 @Desc("Represents an iris entity.")
 @Data

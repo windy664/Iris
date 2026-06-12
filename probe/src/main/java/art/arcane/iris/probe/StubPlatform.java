@@ -29,13 +29,31 @@ import art.arcane.iris.spi.PlatformItem;
 import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
 import art.arcane.iris.spi.PlatformStructureHooks;
+import art.arcane.iris.spi.PlatformWorld;
 
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public final class StubPlatform implements IrisPlatform {
+    private static volatile boolean VERBOSE = false;
+    private static volatile Consumer<Throwable> ERROR_SINK = null;
+
+    public static void verbose(boolean verbose) {
+        VERBOSE = verbose;
+    }
+
+    public static void errorSink(Consumer<Throwable> sink) {
+        ERROR_SINK = sink;
+    }
+
     private final StubRegistries registries = new StubRegistries();
+    private final StubScheduler scheduler = new StubScheduler();
+    private final PlatformCapabilities capabilities = new PlatformCapabilities() {
+    };
+    private final StubStructureHooks structureHooks = new StubStructureHooks();
+    private final StubBiomeWriter biomeWriter = new StubBiomeWriter();
 
     private static final class StubBlockState implements PlatformBlockState {
         private static final ConcurrentHashMap<String, StubBlockState> CACHE = new ConcurrentHashMap<>();
@@ -161,6 +179,119 @@ public final class StubPlatform implements IrisPlatform {
         }
     }
 
+    private static final class StubBiome implements PlatformBiome {
+        private static final ConcurrentHashMap<String, StubBiome> CACHE = new ConcurrentHashMap<>();
+        private final String key;
+
+        private StubBiome(String key) {
+            this.key = key;
+        }
+
+        static StubBiome of(String key) {
+            return CACHE.computeIfAbsent(key, StubBiome::new);
+        }
+
+        @Override
+        public String key() {
+            return key;
+        }
+
+        @Override
+        public String namespace() {
+            int colon = key.indexOf(':');
+            return colon >= 0 ? key.substring(0, colon) : "minecraft";
+        }
+
+        @Override
+        public Object nativeHandle() {
+            return key;
+        }
+    }
+
+    private static final class StubScheduler implements PlatformScheduler {
+        @Override
+        public void global(Runnable task) {
+            task.run();
+        }
+
+        @Override
+        public void region(PlatformWorld world, int chunkX, int chunkZ, Runnable task) {
+            task.run();
+        }
+
+        @Override
+        public void async(Runnable task) {
+            task.run();
+        }
+
+        @Override
+        public void laterGlobal(Runnable task, int ticks) {
+        }
+
+        @Override
+        public void laterRegion(PlatformWorld world, int chunkX, int chunkZ, Runnable task, int ticks) {
+        }
+    }
+
+    private static final class StubStructureHooks implements PlatformStructureHooks {
+        @Override
+        public List<String> structureKeys() {
+            return List.of();
+        }
+
+        @Override
+        public List<String> structureSetKeys() {
+            return List.of();
+        }
+
+        @Override
+        public List<String> structureBiomeKeys(String structureKey) {
+            return List.of();
+        }
+
+        @Override
+        public List<String> objectFeatureKeys() {
+            return List.of();
+        }
+
+        @Override
+        public List<String> reachableStructureKeys(PlatformWorld world) {
+            return List.of();
+        }
+
+        @Override
+        public List<String> possibleBiomeKeys(PlatformWorld world) {
+            return List.of();
+        }
+
+        @Override
+        public boolean placeFeature(PlatformWorld world, int x, int y, int z, String featureKey, long seed) {
+            return false;
+        }
+
+        @Override
+        public int[] placeStructure(PlatformWorld world, int chunkX, int chunkZ, String structureKey, long seed, int maxSpan) {
+            return null;
+        }
+
+        @Override
+        public boolean supportsStructurePlacement() {
+            return false;
+        }
+    }
+
+    private static final class StubBiomeWriter implements PlatformBiomeWriter {
+        @Override
+        public int biomeIdFor(String key) {
+            return 0;
+        }
+
+        @Override
+        public List<PlatformBiome> allBiomes() {
+            return List.of();
+        }
+    }
+
     private static final class StubRegistries implements PlatformRegistries {
         @Override
         public PlatformBlockState block(String key) {
@@ -189,7 +320,7 @@ public final class StubPlatform implements IrisPlatform {
 
         @Override
         public PlatformBiome biome(String key) {
-            return null;
+            return StubBiome.of(key);
         }
 
         @Override
@@ -235,22 +366,22 @@ public final class StubPlatform implements IrisPlatform {
 
     @Override
     public PlatformScheduler scheduler() {
-        return null;
+        return scheduler;
     }
 
     @Override
     public PlatformCapabilities capabilities() {
-        return null;
+        return capabilities;
     }
 
     @Override
     public PlatformStructureHooks structureHooks() {
-        return null;
+        return structureHooks;
     }
 
     @Override
     public PlatformBiomeWriter biomeWriter() {
-        return null;
+        return biomeWriter;
     }
 
     @Override
@@ -288,13 +419,23 @@ public final class StubPlatform implements IrisPlatform {
 
     @Override
     public void log(LogLevel level, String message) {
+        if (VERBOSE) {
+            System.out.println("[stub/" + level + "] " + message);
+        }
     }
 
     @Override
     public void msg(String message) {
+        if (VERBOSE) {
+            System.out.println("[stub/MSG] " + message);
+        }
     }
 
     @Override
     public void reportError(Throwable error) {
+        Consumer<Throwable> sink = ERROR_SINK;
+        if (sink != null && error != null) {
+            sink.accept(error);
+        }
     }
 }

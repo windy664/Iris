@@ -21,7 +21,7 @@ package art.arcane.iris.util.common.scheduling;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
-import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 import art.arcane.volmlib.util.function.NastyFunction;
 import art.arcane.volmlib.util.function.NastyFuture;
@@ -56,6 +56,16 @@ public class J {
     private static final AtomicInteger TASK_IDS = new AtomicInteger(1);
     private static final Map<Integer, Runnable> REPEATING_CANCELLERS = new ConcurrentHashMap<>();
     private static final StartupQueueSupport STARTUP_QUEUE = new StartupQueueSupport();
+    private static final boolean BUKKIT_PRESENT = detectBukkit();
+
+    private static boolean detectBukkit() {
+        try {
+            Class.forName("org.bukkit.Bukkit", false, J.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
 
     static {
         SchedulerBridge.setSyncScheduler(J::s);
@@ -72,7 +82,7 @@ public class J {
         SchedulerBridge.setInfoLogger(IrisLogging::debug);
         SchedulerBridge.setThreadRegistrar(thread -> {
             try {
-                IrisServices.get(PreservationSVC.class).register(thread);
+                IrisServices.get(PreservationRegistry.class).register(thread);
             } catch (Throwable e) {
                 IrisLogging.reportError(e);
             }
@@ -170,7 +180,7 @@ public class J {
     }
 
     public static boolean isFolia() {
-        return FoliaScheduler.isFolia(Bukkit.getServer());
+        return BUKKIT_PRESENT && FoliaScheduler.isFolia(Bukkit.getServer());
     }
 
     public static boolean isPrimaryThread() {
@@ -570,7 +580,7 @@ public class J {
     }
 
     private static boolean isPluginEnabled() {
-        return BukkitPlatform.hasPlugin() && Bukkit.getPluginManager().isPluginEnabled(BukkitPlatform.plugin());
+        return BUKKIT_PRESENT && BukkitPlatform.hasPlugin() && Bukkit.getPluginManager().isPluginEnabled(BukkitPlatform.plugin());
     }
 
     private static long ticksToMilliseconds(int ticks) {

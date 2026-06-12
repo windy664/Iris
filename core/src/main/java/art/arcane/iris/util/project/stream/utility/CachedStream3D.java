@@ -19,7 +19,7 @@
 package art.arcane.iris.util.project.stream.utility;
 
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.MeteredCache;
 import art.arcane.volmlib.util.data.KCache;
@@ -36,7 +36,7 @@ public class CachedStream3D<T> extends BasicStream<T> implements ProceduralStrea
         this.stream = stream;
         this.engine = engine;
         cache = new KCache<>((k) -> stream.get(k.getX(), k.getY(), k.getZ()), size);
-        IrisServices.get(PreservationSVC.class).registerCache(this);
+        IrisServices.get(PreservationRegistry.class).registerCache(this);
     }
 
     @Override

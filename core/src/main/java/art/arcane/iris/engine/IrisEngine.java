@@ -33,7 +33,6 @@ import art.arcane.iris.core.loader.ResourceLoader;
 import art.arcane.iris.core.nms.container.BlockPos;
 import art.arcane.iris.core.nms.container.Pair;
 import art.arcane.iris.core.project.IrisProject;
-import art.arcane.iris.core.service.PreservationSVC;
 import art.arcane.iris.core.structure.StructureIndexService;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.data.cache.AtomicCache;
@@ -601,7 +600,7 @@ public class IrisEngine implements Engine {
         worldManager = null;
         getData().dump();
         getData().clearLists();
-        IrisServices.get(PreservationSVC.class).dereference();
+        IrisServices.get(PreservationRegistry.class).dereference();
         IrisLogging.debug("Engine Fully Shutdown!");
     }
 

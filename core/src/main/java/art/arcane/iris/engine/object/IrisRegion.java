@@ -36,7 +36,6 @@ import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.common.plugin.VolmitSender;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -48,7 +47,6 @@ import java.util.Random;
 
 @Accessors(chain = true)
 @NoArgsConstructor
-@AllArgsConstructor
 @Desc("Represents an iris region")
 @Data
 @EqualsAndHashCode(callSuper = false)

@@ -18,11 +18,14 @@
 
 package art.arcane.iris.engine.object;
 
+import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
+import art.arcane.iris.util.common.data.registry.RegistryUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.EntityType;
 
 @Snippet("custom-biome-spawn")
@@ -32,9 +35,20 @@ import org.bukkit.entity.EntityType;
 @Desc("A custom biome spawn")
 @Data
 public class IrisBiomeCustomSpawn {
+    private final transient AtomicCache<EntityType> typeResolved = new AtomicCache<>();
     @Required
     @Desc("The biome's entity type")
-    private EntityType type = EntityType.COW;
+    private String type = "minecraft:cow";
+
+    public EntityType getType() {
+        if (type == null) {
+            return null;
+        }
+        return typeResolved.aquire(() -> {
+            NamespacedKey namespacedKey = NamespacedKey.fromString(type);
+            return namespacedKey == null ? null : RegistryUtil.lookup(EntityType.class).get(namespacedKey);
+        });
+    }
 
     @MinNumber(1)
     @Desc("The min to spawn")

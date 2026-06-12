@@ -24,7 +24,7 @@ import art.arcane.iris.spi.IrisServices;
 import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.project.SchemaBuilder;
-import art.arcane.iris.core.service.PreservationSVC;
+import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.MeteredCache;
@@ -100,7 +100,7 @@ public class ResourceLoader<T extends IrisRegistrant> implements MeteredCache {
         this.folderName = folderName;
         loadCache = new KCache<>(this::loadRaw, IrisSettings.get().getPerformance().getResourceLoaderCacheSize());
         IrisLogging.debug("Loader<" + C.GREEN + resourceTypeName + C.LIGHT_PURPLE + "> created in " + C.RED + "IDM/" + manager.getId() + C.LIGHT_PURPLE + " on " + C.GRAY + manager.getDataFolder().getPath());
-        IrisServices.get(PreservationSVC.class).registerCache(this);
+        IrisServices.get(PreservationRegistry.class).registerCache(this);
     }
 
     public JSONObject buildSchema() {
