@@ -1,13 +1,10 @@
 package art.arcane.iris.engine;
 
-import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.*;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.volmlib.util.collection.KMap;
-import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.common.data.DataProvider;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.RNG;

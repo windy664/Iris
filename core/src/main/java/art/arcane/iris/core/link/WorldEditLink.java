@@ -3,14 +3,11 @@ package art.arcane.iris.core.link;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.volmlib.util.data.Cuboid;
-import art.arcane.volmlib.util.data.KCache;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.InvocationTargetException;
-import java.time.Duration;
-import java.util.UUID;
 
 public class WorldEditLink {
     private static final AtomicCache<Boolean> active = new AtomicCache<>();

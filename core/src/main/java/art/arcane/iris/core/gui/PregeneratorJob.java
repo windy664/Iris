@@ -19,8 +19,6 @@
 package art.arcane.iris.core.gui;
 
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.pregenerator.IrisPregenerator;
 import art.arcane.iris.core.pregenerator.PregenListener;
@@ -32,7 +30,6 @@ import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.format.MemoryMonitor;
 import art.arcane.volmlib.util.function.Consumer2;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
-import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;

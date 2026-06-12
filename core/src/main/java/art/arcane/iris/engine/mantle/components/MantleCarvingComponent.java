@@ -20,7 +20,6 @@ package art.arcane.iris.engine.mantle.components;
 
 import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.UpperDimensionContext;
-import art.arcane.iris.engine.data.cache.Cache;
 import art.arcane.iris.engine.mantle.ComponentFlag;
 import art.arcane.iris.engine.mantle.EngineMantle;
 import art.arcane.iris.engine.mantle.IrisMantleComponent;

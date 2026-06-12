@@ -5,7 +5,6 @@ import org.bukkit.World;
 import org.bukkit.WorldType;
 
 import java.io.File;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;

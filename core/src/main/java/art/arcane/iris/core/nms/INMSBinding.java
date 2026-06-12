@@ -18,14 +18,12 @@
 
 package art.arcane.iris.core.nms;
 
-import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.lifecycle.WorldLifecycleCaller;
 import art.arcane.iris.core.lifecycle.WorldLifecycleRequest;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.nms.container.BiomeColor;
 import art.arcane.iris.core.nms.container.BlockProperty;
 import art.arcane.iris.core.nms.datapack.DataVersion;
-import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;

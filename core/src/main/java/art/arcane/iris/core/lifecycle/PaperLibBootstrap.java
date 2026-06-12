@@ -1,8 +1,6 @@
 package art.arcane.iris.core.lifecycle;
 
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import io.papermc.lib.PaperLib;
 import io.papermc.lib.environments.PaperEnvironment;
 import org.bukkit.Bukkit;

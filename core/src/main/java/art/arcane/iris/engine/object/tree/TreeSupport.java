@@ -19,7 +19,6 @@
 package art.arcane.iris.engine.object.tree;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 public final class TreeSupport {

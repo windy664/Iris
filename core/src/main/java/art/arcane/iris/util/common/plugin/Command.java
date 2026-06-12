@@ -18,7 +18,6 @@
 
 package art.arcane.iris.util.common.plugin;
 
-import art.arcane.iris.util.common.format.C;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;

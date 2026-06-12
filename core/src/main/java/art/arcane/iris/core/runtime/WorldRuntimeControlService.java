@@ -2,7 +2,6 @@ package art.arcane.iris.core.runtime;
 
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.lifecycle.CapabilitySnapshot;
 import art.arcane.iris.core.lifecycle.ServerFamily;
@@ -11,7 +10,6 @@ import art.arcane.iris.core.service.BoardSVC;
 import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
-import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.common.scheduling.J;
 import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;

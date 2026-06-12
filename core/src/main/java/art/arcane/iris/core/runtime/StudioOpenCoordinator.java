@@ -2,7 +2,6 @@ package art.arcane.iris.core.runtime;
 
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;
 import art.arcane.iris.core.project.IrisProject;
 import art.arcane.iris.core.tools.IrisCreator;

@@ -31,7 +31,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.util.function.Consumer;
 
 @Snippet("worm")
 @Accessors(chain = true)

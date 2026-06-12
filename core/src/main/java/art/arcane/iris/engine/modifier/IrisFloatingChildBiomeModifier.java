@@ -27,7 +27,6 @@ import art.arcane.iris.engine.decorator.IrisSeaSurfaceDecorator;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineAssignedModifier;
 import art.arcane.iris.engine.framework.EngineDecorator;
-import art.arcane.iris.engine.mantle.components.MantleFloatingObjectComponent;
 import art.arcane.iris.engine.object.FloatingBottomPaletteMode;
 import art.arcane.iris.engine.object.FloatingIslandSample;
 import art.arcane.iris.engine.object.IrisBiome;

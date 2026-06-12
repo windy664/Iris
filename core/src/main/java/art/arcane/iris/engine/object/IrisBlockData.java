@@ -18,14 +18,12 @@
 
 package art.arcane.iris.engine.object;
 
-import art.arcane.iris.platform.bukkit.BukkitBlockResolution;
 
 import art.arcane.iris.core.link.Identifier;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
-import art.arcane.iris.platform.bukkit.BukkitBlockState;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;

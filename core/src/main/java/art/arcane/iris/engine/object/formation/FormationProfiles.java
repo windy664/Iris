@@ -19,7 +19,6 @@
 package art.arcane.iris.engine.object.formation;
 
 import art.arcane.iris.engine.object.IrisFormation;
-import art.arcane.iris.engine.object.IrisFormationProfile;
 
 public final class FormationProfiles {
     private FormationProfiles() {

@@ -26,7 +26,6 @@ import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.spi.IrisLogging;
-import com.google.gson.annotations.SerializedName;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;

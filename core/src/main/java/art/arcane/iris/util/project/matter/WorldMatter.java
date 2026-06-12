@@ -18,7 +18,6 @@
 
 package art.arcane.iris.util.project.matter;
 
-import art.arcane.iris.engine.object.TileData;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.data.Cuboid;
 import art.arcane.volmlib.util.matter.IrisMatter;

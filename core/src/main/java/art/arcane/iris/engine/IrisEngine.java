@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.gson.Gson;
 import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.events.IrisEngineHotloadEvent;
 import art.arcane.iris.core.datapack.DatapackIngestService;

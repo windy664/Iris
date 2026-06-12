@@ -1,12 +1,9 @@
 package art.arcane.iris.core.lifecycle;
 
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
-import java.lang.reflect.Method;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 

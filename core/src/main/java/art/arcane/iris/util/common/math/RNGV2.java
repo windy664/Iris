@@ -2,7 +2,6 @@ package art.arcane.iris.util.common.math;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
 import java.security.SecureRandom;

@@ -21,7 +21,6 @@ package art.arcane.iris.core.service;
 import com.google.gson.JsonSyntaxException;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.lifecycle.WorldLifecycleService;

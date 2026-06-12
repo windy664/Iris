@@ -2,7 +2,6 @@ package art.arcane.iris.engine.framework;
 
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.engine.object.IrisObject;
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.Spiraler;
 import art.arcane.iris.util.common.parallel.BurstExecutor;

@@ -26,7 +26,6 @@ import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
-import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.math.RollingSequence;

@@ -1,8 +1,6 @@
 package art.arcane.iris.core.lifecycle;
 
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.World;
 

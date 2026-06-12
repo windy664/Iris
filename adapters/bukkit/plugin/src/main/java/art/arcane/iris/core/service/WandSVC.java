@@ -51,7 +51,6 @@ import org.bukkit.util.Vector;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 

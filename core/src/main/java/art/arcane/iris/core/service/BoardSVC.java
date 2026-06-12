@@ -19,8 +19,6 @@
 package art.arcane.iris.core.service;
 
 import art.arcane.iris.spi.IrisLogging;
-import art.arcane.iris.spi.IrisServices;
-import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.loader.IrisData;
 import art.arcane.iris.core.tools.IrisToolbelt;

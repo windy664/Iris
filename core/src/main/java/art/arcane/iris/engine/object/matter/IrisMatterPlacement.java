@@ -25,7 +25,6 @@ import art.arcane.iris.engine.object.IrisStyledRange;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
-import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.MatterSlice;
 import lombok.Data;

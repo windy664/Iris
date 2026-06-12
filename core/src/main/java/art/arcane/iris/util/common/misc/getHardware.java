@@ -4,13 +4,10 @@ package art.arcane.iris.util.common.misc;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
-import org.jetbrains.annotations.Nullable;
 import oshi.SystemInfo;
 import oshi.hardware.*;
-import oshi.software.os.FileSystem;
 import oshi.software.os.OSFileStore;
 import oshi.software.os.OperatingSystem;
-import oshi.util.EdidUtil;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -18,7 +15,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class getHardware {
     public static String getServerOS() {

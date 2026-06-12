@@ -18,12 +18,8 @@
 
 package art.arcane.iris.core.commands;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import art.arcane.iris.Iris;
-import art.arcane.iris.platform.bukkit.BukkitPlatform;
-import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.ServerConfigurator;
 import art.arcane.iris.core.nms.datapack.DataVersion;
 import art.arcane.iris.core.runtime.ChunkClearer;
@@ -37,15 +33,11 @@ import art.arcane.iris.engine.IrisEngineMantle;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
-import art.arcane.iris.engine.object.annotations.Snippet;
-import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.iris.util.project.context.IrisContext;
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.common.director.DirectorExecutor;
 import art.arcane.volmlib.util.director.DirectorOrigin;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
-import art.arcane.iris.util.common.director.specialhandlers.NullableDimensionHandler;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.io.CountingDataInputStream;
@@ -56,7 +48,6 @@ import art.arcane.iris.util.nbt.common.mca.MCAFile;
 import art.arcane.iris.util.nbt.common.mca.MCAUtil;
 import art.arcane.iris.util.common.plugin.VolmitSender;
 import art.arcane.iris.util.common.scheduling.J;
-import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
@@ -67,7 +58,6 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
-import java.util.stream.Collectors;
 
 @Director(name = "Developer", origin = DirectorOrigin.BOTH, description = "Iris World Manager", aliases = {"dev"})
 public class CommandDeveloper implements DirectorExecutor {

@@ -19,7 +19,6 @@
 package art.arcane.iris.core.pregenerator;
 
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
-import art.arcane.volmlib.util.matter.Matter;
 
 /**
  * Represents something that is capable of generating in chunks or regions, or both

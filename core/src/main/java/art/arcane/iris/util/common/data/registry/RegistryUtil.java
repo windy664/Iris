@@ -16,7 +16,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static art.arcane.iris.util.common.data.registry.KeyedRegistry.wrapped;
