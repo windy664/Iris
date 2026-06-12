@@ -18,6 +18,11 @@
 
 package art.arcane.iris.fabric;
 
+import art.arcane.iris.modded.IrisModdedChunkGenerator;
+import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedParityProbe;
+import art.arcane.iris.modded.ModdedWorldCheck;
+import art.arcane.iris.modded.ModdedWorldEngines;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -31,14 +36,10 @@ import org.slf4j.LoggerFactory;
 
 public final class IrisFabricBootstrap implements ModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
-    private static final String[] CORE_SELF_TEST_CLASSES = {
-        "art.arcane.iris.engine.IrisEngine",
-        "art.arcane.iris.util.common.data.B",
-        "art.arcane.iris.core.loader.IrisData"
-    };
 
     @Override
     public void onInitialize() {
+        ModdedEngineBootstrap.initialize(new FabricModdedLoader());
         FabricLoader loader = FabricLoader.getInstance();
         String modVersion = loader.getModContainer("irisworldgen")
             .map((ModContainer container) -> container.getMetadata().getVersion().getFriendlyString())
@@ -48,37 +49,22 @@ public final class IrisFabricBootstrap implements ModInitializer {
             .orElse("unknown");
         LOGGER.info("Iris {} bootstrapping on Minecraft {} (Fabric)", modVersion, minecraftVersion);
 
-        int loadedClasses = 0;
-        for (String className : CORE_SELF_TEST_CLASSES) {
-            try {
-                Class.forName(className, true, IrisFabricBootstrap.class.getClassLoader());
-                loadedClasses++;
-            } catch (Throwable error) {
-                LOGGER.error("Iris core self-test failed to initialize {}", className, error);
-            }
-        }
-
-        if (loadedClasses != CORE_SELF_TEST_CLASSES.length) {
-            throw new IllegalStateException("Iris core self-test failed: only " + loadedClasses + " of " + CORE_SELF_TEST_CLASSES.length + " engine classes initialized");
-        }
-
-        LOGGER.info("Iris core loaded ({} classes ok)", loadedClasses);
-
-        FabricEngineBootstrap.bind();
-        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.fromNamespaceAndPath("irisworldgen", "iris"), IrisFabricChunkGenerator.CODEC);
+        ModdedEngineBootstrap.selfTest(IrisFabricBootstrap.class.getClassLoader());
+        ModdedEngineBootstrap.bind();
+        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.fromNamespaceAndPath("irisworldgen", "iris"), IrisModdedChunkGenerator.CODEC);
         LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
-        ServerLifecycleEvents.SERVER_STOPPING.register((MinecraftServer server) -> FabricWorldEngines.shutdown());
+        ServerLifecycleEvents.SERVER_STOPPING.register((MinecraftServer server) -> ModdedWorldEngines.shutdown());
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {
             LOGGER.info("Iris parity probe armed: {}", parity);
-            FabricParityProbe.schedule(parity);
+            ModdedParityProbe.schedule(parity);
         }
 
         String worldCheck = System.getProperty("iris.worldcheck");
         if (worldCheck != null) {
             LOGGER.info("Iris world check armed");
-            FabricWorldCheck.schedule();
+            ModdedWorldCheck.schedule();
         }
     }
 }

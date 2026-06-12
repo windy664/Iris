@@ -18,8 +18,58 @@
 
 package art.arcane.iris.neoforge;
 
+import art.arcane.iris.modded.IrisModdedChunkGenerator;
+import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedParityProbe;
+import art.arcane.iris.modded.ModdedWorldCheck;
+import art.arcane.iris.modded.ModdedWorldEngines;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.VersionInfo;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@Mod("irisworldgen")
 public final class IrisNeoForgeBootstrap {
-    public IrisNeoForgeBootstrap() {
-        throw new UnsupportedOperationException("The Iris NeoForge adapter is a build skeleton; worldgen is not wired yet (see CROSSPLATFORM_PLAN.md Phase 4).");
+    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
+
+    public IrisNeoForgeBootstrap(IEventBus modBus) {
+        ModdedEngineBootstrap.initialize(new NeoForgeModdedLoader());
+        String modVersion = ModList.get().getModContainerById("irisworldgen")
+            .map((ModContainer container) -> container.getModInfo().getVersion().toString())
+            .orElse("unknown");
+        VersionInfo versionInfo = FMLLoader.getCurrent().getVersionInfo();
+        LOGGER.info("Iris {} bootstrapping on Minecraft {} (NeoForge {})", modVersion, versionInfo.mcVersion(), versionInfo.neoForgeVersion());
+
+        ModdedEngineBootstrap.selfTest(IrisNeoForgeBootstrap.class.getClassLoader());
+        ModdedEngineBootstrap.bind();
+
+        DeferredRegister<MapCodec<? extends ChunkGenerator>> chunkGenerators = DeferredRegister.create(Registries.CHUNK_GENERATOR, "irisworldgen");
+        chunkGenerators.register("iris", () -> IrisModdedChunkGenerator.CODEC);
+        chunkGenerators.register(modBus);
+        LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
+
+        NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> ModdedWorldEngines.shutdown());
+
+        String parity = System.getProperty("iris.parity");
+        if (parity != null) {
+            LOGGER.info("Iris parity probe armed: {}", parity);
+            ModdedParityProbe.schedule(parity);
+        }
+
+        String worldCheck = System.getProperty("iris.worldcheck");
+        if (worldCheck != null) {
+            LOGGER.info("Iris world check armed");
+            ModdedWorldCheck.schedule();
+        }
     }
 }

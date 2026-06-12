@@ -1,6 +1,6 @@
 /*
- * Iris is a World Generator for Minecraft Bukkit Servers
- * Copyright (c) 2021 Arcane Arts (Volmit Software)
+ * Iris is a World Generator for Minecraft Servers
+ * Copyright (c) 2026 Arcane Arts (Volmit Software)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,30 @@
 
 import java.io.File
 
+pluginManagement {
+    repositories {
+        maven {
+            name = 'NeoForged'
+            url = uri('https://maven.neoforged.net/releases/')
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
-rootProject.name = 'Iris'
+rootProject.name = 'iris-neoforge'
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            from(files('../../gradle/libs.versions.toml'))
+        }
+    }
+}
 
 boolean hasVolmLibSettings(File directory) {
     new File(directory, 'settings.gradle.kts').exists() || new File(directory, 'settings.gradle').exists()
@@ -68,10 +87,9 @@ if (useLocalVolmLib && localVolmLibDirectory != null) {
     }
 }
 
-include(':core', ':core:agent')
-include(':probe')
-include(':spi')
-include(':adapters:bukkit:plugin')
-include(':adapters:bukkit:nms:v1_21_R7')
-include(':adapters:bukkit:nms:v26_1_R1')
-include(':adapters:forge')
+includeBuild('../..') {
+    dependencySubstitution {
+        substitute(module('art.arcane:core')).using(project(':core'))
+        substitute(module('art.arcane:spi')).using(project(':spi'))
+    }
+}

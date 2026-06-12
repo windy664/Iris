@@ -1,0 +1,84 @@
+{
+    "general": {
+        "commandSounds": true,
+        "debug": false,
+        "dumpMantleOnError": false,
+        "disableNMS": false,
+        "pluginMetrics": true,
+        "splashLogoStartup": true,
+        "useConsoleCustomColors": true,
+        "useCustomColorsIngame": true,
+        "adjustVanillaHeight": false,
+        "autoIngestDatapacks": true,
+        "autoImportDatapackStructures": true,
+        "forceMainWorld": "",
+        "spinh": -20,
+        "spins": 7,
+        "spinb": 8
+    },
+    "world": {
+        "postLoadBlockUpdates": true,
+        "forcePersistEntities": true,
+        "anbientEntitySpawningSystem": true,
+        "asyncTickIntervalMS": 700,
+        "targetSpawnEntitiesPerChunk": 0.95,
+        "markerEntitySpawningSystem": true,
+        "effectSystem": true,
+        "worldEditWandCUI": true,
+        "globalPregenCache": false
+    },
+    "gui": {
+        "useServerLaunchedGuis": true,
+        "maximumPregenGuiFPS": false,
+        "colorMode": true
+    },
+    "autoConfiguration": {
+        "configureSpigotTimeoutTime": true,
+        "configurePaperWatchdogDelay": true,
+        "autoRestartOnCustomBiomeInstall": true
+    },
+    "generator": {
+        "defaultWorldType": "overworld",
+        "maxBiomeChildDepth": 4,
+        "preventLeafDecay": true
+    },
+    "concurrency": {},
+    "studio": {
+        "studio": true,
+        "openVSCode": true,
+        "disableTimeAndWeather": true,
+        "enableEntitySpawning": false,
+        "autoStartDefaultStudio": false
+    },
+    "performance": {
+        "engineSVC": {
+            "useVirtualThreads": true,
+            "forceMulticoreWrite": false,
+            "priority": 5
+        },
+        "trimMantleInStudio": false,
+        "mantleKeepAlive": 30,
+        "noiseCacheSize": 1024,
+        "resourceLoaderCacheSize": 1024,
+        "objectLoaderCacheSize": 4096,
+        "tectonicPlateSize": -1,
+        "mantleCleanupDelay": 200,
+        "simdKernels": true
+    },
+    "pregen": {
+        "useTicketQueue": true,
+        "runtimeSchedulerMode": "AUTO",
+        "paperLikeBackendMode": "AUTO",
+        "chunkLoadTimeoutSeconds": 15,
+        "timeoutWarnIntervalMs": 500,
+        "saveIntervalMs": 30000,
+        "maxResidentTectonicPlates": 96,
+        "mantleBackpressureWaitMs": 25,
+        "mantleBackpressureTimeoutMs": 60000
+    },
+    "sentry": {
+        "includeServerId": true,
+        "disableAutoReporting": false,
+        "debug": false
+    }
+}

@@ -155,11 +155,17 @@ tasks.register('buildForge', Copy) {
     into(layout.projectDirectory.dir('dist'))
 }
 
+tasks.register('neoforgeJar', Exec) {
+    group = 'iris'
+    workingDir = layout.projectDirectory.dir('adapters/neoforge').asFile
+    String wrapperScript = System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew'
+    commandLine(layout.projectDirectory.file(wrapperScript).asFile.absolutePath, 'shadowJar', '--console=plain')
+}
+
 tasks.register('buildNeoforge', Copy) {
     group = 'iris'
-    dependsOn(':adapters:neoforge:jar')
-    from(project(':adapters:neoforge').layout.buildDirectory.file("libs/Iris-${project.version}-neoforge-skeleton.jar"))
-    rename { "Iris-${project.version}+mc${minecraftVersion}-neoforge-skeleton.jar" }
+    dependsOn('neoforgeJar')
+    from(layout.projectDirectory.file("adapters/neoforge/build/libs/Iris-${project.version}+mc${minecraftVersion}-neoforge.jar"))
     into(layout.projectDirectory.dir('dist'))
 }
 

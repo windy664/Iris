@@ -41,6 +41,17 @@ java {
     }
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir '../modded-common/src/main/java'
+        }
+        resources {
+            srcDir '../modded-common/src/main/resources'
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven {

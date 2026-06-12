@@ -1,0 +1,60 @@
+/*
+ * Iris is a World Generator for Minecraft Servers
+ * Copyright (c) 2026 Arcane Arts (Volmit Software)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package art.arcane.iris.fabric;
+
+import art.arcane.iris.modded.ModdedLoader;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
+import net.minecraft.server.MinecraftServer;
+
+import java.io.File;
+import java.nio.file.Path;
+
+public final class FabricModdedLoader implements ModdedLoader {
+    @Override
+    public String platformName() {
+        return "fabric";
+    }
+
+    @Override
+    public String minecraftVersion() {
+        return FabricLoader.getInstance().getModContainer("minecraft")
+                .map((ModContainer container) -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+    }
+
+    @Override
+    public MinecraftServer currentServer() {
+        Object instance = FabricLoader.getInstance().getGameInstance();
+        return instance instanceof MinecraftServer server ? server : null;
+    }
+
+    @Override
+    public Path configDir() {
+        return FabricLoader.getInstance().getConfigDir();
+    }
+
+    @Override
+    public File modJar() {
+        return FabricLoader.getInstance().getModContainer("irisworldgen")
+                .flatMap((ModContainer container) -> container.getOrigin().getPaths().stream().findFirst())
+                .map((Path p) -> p.toFile())
+                .orElse(null);
+    }
+}

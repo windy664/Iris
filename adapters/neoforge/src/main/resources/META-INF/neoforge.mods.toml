@@ -6,5 +6,19 @@ license = "GPL-3.0"
 modId = "irisworldgen"
 version = "${version}"
 displayName = "Iris"
-description = "Iris World Generation Engine (NeoForge adapter - SKELETON, worldgen not yet wired)"
+description = "Iris World Generation Engine (NeoForge adapter - native chunk generator, overworld override datapack, engine lifecycle)"
 authors = "Arcane Arts (Volmit Software)"
+
+[[dependencies.irisworldgen]]
+modId = "neoforge"
+type = "required"
+versionRange = "[1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.irisworldgen]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+ordering = "NONE"
+side = "BOTH"
