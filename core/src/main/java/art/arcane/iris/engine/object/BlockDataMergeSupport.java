@@ -7,10 +7,19 @@ import org.bukkit.block.data.BlockData;
 
 import java.util.function.Function;
 
-final class BlockDataMergeSupport {
+public final class BlockDataMergeSupport {
     private static final boolean BUKKIT_PRESENT = detectBukkit();
+    private static volatile StateMerger FALLBACK_MERGER = null;
 
     private BlockDataMergeSupport() {
+    }
+
+    public interface StateMerger {
+        PlatformBlockState merge(PlatformBlockState base, PlatformBlockState update);
+    }
+
+    public static void bindFallbackMerger(StateMerger merger) {
+        FALLBACK_MERGER = merger;
     }
 
     private static boolean detectBukkit() {
@@ -24,7 +33,8 @@ final class BlockDataMergeSupport {
 
     static PlatformBlockState merge(PlatformBlockState base, PlatformBlockState update) {
         if (!BUKKIT_PRESENT) {
-            return mergeByKey(base, update);
+            StateMerger merger = FALLBACK_MERGER;
+            return merger == null ? mergeByKey(base, update) : merger.merge(base, update);
         }
         BlockData merged = merge((BlockData) base.nativeHandle(), (BlockData) update.nativeHandle(), BukkitBlockResolution::get);
         return merged == null ? null : BukkitBlockState.of(merged);

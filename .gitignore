@@ -18,3 +18,4 @@ TreeGenStuff/
 dist/
 core/plugins/
 adapters/bukkit/plugin/plugins/
+adapters/fabric/run/

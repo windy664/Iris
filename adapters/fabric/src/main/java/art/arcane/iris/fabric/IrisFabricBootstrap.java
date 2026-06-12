@@ -19,8 +19,13 @@
 package art.arcane.iris.fabric;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +63,22 @@ public final class IrisFabricBootstrap implements ModInitializer {
         }
 
         LOGGER.info("Iris core loaded ({} classes ok)", loadedClasses);
-        LOGGER.info("Iris worldgen is not wired on Fabric yet; this build verifies packaging and engine classloading");
+
+        FabricEngineBootstrap.bind();
+        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.fromNamespaceAndPath("irisworldgen", "iris"), IrisFabricChunkGenerator.CODEC);
+        LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
+        ServerLifecycleEvents.SERVER_STOPPING.register((MinecraftServer server) -> FabricWorldEngines.shutdown());
+
+        String parity = System.getProperty("iris.parity");
+        if (parity != null) {
+            LOGGER.info("Iris parity probe armed: {}", parity);
+            FabricParityProbe.schedule(parity);
+        }
+
+        String worldCheck = System.getProperty("iris.worldcheck");
+        if (worldCheck != null) {
+            LOGGER.info("Iris world check armed");
+            FabricWorldCheck.schedule();
+        }
     }
 }

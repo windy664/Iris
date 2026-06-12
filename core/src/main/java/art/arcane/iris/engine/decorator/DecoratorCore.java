@@ -339,8 +339,12 @@ final class DecoratorCore {
 
     static PlatformBlockState fixFacesForHunk(PlatformBlockState b, Hunk<PlatformBlockState> hunk, int rX, int rZ,
                                               int x, int y, int z, EngineMantle mantle) {
-        if (!BUKKIT_PRESENT || !B.isVineBlock(b)) {
+        if (!B.isVineBlock(b)) {
             return b;
+        }
+        if (!BUKKIT_PRESENT) {
+            DecoratorPlatformHooks.FaceFixer fixer = DecoratorPlatformHooks.faceFixer();
+            return fixer == null ? b : fixer.fixFaces(b, hunk, rX, rZ, x, y, z, mantle);
         }
         BlockData rawB = (BlockData) b.nativeHandle();
         BlockData cloned = rawB.clone();
@@ -392,7 +396,8 @@ final class DecoratorCore {
 
     static boolean canGoOn(PlatformBlockState decorator, PlatformBlockState surface) {
         if (!BUKKIT_PRESENT) {
-            return B.isSolid(surface);
+            DecoratorPlatformHooks.SurfaceSturdiness sturdiness = DecoratorPlatformHooks.surfaceSturdiness();
+            return sturdiness == null ? B.isSolid(surface) : sturdiness.canGoOn(surface);
         }
         return ((BlockData) surface.nativeHandle()).isFaceSturdy(BlockFace.UP, BlockSupport.FULL);
     }

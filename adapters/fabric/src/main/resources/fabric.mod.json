@@ -3,7 +3,7 @@
   "id": "irisworldgen",
   "version": "${version}",
   "name": "Iris",
-  "description": "Iris World Generation Engine (Fabric adapter - packaging + core bundle; worldgen wiring lands next milestone)",
+  "description": "Iris World Generation Engine (Fabric adapter - native chunk generator, overworld override datapack, engine lifecycle)",
   "authors": ["Arcane Arts (Volmit Software)"],
   "contact": {
     "sources": "https://github.com/VolmitSoftware/Iris"
@@ -15,6 +15,9 @@
   },
   "depends": {
     "fabricloader": ">=0.19.0",
+    "fabric-registry-sync-v0": "*",
+    "fabric-resource-loader-v1": "*",
+    "fabric-lifecycle-events-v1": "*",
     "minecraft": "~${minecraftVersion}",
     "java": ">=25"
   }

@@ -137,9 +137,9 @@ public final class StructureAssembler {
                             cb.getPosition().getY() - center.getY(),
                             cb.getPosition().getZ() - center.getZ());
                     IrisPosition rcr = rot.rotate(cr, 0, 0, 0);
-                    int wcx = c.wx + c.facing.toVector().getBlockX();
-                    int wcy = c.wy + c.facing.toVector().getBlockY();
-                    int wcz = c.wz + c.facing.toVector().getBlockZ();
+                    int wcx = c.wx + c.facing.x();
+                    int wcy = c.wy + c.facing.y();
+                    int wcz = c.wz + c.facing.z();
                     int px = wcx - rcr.getX();
                     int py = wcy - rcr.getY();
                     int pz = wcz - rcr.getZ();

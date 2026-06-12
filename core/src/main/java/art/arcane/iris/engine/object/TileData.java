@@ -19,6 +19,7 @@
 package art.arcane.iris.engine.object;
 
 import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.PlatformBlockState;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.Strictness;
@@ -43,6 +44,25 @@ import java.io.IOException;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TileData implements Cloneable {
     private static final Gson gson = new GsonBuilder().disableHtmlEscaping().setStrictness(Strictness.LENIENT).create();
+    private static final boolean BUKKIT_PRESENT = detectBukkit();
+    private static volatile TileReader FALLBACK_READER = null;
+
+    public interface TileReader {
+        TileData read(DataInputStream in) throws IOException;
+    }
+
+    public static void bindFallbackReader(TileReader reader) {
+        FALLBACK_READER = reader;
+    }
+
+    private static boolean detectBukkit() {
+        try {
+            Class.forName("org.bukkit.Bukkit", false, TileData.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
 
     @NonNull
     private Material material;
@@ -67,7 +87,24 @@ public class TileData implements Cloneable {
         return new TileData().fromBukkit(block);
     }
 
+    public static TileData of(PlatformBlockState state, KMap<String, Object> properties) {
+        if (!BUKKIT_PRESENT) {
+            return null;
+        }
+        Object handle = state.nativeHandle();
+        if (!(handle instanceof BlockData blockData)) {
+            return null;
+        }
+        return new TileData(blockData.getMaterial(), properties);
+    }
+
     public static TileData read(DataInputStream in) throws IOException {
+        if (!BUKKIT_PRESENT) {
+            TileReader reader = FALLBACK_READER;
+            if (reader != null) {
+                return reader.read(in);
+            }
+        }
         if (!in.markSupported())
             throw new IOException("Mark not supported");
         in.mark(Integer.MAX_VALUE);

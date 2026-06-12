@@ -26,7 +26,6 @@ import art.arcane.iris.core.loader.IrisRegistrant;
 import art.arcane.iris.engine.data.cache.AtomicCache;
 import art.arcane.iris.engine.object.annotations.*;
 import art.arcane.iris.platform.bukkit.BukkitBlockState;
-import art.arcane.iris.platform.bukkit.BukkitPlatform;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KList;
@@ -39,8 +38,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-import org.bukkit.Material;
-import org.bukkit.block.data.BlockData;
 
 import java.util.Map;
 
@@ -201,8 +198,11 @@ public class IrisBlockData extends IrisRegistrant {
 
     public TileData tryGetTile(IrisData data) {
         //TODO Do like a registry thing with the tile data registry. Also update the parsing of data to include **block** entities.
-        Material type = ((BlockData) getBlockData(data).nativeHandle()).getMaterial();
-        if (type == Material.SPAWNER && this.data.containsKey("entitySpawn")) {
+        PlatformBlockState state = getBlockData(data);
+        String stateKey = state.key();
+        int bracket = stateKey.indexOf('[');
+        String blockKey = bracket >= 0 ? stateKey.substring(0, bracket) : stateKey;
+        if (blockKey.equals("minecraft:spawner") && this.data.containsKey("entitySpawn")) {
             String id = (String) this.data.get("entitySpawn");
             if (tileData == null) tileData = new KMap<>();
             KMap<String, Object> spawnData = (KMap<String, Object>) tileData.computeIfAbsent("SpawnData", k -> new KMap<>());
@@ -210,9 +210,9 @@ public class IrisBlockData extends IrisRegistrant {
             entity.putIfAbsent("id", Identifier.fromString(id).toString());
         }
 
-        if (!BukkitPlatform.hasTile(type) || tileData == null || tileData.isEmpty())
+        if (tileData == null || tileData.isEmpty() || !state.hasTileEntity())
             return null;
-        return new TileData(type, this.tileData);
+        return TileData.of(state, this.tileData);
     }
 
     private String keyify(String dat) {

@@ -49,10 +49,15 @@ repositories {
     }
     maven { url = uri('https://repo.codemc.org/repository/maven-public/') }
     maven { url = uri('https://jitpack.io') }
+    maven { url = uri('https://hub.spigotmc.org/nexus/content/repositories/snapshots/') }
 }
 
 configurations {
     bundle {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+    devBundle {
         canBeConsumed = false
         canBeResolved = true
     }
@@ -71,33 +76,73 @@ configurations.named('bundle').configure {
     exclude(group: 'io.github.slimjar')
 }
 
+configurations.compileClasspath.extendsFrom(configurations.devBundle)
+configurations.runtimeClasspath.extendsFrom(configurations.devBundle)
+
 dependencies {
     minecraft("com.mojang:minecraft:${minecraftVersion}")
     implementation("net.fabricmc:fabric-loader:${fabricLoaderVersion}")
+    implementation('net.fabricmc.fabric-api:fabric-api-base:2.0.3+ece063234c')
+    implementation('net.fabricmc.fabric-api:fabric-registry-sync-v0:7.1.0+2fa62b4e4c')
+    implementation('net.fabricmc.fabric-api:fabric-resource-loader-v1:2.0.10+7c44c7324c')
+    implementation('net.fabricmc.fabric-api:fabric-lifecycle-events-v1:4.1.0+6d50a0854c')
     compileOnly('org.slf4j:slf4j-api:2.0.17')
+    compileOnly(libs.spigot) {
+        transitive = false
+    }
 
-    bundle("art.arcane:core:${irisVersion}")
-    bundle("art.arcane:spi:${irisVersion}")
-    bundle('com.github.VolmitSoftware:VolmLib:master-SNAPSHOT')
-
-    bundle(libs.paralithic)
-    bundle(libs.lru)
-    bundle(libs.kotlin.stdlib)
-    bundle(libs.kotlin.coroutines)
-    bundle(libs.commons.lang)
-    bundle(libs.commons.math3)
-    bundle(libs.caffeine)
-    bundle(libs.lz4)
-    bundle(libs.zip)
-    bundle(libs.sentry)
-    bundle(libs.oshi)
-    bundle(libs.byteBuddy.core)
-    bundle(libs.byteBuddy.agent)
+    List<Object> shared = [
+        "art.arcane:core:${irisVersion}".toString(),
+        "art.arcane:spi:${irisVersion}".toString(),
+        'com.github.VolmitSoftware:VolmLib:master-SNAPSHOT',
+        libs.paralithic,
+        libs.lru,
+        libs.kotlin.stdlib,
+        libs.kotlin.coroutines,
+        libs.commons.lang,
+        libs.commons.math3,
+        libs.caffeine,
+        libs.lz4,
+        libs.zip,
+        libs.sentry,
+        libs.oshi,
+        libs.byteBuddy.core,
+        libs.byteBuddy.agent
+    ]
+    shared.each { Object notation ->
+        add('bundle', notation)
+        add('devBundle', notation)
+    }
 }
 
 tasks.named('compileJava', JavaCompile).configure {
     options.encoding = 'UTF-8'
     options.release.set(25)
+}
+
+loom {
+    runs {
+        server {
+            String parity = providers.gradleProperty('irisParity').getOrNull()
+            if (parity != null) {
+                property('iris.parity', parity)
+            }
+            String parityGolden = providers.gradleProperty('irisParityGolden').getOrNull()
+            if (parityGolden != null) {
+                property('iris.parity.golden', parityGolden)
+            }
+            String parityDeep = providers.gradleProperty('irisParityDeep').getOrNull()
+            if (parityDeep != null) {
+                property('iris.parity.deep', parityDeep)
+            }
+            String worldCheck = providers.gradleProperty('irisWorldCheck').getOrNull()
+            if (worldCheck != null) {
+                property('iris.worldcheck', worldCheck)
+            }
+            vmArg('-Xmx8G')
+            programArgs('nogui')
+        }
+    }
 }
 
 processResources {

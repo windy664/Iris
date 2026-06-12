@@ -1,0 +1,11 @@
+{
+  "type": "irisworldgen:overworld",
+  "generator": {
+    "type": "irisworldgen:iris",
+    "dimension": "overworld",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "minecraft:plains"
+    }
+  }
+}

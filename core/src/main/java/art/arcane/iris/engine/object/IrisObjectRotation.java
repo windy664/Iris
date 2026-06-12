@@ -48,6 +48,15 @@ import java.util.Map;
 @Data
 public class IrisObjectRotation {
     private static final boolean BUKKIT_PRESENT = detectBukkit();
+    private static volatile StateRotator FALLBACK_ROTATOR = null;
+
+    public interface StateRotator {
+        PlatformBlockState rotate(IrisObjectRotation rotation, PlatformBlockState state, int spinx, int spiny, int spinz);
+    }
+
+    public static void bindFallbackRotator(StateRotator rotator) {
+        FALLBACK_ROTATOR = rotator;
+    }
 
     private static boolean detectBukkit() {
         try {
@@ -278,7 +287,8 @@ public class IrisObjectRotation {
         }
 
         if (!BUKKIT_PRESENT) {
-            return state;
+            StateRotator rotator = FALLBACK_ROTATOR;
+            return rotator == null ? state : rotator.rotate(this, state, spinx, spiny, spinz);
         }
 
         BlockData raw = ((BlockData) state.nativeHandle()).clone();
