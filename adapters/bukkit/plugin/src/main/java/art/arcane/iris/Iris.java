@@ -21,10 +21,7 @@ package art.arcane.iris;
 import art.arcane.iris.engine.IrisWorldManager;
 
 import art.arcane.iris.engine.framework.EngineWorldManagerProvider;
-
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
+import art.arcane.iris.core.splash.IrisSplashPackScanner;
 import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.IrisWorlds;
 import art.arcane.iris.core.ServerConfigurator;
@@ -58,8 +55,10 @@ import art.arcane.iris.engine.platform.BukkitChunkGenerator;
 import art.arcane.iris.core.safeguard.IrisSafeguard;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.iris.platform.bukkit.BukkitPlatform;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.IrisServices;
+import art.arcane.iris.spi.LogLevel;
 import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -235,7 +234,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
             getSender().sendMessage(string);
         } catch (Throwable e) {
             try {
-                instance.getLogger().info(instance.getTag() + string.replaceAll("(<([^>]+)>)", ""));
+                instance.getLogger().info(instance.getTag() + IrisLogging.clean(string));
             } catch (Throwable inner) {
                 System.err.println("[Iris] Failed to emit log message: " + inner.getMessage());
                 inner.printStackTrace(System.err);
@@ -377,19 +376,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
     }
 
     private static String safeFormat(String format, Object... args) {
-        if (format == null) {
-            return "null";
-        }
-
-        if (args == null || args.length == 0) {
-            return format;
-        }
-
-        try {
-            return String.format(format, args);
-        } catch (IllegalFormatException ignored) {
-            return format;
-        }
+        return IrisLogging.format(format, args);
     }
 
     public static void later(NastyRunnable object) {
@@ -555,14 +542,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
         BukkitPlatform.hostPlugin(this);
         BukkitPlatform.hostConsoleSender(Iris::getSender);
         BukkitPlatform.hostBridge(new BukkitPlatform.HostBridge(
-                (level, message) -> {
-                    switch (level) {
-                        case DEBUG -> Iris.debug(message);
-                        case INFO -> Iris.info(message);
-                        case WARN -> Iris.warn(message);
-                        case ERROR -> Iris.error(message);
-                    }
-                },
+                Iris::bridgeLog,
                 Iris::msg,
                 Iris::reportError,
                 (event) -> Iris.callEvent((org.bukkit.event.Event) event),
@@ -572,6 +552,16 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
                 () -> Iris.instance.getIrisVersion(),
                 () -> Iris.instance.getMCVersion()));
         SlimJar.load();
+    }
+
+    private static void bridgeLog(LogLevel level, String message) {
+        LogLevel target = level == null ? LogLevel.INFO : level;
+        switch (target) {
+            case DEBUG -> Iris.debug(message);
+            case INFO -> Iris.info(message);
+            case WARN -> Iris.warn(message);
+            case ERROR -> Iris.error(message);
+        }
     }
 
     private void enable() {
@@ -1279,49 +1269,24 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
     }
 
     static List<SplashPackMetadata> collectSplashPacks(File packFolder) {
-        if (packFolder == null || !packFolder.isDirectory()) {
+        List<IrisSplashPackScanner.SplashPackMetadata> scanned = IrisSplashPackScanner.collect(packFolder, Iris::reportError);
+        if (scanned.isEmpty()) {
             return Collections.emptyList();
         }
 
-        File[] folders = packFolder.listFiles(File::isDirectory);
-        if (folders == null || folders.length == 0) {
-            return Collections.emptyList();
+        List<SplashPackMetadata> packs = new ArrayList<>(scanned.size());
+        for (IrisSplashPackScanner.SplashPackMetadata metadata : scanned) {
+            packs.add(new SplashPackMetadata(metadata.name(), metadata.version()));
         }
-
-        List<SplashPackMetadata> packs = new ArrayList<>();
-        for (File folder : folders) {
-            SplashPackMetadata metadata = readSplashPack(folder);
-            if (metadata != null) {
-                packs.add(metadata);
-            }
-        }
-
-        packs.sort(Comparator.comparing(SplashPackMetadata::name));
         return packs;
     }
 
     static SplashPackMetadata readSplashPack(File pack) {
-        if (pack == null || !pack.isDirectory()) {
+        IrisSplashPackScanner.SplashPackMetadata metadata = IrisSplashPackScanner.read(pack, Iris::reportError);
+        if (metadata == null) {
             return null;
         }
-
-        String dimName = pack.getName();
-        File dimensionFile = new File(pack, "dimensions/" + dimName + ".json");
-        if (!dimensionFile.isFile()) {
-            return null;
-        }
-
-        try (FileReader r = new FileReader(dimensionFile)) {
-            JsonObject json = JsonParser.parseReader(r).getAsJsonObject();
-            if (!json.has("version")) {
-                return null;
-            }
-
-            return new SplashPackMetadata(dimName, json.get("version").getAsString());
-        } catch (IOException | JsonParseException ex) {
-            reportError("Failed to read splash metadata for dimension pack \"" + dimName + "\".", ex);
-            return null;
-        }
+        return new SplashPackMetadata(metadata.name(), metadata.version());
     }
 
     private void printPack(SplashPackMetadata pack) {

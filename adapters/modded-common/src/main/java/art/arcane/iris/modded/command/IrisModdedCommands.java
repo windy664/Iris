@@ -28,6 +28,7 @@ import art.arcane.iris.modded.IrisModdedChunkGenerator;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
 import art.arcane.iris.modded.ModdedLoader;
 import art.arcane.iris.modded.ModdedPackInstaller;
+import art.arcane.iris.spi.IrisLogging;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.math.Position2;
 import com.mojang.brigadier.CommandDispatcher;
@@ -42,6 +43,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
@@ -84,7 +86,7 @@ public final class IrisModdedCommands {
         LiteralCommandNode<CommandSourceStack> root = dispatcher.register(rootTree());
         dispatcher.register(Commands.literal("ir").redirect(root));
         dispatcher.register(Commands.literal("irs").redirect(root));
-        LOGGER.info("Iris /iris command tree registered");
+        IrisLogging.info("Iris /iris command tree registered");
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> rootTree() {
@@ -322,7 +324,7 @@ public final class IrisModdedCommands {
     }
 
     private static int pregenStatus(CommandSourceStack source) {
-        String status = ModdedPregenJob.status();
+        Component status = ModdedPregenJob.statusComponent();
         if (status == null) {
             fail(source, "No active pregeneration task.");
             return 0;
@@ -745,6 +747,10 @@ public final class IrisModdedCommands {
 
     static void ok(CommandSourceStack source, String message) {
         ModdedCommandFeedback.ok(source, message);
+    }
+
+    static void ok(CommandSourceStack source, Component component) {
+        ModdedCommandFeedback.ok(source, component);
     }
 
     static void fail(CommandSourceStack source, String message) {

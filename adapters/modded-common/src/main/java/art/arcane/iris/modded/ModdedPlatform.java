@@ -26,14 +26,11 @@ import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
 import art.arcane.iris.spi.PlatformStructureHooks;
 import net.minecraft.server.MinecraftServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.function.Consumer;
 
 public final class ModdedPlatform implements IrisPlatform {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
     private static volatile Consumer<Throwable> ERROR_SINK = null;
 
     private final ModdedLoader loader;
@@ -135,17 +132,12 @@ public final class ModdedPlatform implements IrisPlatform {
 
     @Override
     public void log(LogLevel level, String message) {
-        switch (level) {
-            case DEBUG -> LOGGER.debug(message);
-            case INFO -> LOGGER.info(message);
-            case WARN -> LOGGER.warn(message);
-            case ERROR -> LOGGER.error(message);
-        }
+        ModdedIrisLog.log(level, message);
     }
 
     @Override
     public void msg(String message) {
-        LOGGER.info(message);
+        ModdedIrisLog.info(message);
     }
 
     @Override
@@ -156,7 +148,7 @@ public final class ModdedPlatform implements IrisPlatform {
             return;
         }
         if (error != null) {
-            LOGGER.error("Iris reported error", error);
+            ModdedIrisLog.error("Iris reported error", error);
         }
     }
 

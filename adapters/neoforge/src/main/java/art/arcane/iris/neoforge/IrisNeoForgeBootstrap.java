@@ -20,6 +20,7 @@ package art.arcane.iris.neoforge;
 
 import art.arcane.iris.modded.IrisModdedChunkGenerator;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedIrisLog;
 import art.arcane.iris.modded.ModdedParityProbe;
 import art.arcane.iris.modded.ModdedWorldCheck;
 import art.arcane.iris.modded.ModdedWorldEngines;
@@ -42,20 +43,16 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Mod("irisworldgen")
 public final class IrisNeoForgeBootstrap {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
-
     public IrisNeoForgeBootstrap(IEventBus modBus) {
         ModdedEngineBootstrap.initialize(new NeoForgeModdedLoader());
         String modVersion = ModList.get().getModContainerById("irisworldgen")
             .map((ModContainer container) -> container.getModInfo().getVersion().toString())
             .orElse("unknown");
         VersionInfo versionInfo = FMLLoader.getCurrent().getVersionInfo();
-        LOGGER.info("Iris {} bootstrapping on Minecraft {} (NeoForge {})", modVersion, versionInfo.mcVersion(), versionInfo.neoForgeVersion());
+        ModdedIrisLog.info("Iris " + modVersion + " bootstrapping on Minecraft " + versionInfo.mcVersion() + " (NeoForge " + versionInfo.neoForgeVersion() + ")");
 
         ModdedEngineBootstrap.selfTest(IrisNeoForgeBootstrap.class.getClassLoader());
         ModdedEngineBootstrap.bind();
@@ -63,7 +60,7 @@ public final class IrisNeoForgeBootstrap {
         DeferredRegister<MapCodec<? extends ChunkGenerator>> chunkGenerators = DeferredRegister.create(Registries.CHUNK_GENERATOR, "irisworldgen");
         chunkGenerators.register("iris", () -> IrisModdedChunkGenerator.CODEC);
         chunkGenerators.register(modBus);
-        LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
+        ModdedIrisLog.info("Iris chunk generator registered as irisworldgen:iris");
 
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> {
             ModdedObjectUndo.clearAll();
@@ -86,13 +83,13 @@ public final class IrisNeoForgeBootstrap {
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {
-            LOGGER.info("Iris parity probe armed: {}", parity);
+            ModdedIrisLog.info("Iris parity probe armed: " + parity);
             ModdedParityProbe.schedule(parity);
         }
 
         String worldCheck = System.getProperty("iris.worldcheck");
         if (worldCheck != null) {
-            LOGGER.info("Iris world check armed");
+            ModdedIrisLog.info("Iris world check armed");
             ModdedWorldCheck.schedule();
         }
     }

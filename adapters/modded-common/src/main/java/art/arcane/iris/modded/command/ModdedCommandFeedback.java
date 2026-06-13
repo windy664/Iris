@@ -20,7 +20,12 @@ package art.arcane.iris.modded.command;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -31,6 +36,25 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class ModdedCommandFeedback {
+    static final int IRIS = 0x1BB19E;
+    static final int HEADER_A = 0x34EB6B;
+    static final int HEADER_B = 0x32BFAD;
+    static final int BACK = 0x6FE98F;
+    static final int DARK_GREEN = 0x46826A;
+    static final int DESCRIPTION_ICON = 0x3FE05A;
+    static final int DESCRIPTION = 0x6AD97D;
+    static final int USAGE_ICON = 0xBBE03F;
+    static final int USAGE = 0xA8E0A2;
+    static final int EXAMPLE_ICON = 0xC2F7D2;
+    static final int PARAMETER = 0x5EF288;
+    static final int PARAMETER_ALT = 0x32BFAD;
+    static final int OPTIONAL = 0x4F4F4F;
+    static final int CATEGORY = 0x9DE5B6;
+    static final int REQUIRED = 0xDB4321;
+    static final int REQUIRED_TEXT = 0xFAA796;
+    static final int HOVER_TYPE = 0x8AD9AF;
+    static final int VALUE = 0xC2F7D2;
+    static final int PAGE_LINE_LENGTH = 75;
     private static final long MESSAGE_SOUND_COOLDOWN_MS = 650L;
     private static final long TAB_SOUND_COOLDOWN_MS = 175L;
     private static final Map<UUID, Long> MESSAGE_SOUNDS = new ConcurrentHashMap<>();
@@ -44,6 +68,11 @@ final class ModdedCommandFeedback {
         playSuccess(source);
     }
 
+    static void ok(CommandSourceStack source, Component component) {
+        source.sendSuccess(() -> component, false);
+        playSuccess(source);
+    }
+
     static void fail(CommandSourceStack source, String message) {
         source.sendFailure(Component.literal(message).withStyle(ChatFormatting.RED));
         playFailure(source);
@@ -51,6 +80,61 @@ final class ModdedCommandFeedback {
 
     static void send(CommandSourceStack source, Component component) {
         source.sendSuccess(() -> component, false);
+    }
+
+    static void clear(CommandSourceStack source) {
+        if (source.getPlayer() != null) {
+            send(source, Component.literal("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"));
+        }
+    }
+
+    static MutableComponent header(String title) {
+        MutableComponent header = Component.empty();
+        header.append(text(" ".repeat(18), HEADER_A, false, true));
+        header.append(text(" " + title + " ", IRIS, true, false));
+        header.append(text(" ".repeat(18), HEADER_B, false, true));
+        return header;
+    }
+
+    static MutableComponent footer() {
+        return text(" ".repeat(PAGE_LINE_LENGTH), HEADER_B, false, true);
+    }
+
+    static MutableComponent text(String value, int color) {
+        return text(value, color, false, false);
+    }
+
+    static MutableComponent text(String value, int color, boolean bold, boolean strikethrough) {
+        return Component.literal(value).withStyle((Style style) -> {
+            Style next = style.withColor(TextColor.fromRgb(color));
+            if (bold) {
+                next = next.withBold(true);
+            }
+            if (strikethrough) {
+                next = next.withStrikethrough(true);
+            }
+            return next;
+        });
+    }
+
+    static MutableComponent button(String label, String command, String hover, boolean runCommand) {
+        ClickEvent clickEvent = runCommand ? new ClickEvent.RunCommand(command) : new ClickEvent.SuggestCommand(command);
+        MutableComponent hoverText = text(hover, DESCRIPTION);
+        return text(label, PARAMETER_ALT, true, false).withStyle((Style style) -> style
+                .withClickEvent(clickEvent)
+                .withHoverEvent(new HoverEvent.ShowText(hoverText)));
+    }
+
+    static MutableComponent progressBar(double percent, int width) {
+        double clamped = Math.max(0D, Math.min(100D, percent));
+        int filled = (int) Math.round((clamped / 100D) * width);
+        MutableComponent bar = Component.empty();
+        bar.append(text("[", DARK_GREEN));
+        for (int i = 0; i < width; i++) {
+            bar.append(text(i < filled ? "|" : "·", i < filled ? PARAMETER : OPTIONAL));
+        }
+        bar.append(text("]", DARK_GREEN));
+        return bar;
     }
 
     static void tab(CommandSourceStack source) {

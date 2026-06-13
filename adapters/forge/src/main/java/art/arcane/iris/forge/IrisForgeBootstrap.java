@@ -20,6 +20,7 @@ package art.arcane.iris.forge;
 
 import art.arcane.iris.modded.IrisModdedChunkGenerator;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedIrisLog;
 import art.arcane.iris.modded.ModdedParityProbe;
 import art.arcane.iris.modded.ModdedWorldCheck;
 import art.arcane.iris.modded.ModdedWorldEngines;
@@ -42,20 +43,16 @@ import net.minecraftforge.fml.loading.VersionInfo;
 import net.minecraftforge.registries.DeferredRegister;
 
 import java.util.function.Predicate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Mod("irisworldgen")
 public final class IrisForgeBootstrap {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
-
     public IrisForgeBootstrap(FMLJavaModLoadingContext context) {
         ModdedEngineBootstrap.initialize(new ForgeModdedLoader());
         String modVersion = ModList.getModContainerById("irisworldgen")
             .map((ModContainer container) -> container.getModInfo().getVersion().toString())
             .orElse("unknown");
         VersionInfo versionInfo = FMLLoader.versionInfo();
-        LOGGER.info("Iris {} bootstrapping on Minecraft {} (Forge {})", modVersion, versionInfo.mcVersion(), versionInfo.forgeVersion());
+        ModdedIrisLog.info("Iris " + modVersion + " bootstrapping on Minecraft " + versionInfo.mcVersion() + " (Forge " + versionInfo.forgeVersion() + ")");
 
         ModdedEngineBootstrap.selfTest(IrisForgeBootstrap.class.getClassLoader());
         ModdedEngineBootstrap.bind();
@@ -63,7 +60,7 @@ public final class IrisForgeBootstrap {
         DeferredRegister<MapCodec<? extends ChunkGenerator>> chunkGenerators = DeferredRegister.create(Registries.CHUNK_GENERATOR, "irisworldgen");
         chunkGenerators.register("iris", () -> IrisModdedChunkGenerator.CODEC);
         chunkGenerators.register(context.getModBusGroup());
-        LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
+        ModdedIrisLog.info("Iris chunk generator registered as irisworldgen:iris");
 
         ServerStoppingEvent.BUS.addListener((ServerStoppingEvent event) -> {
             ModdedObjectUndo.clearAll();
@@ -79,13 +76,13 @@ public final class IrisForgeBootstrap {
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {
-            LOGGER.info("Iris parity probe armed: {}", parity);
+            ModdedIrisLog.info("Iris parity probe armed: " + parity);
             ModdedParityProbe.schedule(parity);
         }
 
         String worldCheck = System.getProperty("iris.worldcheck");
         if (worldCheck != null) {
-            LOGGER.info("Iris world check armed");
+            ModdedIrisLog.info("Iris world check armed");
             ModdedWorldCheck.schedule();
         }
     }

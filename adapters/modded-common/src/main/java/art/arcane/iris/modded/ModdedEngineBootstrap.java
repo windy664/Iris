@@ -82,7 +82,7 @@ public final class ModdedEngineBootstrap {
             throw new IllegalStateException("Iris core self-test failed: only " + loadedClasses + " of " + CORE_SELF_TEST_CLASSES.length + " engine classes initialized");
         }
 
-        LOGGER.info("Iris core loaded ({} classes ok)", loadedClasses);
+        ModdedIrisLog.info("Iris core loaded (" + loadedClasses + " classes ok)");
     }
 
     public static ModdedPlatform bind() {
@@ -105,6 +105,7 @@ public final class ModdedEngineBootstrap {
             IrisServices.register(PreservationRegistry.class, new InertPreservation());
             IrisServices.register(EngineWorldManagerProvider.class, (EngineWorldManagerProvider) (Engine engine) -> new InertWorldManager());
             platform = created;
+            ModdedIrisSplash.print(boundLoader);
             return created;
         }
     }

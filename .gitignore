@@ -19,3 +19,7 @@ dist/
 core/plugins/
 adapters/bukkit/plugin/plugins/
 adapters/*/run/
+
+.codegraph/
+
+plans/

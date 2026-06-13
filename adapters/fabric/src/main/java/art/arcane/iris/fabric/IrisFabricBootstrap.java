@@ -20,6 +20,7 @@ package art.arcane.iris.fabric;
 
 import art.arcane.iris.modded.IrisModdedChunkGenerator;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedIrisLog;
 import art.arcane.iris.modded.ModdedParityProbe;
 import art.arcane.iris.modded.ModdedWorldCheck;
 import art.arcane.iris.modded.ModdedWorldEngines;
@@ -49,12 +50,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class IrisFabricBootstrap implements ModInitializer {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
-
     @Override
     public void onInitialize() {
         ModdedEngineBootstrap.initialize(new FabricModdedLoader());
@@ -65,12 +62,12 @@ public final class IrisFabricBootstrap implements ModInitializer {
         String minecraftVersion = loader.getModContainer("minecraft")
             .map((ModContainer container) -> container.getMetadata().getVersion().getFriendlyString())
             .orElse("unknown");
-        LOGGER.info("Iris {} bootstrapping on Minecraft {} (Fabric)", modVersion, minecraftVersion);
+        ModdedIrisLog.info("Iris " + modVersion + " bootstrapping on Minecraft " + minecraftVersion + " (Fabric)");
 
         ModdedEngineBootstrap.selfTest(IrisFabricBootstrap.class.getClassLoader());
         ModdedEngineBootstrap.bind();
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.fromNamespaceAndPath("irisworldgen", "iris"), IrisModdedChunkGenerator.CODEC);
-        LOGGER.info("Iris chunk generator registered as irisworldgen:iris");
+        ModdedIrisLog.info("Iris chunk generator registered as irisworldgen:iris");
         ServerLifecycleEvents.SERVER_STOPPING.register((MinecraftServer server) -> {
             ModdedObjectUndo.clearAll();
             ModdedWandService.clearAll();
@@ -85,13 +82,13 @@ public final class IrisFabricBootstrap implements ModInitializer {
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {
-            LOGGER.info("Iris parity probe armed: {}", parity);
+            ModdedIrisLog.info("Iris parity probe armed: " + parity);
             ModdedParityProbe.schedule(parity);
         }
 
         String worldCheck = System.getProperty("iris.worldcheck");
         if (worldCheck != null) {
-            LOGGER.info("Iris world check armed");
+            ModdedIrisLog.info("Iris world check armed");
             ModdedWorldCheck.schedule();
         }
     }

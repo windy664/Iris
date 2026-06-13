@@ -19,13 +19,17 @@
 package art.arcane.iris.spi;
 
 import java.util.IllegalFormatException;
+import java.util.regex.Pattern;
 
 public final class IrisLogging {
+    private static final Pattern LEGACY_COLOR = Pattern.compile("(?i)\\u00a7[0-9A-FK-ORX]");
+    private static final Pattern MINI_MESSAGE_TAG = Pattern.compile("(?i)</?(?:reset|bold|b|italic|i|underlined?|u|strikethrough|st|obfuscated?|obf|black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|aqua|red|light_purple|yellow|white|gradient|font|hover|click|rainbow)(?::[^>\\n]{0,96})?>|<#[0-9a-f]{6}>");
+
     private IrisLogging() {
     }
 
     public static void info(String format, Object... args) {
-        emit(LogLevel.INFO, safeFormat(format, args));
+        emit(LogLevel.INFO, format(format, args));
     }
 
     public static void debug(String message) {
@@ -33,11 +37,11 @@ public final class IrisLogging {
     }
 
     public static void warn(String format, Object... args) {
-        emit(LogLevel.WARN, safeFormat(format, args));
+        emit(LogLevel.WARN, format(format, args));
     }
 
     public static void error(String format, Object... args) {
-        emit(LogLevel.ERROR, safeFormat(format, args));
+        emit(LogLevel.ERROR, format(format, args));
     }
 
     public static void msg(String message) {
@@ -46,7 +50,7 @@ public final class IrisLogging {
             return;
         }
 
-        System.out.println("[Iris] " + message);
+        System.out.println("[Iris] " + clean(message));
     }
 
     public static void reportError(String context, Throwable error) {
@@ -76,21 +80,7 @@ public final class IrisLogging {
         }
     }
 
-    private static void emit(LogLevel level, String message) {
-        if (IrisPlatforms.isBound()) {
-            IrisPlatforms.get().log(level, message);
-            return;
-        }
-
-        if (level == LogLevel.WARN || level == LogLevel.ERROR) {
-            System.err.println("[Iris/" + level + "] " + message);
-            return;
-        }
-
-        System.out.println("[Iris/" + level + "] " + message);
-    }
-
-    private static String safeFormat(String format, Object... args) {
+    public static String format(String format, Object... args) {
         if (format == null) {
             return "null";
         }
@@ -104,5 +94,30 @@ public final class IrisLogging {
         } catch (IllegalFormatException ignored) {
             return format;
         }
+    }
+
+    public static String clean(String message) {
+        if (message == null) {
+            return "null";
+        }
+
+        String legacyStripped = LEGACY_COLOR.matcher(message).replaceAll("");
+        return MINI_MESSAGE_TAG.matcher(legacyStripped).replaceAll("");
+    }
+
+    private static void emit(LogLevel level, String message) {
+        LogLevel target = level == null ? LogLevel.INFO : level;
+        if (IrisPlatforms.isBound()) {
+            IrisPlatforms.get().log(target, message);
+            return;
+        }
+
+        String output = clean(message);
+        if (target == LogLevel.WARN || target == LogLevel.ERROR) {
+            System.err.println("[Iris/" + target + "] " + output);
+            return;
+        }
+
+        System.out.println("[Iris/" + target + "] " + output);
     }
 }

@@ -70,6 +70,9 @@ String fabricArtifactName = irisArtifactName('Fabric', "${minecraftVersion}+${lo
 String forgeArtifactName = irisArtifactName('Forge', "${minecraftVersion}+${loaderDisplayVersion(forgeVersion)}")
 String neoForgeArtifactName = irisArtifactName('NeoForge', "${minecraftVersion}+${loaderDisplayVersion(neoForgeVersion)}")
 extensions.extraProperties.set('bukkitArtifactName', bukkitArtifactName)
+extensions.extraProperties.set('fabricArtifactName', fabricArtifactName)
+extensions.extraProperties.set('forgeArtifactName', forgeArtifactName)
+extensions.extraProperties.set('neoForgeArtifactName', neoForgeArtifactName)
 
 apply plugin: ApiGenerator
 
@@ -86,7 +89,13 @@ registerCustomOutputTask('PixelFury', 'C://Users/repix/workplace/Iris/1.21.3 - D
 registerCustomOutputTask('PixelFuryDev', 'C://Users/repix/workplace/Iris/1.21 - Development-v3/plugins')
 // ========================== UNIX ==============================
 registerCustomOutputTaskUnix('CyberpwnLT', '/Users/danielmills/development/server/plugins')
-registerCustomOutputTaskUnix('PsychoLT', '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/plugin-consumers/dropins/plugins')
+registerCustomOutputTaskUnix(
+    'PsychoLT',
+    '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/plugin-consumers/dropins/plugins',
+    '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/fabric-mod-consumers/dropins/mods',
+    '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/forge-mod-consumers/dropins/mods',
+    '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/neoforge-mod-consumers/dropins/mods'
+)
 registerCustomOutputTaskUnix('PixelMac', '/Users/test/Desktop/mcserver/plugins')
 registerCustomOutputTaskUnix('CrazyDev22LT', '/home/julian/Desktop/server/plugins')
 // ==============================================================
@@ -232,6 +241,14 @@ tasks.register('buildNeoforge', Copy) {
     }
 }
 
+tasks.named('forgeJar').configure {
+    mustRunAfter(tasks.named('fabricJar'))
+}
+
+tasks.named('neoforgeJar').configure {
+    mustRunAfter(tasks.named('forgeJar'))
+}
+
 tasks.register('buildAll') {
     group = 'iris'
     dependsOn('buildBukkit', 'buildFabric', 'buildForge', 'buildNeoforge', ':spi:jar')
@@ -375,14 +392,15 @@ void registerCustomOutputTask(String name, String path) {
         return
     }
 
-    tasks.register("build${name}", Copy) {
-        group = 'development'
-        outputs.upToDateWhen { false }
-        dependsOn('iris')
-        from(layout.buildDirectory.file((String) project.ext.bukkitArtifactName))
-        into(file(path))
-        rename { String ignored -> 'Iris.jar' }
+    createCustomOutputTasks(name, path)
+}
+
+void registerCustomOutputTask(String name, String path, String fabricPath, String forgePath, String neoForgePath) {
+    if (!System.getProperty('os.name').toLowerCase().contains('windows')) {
+        return
     }
+
+    createCustomOutputTasks(name, path, fabricPath, forgePath, neoForgePath)
 }
 
 void registerCustomOutputTaskUnix(String name, String path) {
@@ -390,6 +408,44 @@ void registerCustomOutputTaskUnix(String name, String path) {
         return
     }
 
+    createCustomOutputTasks(name, path)
+}
+
+void registerCustomOutputTaskUnix(String name, String path, String fabricPath, String forgePath, String neoForgePath) {
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        return
+    }
+
+    createCustomOutputTasks(name, path, fabricPath, forgePath, neoForgePath)
+}
+
+void createCustomOutputTasks(String name, String path) {
+    createBukkitOutputTask(name, path)
+
+    tasks.register("buildAll${name}") {
+        group = 'development'
+        dependsOn("build${name}")
+    }
+}
+
+void createCustomOutputTasks(String name, String path, String fabricPath, String forgePath, String neoForgePath) {
+    createBukkitOutputTask(name, path)
+    createPlatformOutputTask(name, fabricPath, 'Fabric', 'buildFabric', "adapters/fabric/build/libs/${String.valueOf(project.ext.fabricArtifactName)}")
+    createPlatformOutputTask(name, forgePath, 'Forge', 'buildForge', "adapters/forge/build/libs/${String.valueOf(project.ext.forgeArtifactName)}")
+    createPlatformOutputTask(name, neoForgePath, 'Neoforge', 'buildNeoforge', "adapters/neoforge/build/libs/${String.valueOf(project.ext.neoForgeArtifactName)}")
+
+    tasks.register("buildAll${name}") {
+        group = 'development'
+        dependsOn(
+            "build${name}",
+            "build${name}Fabric",
+            "build${name}Forge",
+            "build${name}Neoforge"
+        )
+    }
+}
+
+void createBukkitOutputTask(String name, String path) {
     tasks.register("build${name}", Copy) {
         group = 'development'
         outputs.upToDateWhen { false }
@@ -397,5 +453,31 @@ void registerCustomOutputTaskUnix(String name, String path) {
         from(layout.buildDirectory.file((String) project.ext.bukkitArtifactName))
         into(file(path))
         rename { String ignored -> 'Iris.jar' }
+        doFirst {
+            delete(
+                file("${path}/Iris-Fabric.jar"),
+                file("${path}/Iris-Forge.jar"),
+                file("${path}/Iris-Neoforge.jar")
+            )
+        }
+    }
+}
+
+void createPlatformOutputTask(String name, String path, String platform, String buildTask, String sourcePath) {
+    tasks.register("build${name}${platform}", Copy) {
+        group = 'development'
+        outputs.upToDateWhen { false }
+        dependsOn(buildTask)
+        from(layout.projectDirectory.file(sourcePath))
+        into(file(path))
+        rename { String ignored -> "Iris-${platform}.jar" }
+        doFirst {
+            delete(
+                file("${path}/Iris.jar"),
+                file("${path}/Iris-Fabric.jar"),
+                file("${path}/Iris-Forge.jar"),
+                file("${path}/Iris-Neoforge.jar")
+            )
+        }
     }
 }

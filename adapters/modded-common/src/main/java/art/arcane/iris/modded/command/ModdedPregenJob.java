@@ -24,6 +24,8 @@ import art.arcane.iris.core.pregenerator.PregenTask;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.math.Position2;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,16 +105,63 @@ public final class ModdedPregenJob implements PregenListener {
         if (job == null) {
             return null;
         }
-        long total = Math.max(1L, job.totalChunks);
-        double percent = ((double) job.generated / (double) total) * 100D;
-        return "Pregen " + job.dimension + ": "
-                + Form.f(job.generated) + "/" + Form.f(job.totalChunks)
+        return job.statusText();
+    }
+
+    public static Component statusComponent() {
+        ModdedPregenJob job = ACTIVE.get();
+        if (job == null) {
+            return null;
+        }
+
+        double percent = job.percent();
+        MutableComponent status = Component.empty();
+        status.append(ModdedCommandFeedback.header("Iris Pregen"));
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.text("Dimension ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(job.dimension, ModdedCommandFeedback.PARAMETER_ALT));
+        status.append(ModdedCommandFeedback.text(" · Method ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(job.method, ModdedCommandFeedback.PARAMETER));
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.progressBar(percent, 32));
+        status.append(ModdedCommandFeedback.text(" " + String.format("%.1f", percent) + "%", ModdedCommandFeedback.USAGE));
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.text("Chunks ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(Form.f(job.generated) + "/" + Form.f(job.totalChunks), ModdedCommandFeedback.VALUE));
+        status.append(ModdedCommandFeedback.text(" · Speed ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(Form.f((int) job.chunksPerSecond) + "/s", ModdedCommandFeedback.VALUE));
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.text("ETA ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(Form.duration(job.eta, 2), ModdedCommandFeedback.VALUE));
+        status.append(ModdedCommandFeedback.text(" · Elapsed ", ModdedCommandFeedback.DARK_GREEN));
+        status.append(ModdedCommandFeedback.text(Form.duration(job.elapsed, 2), ModdedCommandFeedback.VALUE));
+        if (job.pregenerator.paused()) {
+            status.append(ModdedCommandFeedback.text(" · PAUSED", ModdedCommandFeedback.REQUIRED, true, false));
+        }
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.button("Pause/Resume", "/iris pregen pause", "Toggle pregeneration pause state", true));
+        status.append(ModdedCommandFeedback.text("  ", ModdedCommandFeedback.OPTIONAL));
+        status.append(ModdedCommandFeedback.button("Stop", "/iris pregen stop", "Finish the current region and stop pregeneration", true));
+        status.append(Component.literal("\n"));
+        status.append(ModdedCommandFeedback.footer());
+        return status;
+    }
+
+    private String statusText() {
+        double percent = percent();
+        return "Pregen " + dimension + ": "
+                + Form.f(generated) + "/" + Form.f(totalChunks)
                 + " (" + String.format("%.1f", percent) + "%), "
-                + Form.f((int) job.chunksPerSecond) + "/s"
-                + ", ETA " + Form.duration(job.eta, 2)
-                + ", elapsed " + Form.duration(job.elapsed, 2)
-                + ", method " + job.method
-                + (job.pregenerator.paused() ? ", PAUSED" : "");
+                + Form.f((int) chunksPerSecond) + "/s"
+                + ", ETA " + Form.duration(eta, 2)
+                + ", elapsed " + Form.duration(elapsed, 2)
+                + ", method " + method
+                + (pregenerator.paused() ? ", PAUSED" : "");
+    }
+
+    private double percent() {
+        long total = Math.max(1L, totalChunks);
+        return ((double) generated / (double) total) * 100D;
     }
 
     @Override

@@ -18,16 +18,31 @@
 
 package art.arcane.iris.modded.command;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.BACK;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.CATEGORY;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.DARK_GREEN;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.DESCRIPTION;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.DESCRIPTION_ICON;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.EXAMPLE_ICON;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.HOVER_TYPE;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.OPTIONAL;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.PARAMETER;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.PARAMETER_ALT;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.REQUIRED;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.REQUIRED_TEXT;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.USAGE;
+import static art.arcane.iris.modded.command.ModdedCommandFeedback.USAGE_ICON;
 
 final class ModdedCommandHelp {
     private static final Map<String, List<Entry>> SECTIONS = new LinkedHashMap<>();
@@ -89,7 +104,7 @@ final class ModdedCommandHelp {
                 Entry.command("package", "[pack]", "Package a dimension into a compressed format"),
                 Entry.command("version", "[pack]", "Print a pack version"),
                 Entry.command("regions", "[radius]", "Calculate nearby region distribution"),
-                Entry.command("open", "", "Explain modded studio workflow"),
+                Entry.command("open", "<pack> [seed]", "Open or prepare a dimension pack studio workflow"),
                 Entry.command("close", "", "Explain modded studio workflow"),
                 Entry.command("vscode", "", "Explain editor workflow"),
                 Entry.command("update", "", "Explain workspace regeneration workflow"),
@@ -143,53 +158,187 @@ final class ModdedCommandHelp {
             return 0;
         }
 
-        sendHeader(source, normalized.isEmpty() ? "Iris Commands" : "/iris " + normalized);
+        ModdedCommandFeedback.clear(source);
+
+        sendHeader(source, normalized);
         if (!normalized.isEmpty()) {
-            ModdedCommandFeedback.send(source, clickable("  < Back", "/iris", "/iris", "Back to Iris command groups", true));
+            ModdedCommandFeedback.send(source, backButton(normalized));
         }
         for (Entry entry : entries) {
             ModdedCommandFeedback.send(source, line(normalized, entry));
         }
-        ModdedCommandFeedback.ok(source, "Click a group to open it, or click a command to place it in chat.");
+        ModdedCommandFeedback.ok(source, footer());
         return 1;
     }
 
-    private static void sendHeader(CommandSourceStack source, String title) {
-        MutableComponent header = Component.literal("========== ").withStyle(ChatFormatting.DARK_GREEN, ChatFormatting.STRIKETHROUGH)
-                .append(Component.literal(" " + title + " ").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
-                .append(Component.literal(" ==========").withStyle(ChatFormatting.DARK_GREEN, ChatFormatting.STRIKETHROUGH));
-        ModdedCommandFeedback.send(source, header);
+    private static void sendHeader(CommandSourceStack source, String path) {
+        String title = path.isEmpty() ? "/iris" : "/iris " + path;
+        ModdedCommandFeedback.send(source, ModdedCommandFeedback.header(title));
+    }
+
+    private static MutableComponent backButton(String path) {
+        String parent = parentPath(path);
+        String command = parent.isEmpty() ? "/iris" : "/iris help " + parent;
+        MutableComponent hover = Component.empty()
+                .append(text("Click to go back to ", DARK_GREEN))
+                .append(text(parent.isEmpty() ? "Iris" : parent, PARAMETER_ALT));
+        return text("〈 Back", BACK).withStyle((style) -> style
+                .withClickEvent(new ClickEvent.RunCommand(command))
+                .withHoverEvent(new HoverEvent.ShowText(hover)));
     }
 
     private static MutableComponent line(String path, Entry entry) {
-        String basePath = path.isEmpty() ? "" : " " + path;
-        String command = "/iris" + basePath + " " + entry.name();
-        String suggestion = entry.usage().isBlank() ? command : command + " " + entry.usage();
-        String hover = entry.description() + (entry.usage().isBlank() ? "" : "\nUsage: " + suggestion);
-        MutableComponent row = Component.literal("  ");
-        row.append(clickable(entry.name(), command, suggestion, hover, entry.group()));
-        if (entry.aliases().length > 0) {
-            row.append(Component.literal("  " + String.join(", ", entry.aliases())).withStyle(ChatFormatting.DARK_GREEN));
-        }
-        row.append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY));
-        row.append(Component.literal(entry.description()).withStyle(ChatFormatting.GRAY));
+        MutableComponent row = Component.empty();
+        row.append(clickableCommand(path, entry));
+        row.append(nodes(entry));
         return row;
     }
 
-    private static MutableComponent clickable(String label, String command, String suggestion, String hover, boolean run) {
-        Component hoverText = Component.literal(hover).withStyle(ChatFormatting.GREEN);
-        if (run) {
-            return Component.literal(label).withStyle((style) -> style
-                    .withColor(ChatFormatting.AQUA)
-                    .withBold(true)
-                    .withClickEvent(new ClickEvent.RunCommand(command))
-                    .withHoverEvent(new HoverEvent.ShowText(hoverText)));
+    private static MutableComponent clickableCommand(String path, Entry entry) {
+        String parent = path.isEmpty() ? "/iris" : "/iris " + path;
+        String command = parent + " " + entry.name();
+        String suggestion = entry.usage().isBlank() ? command : command + " " + entry.usage();
+        ClickEvent clickEvent = entry.group() ? new ClickEvent.RunCommand(command) : new ClickEvent.SuggestCommand(suggestion);
+        MutableComponent hover = entryHover(path, entry, suggestion);
+        MutableComponent display = Component.empty();
+        display.append(text(parent + " >", 0xFFFFFF));
+        display.append(text("⇀", DARK_GREEN));
+        display.append(text(" " + entry.name(), PARAMETER_ALT));
+        return display.withStyle((style) -> style
+                .withClickEvent(clickEvent)
+                .withHoverEvent(new HoverEvent.ShowText(hover)));
+    }
+
+    private static MutableComponent nodes(Entry entry) {
+        if (entry.group()) {
+            return text(" - Category of Commands", CATEGORY);
         }
 
-        return Component.literal(label).withStyle((style) -> style
-                .withColor(ChatFormatting.GREEN)
-                .withClickEvent(new ClickEvent.SuggestCommand(suggestion))
-                .withHoverEvent(new HoverEvent.ShowText(hoverText)));
+        List<String> tokens = usageTokens(entry.usage());
+        if (tokens.isEmpty()) {
+            return Component.empty();
+        }
+
+        MutableComponent nodes = Component.empty();
+        for (String token : tokens) {
+            nodes.append(Component.literal(" "));
+            nodes.append(parameter(token));
+        }
+        return nodes;
+    }
+
+    private static MutableComponent parameter(String token) {
+        String name = parameterName(token);
+        boolean required = token.startsWith("<");
+        MutableComponent title = Component.empty();
+        if (required) {
+            title.append(text("[", REQUIRED, true, false));
+            title.append(text(name, PARAMETER, false, false));
+            title.append(text("]", REQUIRED, true, false));
+        } else {
+            title.append(text("⊰", OPTIONAL));
+            title.append(text(name, PARAMETER));
+            title.append(text("⊱", OPTIONAL));
+        }
+
+        MutableComponent hover = Component.empty();
+        hover.append(text(name, PARAMETER));
+        hover.append(Component.literal("\n"));
+        hover.append(text("✎ ", DESCRIPTION_ICON));
+        hover.append(text("Command parameter", DESCRIPTION));
+        hover.append(Component.literal("\n"));
+        if (required) {
+            hover.append(text("⚠ ", REQUIRED));
+            hover.append(text("This parameter is required.", REQUIRED_TEXT));
+        } else {
+            hover.append(text("✔ ", DESCRIPTION_ICON));
+            hover.append(text("This parameter is optional.", USAGE));
+        }
+        hover.append(Component.literal("\n"));
+        hover.append(text("✢ ", DARK_GREEN));
+        hover.append(text("This parameter is read as text by Brigadier.", HOVER_TYPE));
+
+        return title.withStyle((style) -> style.withHoverEvent(new HoverEvent.ShowText(hover)));
+    }
+
+    private static MutableComponent entryHover(String path, Entry entry, String suggestion) {
+        MutableComponent hover = Component.empty();
+        hover.append(text(names(entry), PARAMETER));
+        hover.append(Component.literal("\n"));
+        hover.append(text("✎ ", DESCRIPTION_ICON));
+        hover.append(text(entry.description(), DESCRIPTION));
+        hover.append(Component.literal("\n"));
+        hover.append(text("✒ ", USAGE_ICON));
+        if (entry.group()) {
+            hover.append(text("This is a command category. Click to run.", USAGE));
+        } else if (entry.usage().isBlank()) {
+            hover.append(text("There are no parameters. Click to type command.", USAGE));
+        } else {
+            hover.append(text("Hover over all of the parameters to learn more.", USAGE));
+            hover.append(Component.literal("\n"));
+            hover.append(text("✦ ", EXAMPLE_ICON));
+            hover.append(text(suggestion, PARAMETER));
+        }
+
+        String parent = path.isEmpty() ? "/iris" : "/iris " + path;
+        if (entry.aliases().length > 0) {
+            hover.append(Component.literal("\n"));
+            hover.append(text("Aliases: ", DARK_GREEN));
+            List<String> aliases = new ArrayList<>(entry.aliases().length);
+            for (String alias : entry.aliases()) {
+                aliases.add(parent + " " + alias);
+            }
+            hover.append(text(String.join(", ", aliases), PARAMETER_ALT));
+        }
+        return hover;
+    }
+
+    private static MutableComponent footer() {
+        return ModdedCommandFeedback.footer();
+    }
+
+    private static MutableComponent text(String value, int color) {
+        return ModdedCommandFeedback.text(value, color, false, false);
+    }
+
+    private static MutableComponent text(String value, int color, boolean bold, boolean strikethrough) {
+        return ModdedCommandFeedback.text(value, color, bold, strikethrough);
+    }
+
+    private static List<String> usageTokens(String usage) {
+        if (usage == null || usage.isBlank()) {
+            return List.of();
+        }
+        return List.of(usage.trim().split("\\s+"));
+    }
+
+    private static String names(Entry entry) {
+        if (entry.aliases().length == 0) {
+            return entry.name();
+        }
+
+        List<String> names = new ArrayList<>(entry.aliases().length + 1);
+        names.add(entry.name());
+        for (String alias : entry.aliases()) {
+            names.add(alias);
+        }
+        return String.join(", ", names);
+    }
+
+    private static String parameterName(String token) {
+        String name = token;
+        if ((name.startsWith("<") && name.endsWith(">")) || (name.startsWith("[") && name.endsWith("]"))) {
+            name = name.substring(1, name.length() - 1);
+        }
+        return name;
+    }
+
+    private static String parentPath(String path) {
+        int lastSpace = path.lastIndexOf(' ');
+        if (lastSpace <= 0) {
+            return "";
+        }
+        return path.substring(0, lastSpace);
     }
 
     private static String normalize(String path) {

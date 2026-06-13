@@ -38,11 +38,14 @@ import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Spiraler;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
@@ -102,12 +105,12 @@ public final class ModdedStudioCommands {
                 .then(Commands.argument("radius", IntegerArgumentType.integer(8, 1000))
                         .executes((CommandContext<CommandSourceStack> context) -> regions(context.getSource(), IntegerArgumentType.getInteger(context, "radius")))));
 
-        root.then(message("open", "Studio worlds are temporary Bukkit worlds opened by the Bukkit studio toolchain; modded servers cannot open ad-hoc runtime dimensions. Edit the pack under config/irisworldgen/packs/<pack> and create a fresh world (or /iris regen) to see changes."));
-        root.then(message("o", "Studio worlds are temporary Bukkit worlds opened by the Bukkit studio toolchain; modded servers cannot open ad-hoc runtime dimensions. Edit the pack under config/irisworldgen/packs/<pack> and create a fresh world (or /iris regen) to see changes."));
-        root.then(message("close", "There are no studio worlds on modded servers (/iris studio open is Bukkit-only), so there is nothing to close."));
-        root.then(message("x", "There are no studio worlds on modded servers (/iris studio open is Bukkit-only), so there is nothing to close."));
-        root.then(message("tpstudio", "There are no studio worlds on modded servers to teleport to; /iris studio open is Bukkit-only."));
-        root.then(message("stp", "There are no studio worlds on modded servers to teleport to; /iris studio open is Bukkit-only."));
+        root.then(openTree("open"));
+        root.then(openTree("o"));
+        root.then(message("close", "There are no studio worlds on modded servers (/iris studio open prepares the pack workflow instead), so there is nothing to close."));
+        root.then(message("x", "There are no studio worlds on modded servers (/iris studio open prepares the pack workflow instead), so there is nothing to close."));
+        root.then(message("tpstudio", "There are no temporary Bukkit studio worlds on modded servers to teleport to; use /iris studio open <pack> to prepare the pack workflow instead."));
+        root.then(message("stp", "There are no temporary Bukkit studio worlds on modded servers to teleport to; use /iris studio open <pack> to prepare the pack workflow instead."));
         root.then(message("vscode", "VSCode launch and workspace generation are desktop features of the Bukkit studio toolchain; edit config/irisworldgen/packs/<pack> directly in your editor."));
         root.then(message("vsc", "VSCode launch and workspace generation are desktop features of the Bukkit studio toolchain; edit config/irisworldgen/packs/<pack> directly in your editor."));
         root.then(message("update", "Workspace regeneration (.code-workspace + JSON schemas) reads Bukkit registries (SchemaBuilder); run /iris studio update on a Bukkit server against this pack."));
@@ -126,6 +129,20 @@ public final class ModdedStudioCommands {
         root.then(message("find-objects", "The chunk object report reads Bukkit chunk data and is not ported to modded servers."));
 
         return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> openTree(String name) {
+        return Commands.literal(name)
+                .executes((CommandContext<CommandSourceStack> context) -> openHelp(context.getSource()))
+                .then(Commands.argument("pack", StringArgumentType.word()).suggests(IrisModdedCommands.PACK_NAMES)
+                        .executes((CommandContext<CommandSourceStack> context) -> open(context.getSource(), StringArgumentType.getString(context, "pack"), 1337L))
+                        .then(Commands.argument("seed", LongArgumentType.longArg())
+                                .executes((CommandContext<CommandSourceStack> context) -> open(context.getSource(), StringArgumentType.getString(context, "pack"), LongArgumentType.getLong(context, "seed")))));
+    }
+
+    private static int openHelp(CommandSourceStack source) {
+        IrisModdedCommands.fail(source, "Provide a dimension pack: /iris studio open <pack> [seed]");
+        return 0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> message(String name, String text) {
@@ -157,6 +174,52 @@ public final class ModdedStudioCommands {
             return null;
         }
         return folder;
+    }
+
+    private static int open(CommandSourceStack source, String pack, long seed) {
+        File folder = resolvePack(source, pack);
+        if (folder == null) {
+            return 0;
+        }
+
+        IrisData data = IrisData.get(folder);
+        IrisDimension dimension = data.getDimensionLoader().load(folder.getName());
+        if (dimension == null) {
+            IrisModdedCommands.fail(source, "Pack '" + folder.getName() + "' has no dimensions/" + folder.getName() + ".json");
+            return 0;
+        }
+
+        IrisModdedCommands.ok(source, studioOpenComponent(dimension, folder, seed));
+        return 1;
+    }
+
+    private static MutableComponent studioOpenComponent(IrisDimension dimension, File folder, long seed) {
+        String dimensionKey = dimension.getLoadKey() == null ? folder.getName() : dimension.getLoadKey();
+        MutableComponent message = Component.empty();
+        message.append(ModdedCommandFeedback.header("Iris Studio"));
+        message.append(Component.literal("\n"));
+        message.append(ModdedCommandFeedback.text("Opening studio for the \"", ModdedCommandFeedback.DARK_GREEN));
+        message.append(ModdedCommandFeedback.text(dimension.getName(), ModdedCommandFeedback.PARAMETER_ALT));
+        message.append(ModdedCommandFeedback.text("\" pack", ModdedCommandFeedback.DARK_GREEN));
+        message.append(ModdedCommandFeedback.text(" (seed: " + seed + ")", ModdedCommandFeedback.VALUE));
+        message.append(Component.literal("\n"));
+        message.append(ModdedCommandFeedback.text("Pack ", ModdedCommandFeedback.DARK_GREEN));
+        message.append(ModdedCommandFeedback.text(dimensionKey, ModdedCommandFeedback.PARAMETER));
+        message.append(ModdedCommandFeedback.text(" is ready at ", ModdedCommandFeedback.DESCRIPTION));
+        message.append(ModdedCommandFeedback.text(folder.getAbsolutePath(), ModdedCommandFeedback.VALUE));
+        message.append(Component.literal("\n"));
+        message.append(ModdedCommandFeedback.text("Modded servers cannot create Bukkit's temporary studio world at runtime; edit this pack directly, then use the matching world/datapack workflow or ", ModdedCommandFeedback.DESCRIPTION));
+        message.append(ModdedCommandFeedback.button("/iris regen", "/iris regen", "Regenerate nearby chunks after editing this pack", false));
+        message.append(ModdedCommandFeedback.text(" in an Iris dimension.", ModdedCommandFeedback.DESCRIPTION));
+        message.append(Component.literal("\n"));
+        message.append(ModdedCommandFeedback.button("Validate", "/iris pack validate " + dimensionKey, "Validate this pack before loading it", true));
+        message.append(ModdedCommandFeedback.text("  ", ModdedCommandFeedback.OPTIONAL));
+        message.append(ModdedCommandFeedback.button("World Help", "/iris world", "Open Iris world command help", true));
+        message.append(ModdedCommandFeedback.text("  ", ModdedCommandFeedback.OPTIONAL));
+        message.append(ModdedCommandFeedback.button("Package", "/iris studio package " + dimensionKey, "Package this dimension", false));
+        message.append(Component.literal("\n"));
+        message.append(ModdedCommandFeedback.footer());
+        return message;
     }
 
     private static int version(CommandSourceStack source, String pack) {
