@@ -28,13 +28,10 @@ import java.util.List;
 import java.util.Set;
 
 public class INMS {
-    private static final Version CURRENT = Boolean.getBoolean("iris.no-version-limit") ?
-            new Version(Integer.MAX_VALUE, Integer.MAX_VALUE, null) :
-            new Version(26, 1, null);
+    private static final Version CURRENT = new Version(26, 1, 2, "v26_1_R1");
 
     private static final List<Version> REVISION = List.of(
-            new Version(26, 1, "v26_1_R1"),
-            new Version(21, 11, "v1_21_R7")
+            CURRENT
     );
 
     //@done
@@ -88,7 +85,7 @@ public class INMS {
 
         MinecraftVersion detectedVersion = getMinecraftVersion();
         String serverVersion = detectedVersion == null ? Bukkit.getServer().getVersion() : detectedVersion.value();
-        throw new IllegalStateException("Iris requires Minecraft 1.21.11 or newer. Detected server version: " + serverVersion);
+        throw new IllegalStateException("Iris requires Minecraft 26.1.2. Detected server version: " + serverVersion);
     }
 
     private static String getTag(List<Version> versions, String def) {
@@ -97,12 +94,8 @@ public class INMS {
             return def;
         }
 
-        if (detectedVersion.isNewerThan(CURRENT.major, CURRENT.minor)) {
-            return versions.getFirst().tag;
-        }
-
         for (Version p : versions) {
-            if (!detectedVersion.isAtLeast(p.major, p.minor)) {
+            if (!detectedVersion.isSameRelease(p.major, p.minor, p.patch)) {
                 continue;
             }
             return p.tag;
@@ -155,5 +148,5 @@ public class INMS {
         return codes;
     }
 
-    private record Version(int major, int minor, String tag) {}
+    private record Version(int major, int minor, int patch, String tag) {}
 }

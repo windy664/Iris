@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mockingDetails;
 public class IrisRuntimeSchedulerModeRoutingTest {
     @Test
     public void autoResolvesToPaperLikeOnPurpurBranding() {
-        installServer("Purpur", "git-Purpur-2562 (MC: 1.21.11)");
+        installServer("Purpur", "git-Purpur-2562 (MC: 26.1.2)");
         IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();
         pregen.runtimeSchedulerMode = IrisRuntimeSchedulerMode.AUTO;
 
@@ -32,7 +32,7 @@ public class IrisRuntimeSchedulerModeRoutingTest {
 
     @Test
     public void autoResolvesToFoliaWhenBrandingContainsFolia() {
-        installServer("Folia", "git-Folia-123 (MC: 1.21.11)");
+        installServer("Folia", "git-Folia-123 (MC: 26.1.2)");
         IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();
         pregen.runtimeSchedulerMode = IrisRuntimeSchedulerMode.AUTO;
 
@@ -42,7 +42,7 @@ public class IrisRuntimeSchedulerModeRoutingTest {
 
     @Test
     public void autoResolvesToPaperLikeOnCanvasBranding() {
-        installServer("Canvas", "git-Canvas-101 (MC: 1.21.11)");
+        installServer("Canvas", "git-Canvas-101 (MC: 26.1.2)");
         IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();
         pregen.runtimeSchedulerMode = IrisRuntimeSchedulerMode.AUTO;
 
@@ -52,7 +52,7 @@ public class IrisRuntimeSchedulerModeRoutingTest {
 
     @Test
     public void explicitModeBypassesAutoDetection() {
-        installServer("Purpur", "git-Purpur-2562 (MC: 1.21.11)");
+        installServer("Purpur", "git-Purpur-2562 (MC: 26.1.2)");
         IrisSettings.IrisSettingsPregen pregen = new IrisSettings.IrisSettingsPregen();
 
         pregen.runtimeSchedulerMode = IrisRuntimeSchedulerMode.FOLIA;

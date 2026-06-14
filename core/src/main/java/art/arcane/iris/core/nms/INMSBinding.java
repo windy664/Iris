@@ -187,7 +187,7 @@ public interface INMSBinding {
     Color getBiomeColor(Location location, BiomeColor type);
 
     default DataVersion getDataVersion() {
-        return DataVersion.V1_19_2;
+        return DataVersion.V26_1_2;
     }
 
     default int getSpawnChunkCount(World world) {

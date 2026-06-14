@@ -101,7 +101,6 @@ registerCustomOutputTaskUnix('CrazyDev22LT', '/home/julian/Desktop/server/plugin
 // ==============================================================
 
 def nmsBindings = [
-    v1_21_R7: '1.21.11-R0.1-SNAPSHOT',
     v26_1_R1: '26.1.2.build.66-stable',
 ]
 Class nmsTypeClass = Class.forName('NMSBinding$Type')

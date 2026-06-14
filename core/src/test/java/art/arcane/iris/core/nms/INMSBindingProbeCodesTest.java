@@ -10,22 +10,22 @@ import static org.junit.Assert.assertTrue;
 public class INMSBindingProbeCodesTest {
     @Test
     public void skipsSyntheticBukkitBindingWhenNmsIsEnabled() {
-        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("BUKKIT", false, List.of("v1_21_R7"));
+        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("BUKKIT", false, List.of("v26_1_R1"));
 
-        assertEquals(List.of("v1_21_R7"), probeCodes);
+        assertEquals(List.of("v26_1_R1"), probeCodes);
     }
 
     @Test
     public void leavesBukkitFallbackEmptyWhenNmsIsDisabled() {
-        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("BUKKIT", true, List.of("v1_21_R7"));
+        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("BUKKIT", true, List.of("v26_1_R1"));
 
         assertTrue(probeCodes.isEmpty());
     }
 
     @Test
     public void keepsConcreteBindingCodesAsPrimaryProbe() {
-        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("v1_21_R7", false, List.of("v1_21_R7"));
+        List<String> probeCodes = NmsBindingProbeSupport.getBindingProbeCodes("v26_1_R1", false, List.of("v26_1_R1"));
 
-        assertEquals(List.of("v1_21_R7"), probeCodes);
+        assertEquals(List.of("v26_1_R1"), probeCodes);
     }
 }

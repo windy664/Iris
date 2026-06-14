@@ -12,11 +12,13 @@ final class MinecraftVersion {
     private final String value;
     private final int major;
     private final int minor;
+    private final int patch;
 
-    private MinecraftVersion(String value, int major, int minor) {
+    private MinecraftVersion(String value, int major, int minor, int patch) {
         this.value = value;
         this.major = major;
         this.minor = minor;
+        this.patch = patch;
     }
 
     public static MinecraftVersion detect(Server server) {
@@ -92,12 +94,13 @@ final class MinecraftVersion {
             if ("1".equals(parts[0])) {
                 int major = Integer.parseInt(parts[1]);
                 int minor = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
-                return new MinecraftVersion(input, major, minor);
+                return new MinecraftVersion(input, major, minor, 0);
             }
 
             int major = Integer.parseInt(parts[0]);
             int minor = Integer.parseInt(parts[1]);
-            return new MinecraftVersion(input, major, minor);
+            int patch = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+            return new MinecraftVersion(input, major, minor, patch);
         } catch (NumberFormatException ignored) {
             return null;
         }
@@ -115,8 +118,26 @@ final class MinecraftVersion {
         return minor;
     }
 
+    public int patch() {
+        return patch;
+    }
+
     public boolean isAtLeast(int major, int minor) {
         return this.major > major || (this.major == major && this.minor >= minor);
+    }
+
+    public boolean isAtLeast(int major, int minor, int patch) {
+        if (this.major != major) {
+            return this.major > major;
+        }
+        if (this.minor != minor) {
+            return this.minor > minor;
+        }
+        return this.patch >= patch;
+    }
+
+    public boolean isSameRelease(int major, int minor, int patch) {
+        return this.major == major && this.minor == minor && this.patch == patch;
     }
 
     public boolean isNewerThan(int major, int minor) {

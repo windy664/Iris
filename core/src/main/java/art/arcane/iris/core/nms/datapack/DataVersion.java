@@ -2,9 +2,6 @@ package art.arcane.iris.core.nms.datapack;
 
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.core.nms.INMS;
-import art.arcane.iris.core.nms.datapack.v1192.DataFixerV1192;
-import art.arcane.iris.core.nms.datapack.v1206.DataFixerV1206;
-import art.arcane.iris.core.nms.datapack.v1213.DataFixerV1213;
 import art.arcane.iris.core.nms.datapack.v1217.DataFixerV1217;
 import art.arcane.volmlib.util.collection.KMap;
 import lombok.AccessLevel;
@@ -16,10 +13,6 @@ import java.util.function.Supplier;
 @Getter
 public enum DataVersion {
     UNSUPPORTED("0.0.0", 0, () -> null),
-    V1_19_2("1.19.2", 10, DataFixerV1192::new),
-    V1_20_5("1.20.6", 41, DataFixerV1206::new),
-    V1_21_3("1.21.3", 57, DataFixerV1213::new),
-    V1_21_11("1.21.11", 75, DataFixerV1217::new),
     V26_1_2("26.1.2", 101, DataFixerV1217::new);
     private static final KMap<DataVersion, IDataFixer> cache = new KMap<>();
     @Getter(AccessLevel.NONE)
