@@ -79,6 +79,8 @@ public class IrisBiome extends IrisRegistrant implements IRare {
     private final transient AtomicCache<KList<CNG>> layerSeaHeightGenerators = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> surfaceOreCache = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> undergroundOreCache = new AtomicCache<>();
+    private final transient AtomicCache<IrisOreGeneratorBounds> surfaceOreBoundsCache = new AtomicCache<>();
+    private final transient AtomicCache<IrisOreGeneratorBounds> undergroundOreBoundsCache = new AtomicCache<>();
     private final transient AtomicCache<EnumMap<IrisDecorationPart, IrisDecorator[]>> decoratorBuckets = new AtomicCache<>();
     private final transient AtomicCache<Biome> derivativeResolved = new AtomicCache<>();
     private final transient AtomicCache<Biome> vanillaDerivativeResolved = new AtomicCache<>();
@@ -235,6 +237,8 @@ public class IrisBiome extends IrisRegistrant implements IRare {
         this.ores = ores == null ? new KList<>() : ores;
         surfaceOreCache.reset();
         undergroundOreCache.reset();
+        surfaceOreBoundsCache.reset();
+        undergroundOreBoundsCache.reset();
     }
 
     public KList<IrisOreGenerator> getSurfaceOreGenerators() {
@@ -243,6 +247,14 @@ public class IrisBiome extends IrisRegistrant implements IRare {
 
     public KList<IrisOreGenerator> getUndergroundOreGenerators() {
         return getOres(false);
+    }
+
+    public IrisOreGeneratorBounds getSurfaceOreGeneratorBounds() {
+        return surfaceOreBoundsCache.aquire(() -> IrisOreGeneratorBounds.of(getSurfaceOres()));
+    }
+
+    public IrisOreGeneratorBounds getUndergroundOreGeneratorBounds() {
+        return undergroundOreBoundsCache.aquire(() -> IrisOreGeneratorBounds.of(getUndergroundOres()));
     }
 
     private KList<IrisOreGenerator> getSurfaceOres() {

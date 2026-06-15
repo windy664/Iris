@@ -22,7 +22,6 @@ import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.IrisCustomData;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 
 import java.util.LinkedHashMap;
@@ -38,65 +37,28 @@ public final class BukkitBlockState implements PlatformBlockState {
     private final BlockData data;
     private final String key;
     private final String namespace;
-    private final Boolean air;
-    private final Boolean solid;
-    private final Boolean occluding;
-    private final Boolean fluid;
-    private final Boolean water;
-    private final Boolean waterLogged;
-    private final Boolean lit;
-    private final Boolean updatable;
-    private final Boolean foliage;
-    private final Boolean foliagePlantable;
-    private final Boolean decorant;
-    private final Boolean storage;
-    private final Boolean storageChest;
-    private final Boolean ore;
-    private final Boolean deepSlate;
-    private final Boolean vineBlock;
+    private volatile Boolean air;
+    private volatile Boolean solid;
+    private volatile Boolean occluding;
+    private volatile Boolean fluid;
+    private volatile Boolean water;
+    private volatile Boolean waterLogged;
+    private volatile Boolean lit;
+    private volatile Boolean updatable;
+    private volatile Boolean foliage;
+    private volatile Boolean foliagePlantable;
+    private volatile Boolean decorant;
+    private volatile Boolean storage;
+    private volatile Boolean storageChest;
+    private volatile Boolean ore;
+    private volatile Boolean deepSlate;
+    private volatile Boolean vineBlock;
     private volatile Boolean tileEntity;
 
     private BukkitBlockState(BlockData data, String key) {
         this.data = data;
         this.key = key;
         this.namespace = parseNamespace(key);
-        Material material = data.getMaterial();
-        if (material == null) {
-            this.air = null;
-            this.solid = null;
-            this.occluding = null;
-            this.fluid = null;
-            this.water = null;
-            this.waterLogged = null;
-            this.lit = null;
-            this.updatable = null;
-            this.foliage = null;
-            this.foliagePlantable = null;
-            this.decorant = null;
-            this.storage = null;
-            this.storageChest = null;
-            this.ore = null;
-            this.deepSlate = null;
-            this.vineBlock = null;
-            return;
-        }
-
-        this.air = BukkitBlockResolution.isAir(data);
-        this.solid = BukkitBlockResolution.isSolid(data);
-        this.occluding = material.isOccluding();
-        this.fluid = BukkitBlockResolution.isFluid(data);
-        this.water = BukkitBlockResolution.isWater(data);
-        this.waterLogged = BukkitBlockResolution.isWaterLogged(data);
-        this.lit = BukkitBlockResolution.isLit(data);
-        this.updatable = BukkitBlockResolution.isUpdatable(data);
-        this.foliage = BukkitBlockResolution.isFoliage(data);
-        this.foliagePlantable = BukkitBlockResolution.isFoliagePlantable(data);
-        this.decorant = BukkitBlockResolution.isDecorant(data);
-        this.storage = BukkitBlockResolution.isStorage(data);
-        this.storageChest = BukkitBlockResolution.isStorageChest(data);
-        this.ore = BukkitBlockResolution.isOre(data);
-        this.deepSlate = BukkitBlockResolution.isDeepSlate(data);
-        this.vineBlock = BukkitBlockResolution.isVineBlock(data);
     }
 
     public static BukkitBlockState of(BlockData data) {
@@ -173,17 +135,32 @@ public final class BukkitBlockState implements PlatformBlockState {
 
     @Override
     public boolean isAir() {
-        return air != null ? air : BukkitBlockResolution.isAir(data);
+        Boolean cached = air;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isAir(data);
+            air = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isSolid() {
-        return solid != null ? solid : BukkitBlockResolution.isSolid(data);
+        Boolean cached = solid;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isSolid(data);
+            solid = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isOccluding() {
-        return occluding != null ? occluding : data.getMaterial().isOccluding();
+        Boolean cached = occluding;
+        if (cached == null) {
+            cached = data.getMaterial().isOccluding();
+            occluding = cached;
+        }
+        return cached;
     }
 
     @Override
@@ -193,67 +170,132 @@ public final class BukkitBlockState implements PlatformBlockState {
 
     @Override
     public boolean isFluid() {
-        return fluid != null ? fluid : BukkitBlockResolution.isFluid(data);
+        Boolean cached = fluid;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isFluid(data);
+            fluid = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isWater() {
-        return water != null ? water : BukkitBlockResolution.isWater(data);
+        Boolean cached = water;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isWater(data);
+            water = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isWaterLogged() {
-        return waterLogged != null ? waterLogged : BukkitBlockResolution.isWaterLogged(data);
+        Boolean cached = waterLogged;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isWaterLogged(data);
+            waterLogged = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isLit() {
-        return lit != null ? lit : BukkitBlockResolution.isLit(data);
+        Boolean cached = lit;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isLit(data);
+            lit = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isUpdatable() {
-        return updatable != null ? updatable : BukkitBlockResolution.isUpdatable(data);
+        Boolean cached = updatable;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isUpdatable(data);
+            updatable = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isFoliage() {
-        return foliage != null ? foliage : BukkitBlockResolution.isFoliage(data);
+        Boolean cached = foliage;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isFoliage(data);
+            foliage = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isFoliagePlantable() {
-        return foliagePlantable != null ? foliagePlantable : BukkitBlockResolution.isFoliagePlantable(data);
+        Boolean cached = foliagePlantable;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isFoliagePlantable(data);
+            foliagePlantable = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isDecorant() {
-        return decorant != null ? decorant : BukkitBlockResolution.isDecorant(data);
+        Boolean cached = decorant;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isDecorant(data);
+            decorant = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isStorage() {
-        return storage != null ? storage : BukkitBlockResolution.isStorage(data);
+        Boolean cached = storage;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isStorage(data);
+            storage = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isStorageChest() {
-        return storageChest != null ? storageChest : BukkitBlockResolution.isStorageChest(data);
+        Boolean cached = storageChest;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isStorageChest(data);
+            storageChest = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isOre() {
-        return ore != null ? ore : BukkitBlockResolution.isOre(data);
+        Boolean cached = ore;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isOre(data);
+            ore = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isDeepSlate() {
-        return deepSlate != null ? deepSlate : BukkitBlockResolution.isDeepSlate(data);
+        Boolean cached = deepSlate;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isDeepSlate(data);
+            deepSlate = cached;
+        }
+        return cached;
     }
 
     @Override
     public boolean isVineBlock() {
-        return vineBlock != null ? vineBlock : BukkitBlockResolution.isVineBlock(data);
+        Boolean cached = vineBlock;
+        if (cached == null) {
+            cached = BukkitBlockResolution.isVineBlock(data);
+            vineBlock = cached;
+        }
+        return cached;
     }
 
     @Override
@@ -278,10 +320,7 @@ public final class BukkitBlockState implements PlatformBlockState {
 
     @Override
     public boolean isAirOrFluid() {
-        if (air != null && fluid != null) {
-            return air || fluid;
-        }
-        return PlatformBlockState.super.isAirOrFluid();
+        return isAir() || isFluid();
     }
 
     @Override

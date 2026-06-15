@@ -32,13 +32,18 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.bukkit.Axis;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.*;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.block.data.Orientable;
+import org.bukkit.block.data.Rotatable;
 import org.bukkit.block.data.type.RedstoneWire;
 import org.bukkit.block.data.type.Wall;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Snippet("object-rotator")
 @Accessors(chain = true)
@@ -291,9 +296,23 @@ public class IrisObjectRotation {
             return rotator == null ? state : rotator.rotate(this, state, spinx, spiny, spinz);
         }
 
-        BlockData raw = ((BlockData) state.nativeHandle()).clone();
+        BlockData original = (BlockData) state.nativeHandle();
+        if (!canRotate() || !canRotateBlockData(original)) {
+            return state;
+        }
+
+        BlockData raw = original.clone();
         BlockData rotated = rotate(raw, spinx, spiny, spinz);
         return rotated == null ? null : BukkitBlockState.of(rotated);
+    }
+
+    private static boolean canRotateBlockData(BlockData data) {
+        return data instanceof Directional
+                || data instanceof Rotatable
+                || data instanceof Orientable
+                || data instanceof MultipleFacing
+                || data instanceof Wall
+                || data instanceof RedstoneWire;
     }
 
     public BlockData rotate(BlockData dd, int spinxx, int spinyy, int spinzz) {
@@ -375,7 +394,7 @@ public class IrisObjectRotation {
             } else if (d instanceof RedstoneWire wire) {
                 Map<BlockFace, RedstoneWire.Connection> faces = new HashMap<>();
 
-                var allowed = wire.getAllowedFaces();
+                Set<BlockFace> allowed = wire.getAllowedFaces();
                 for (BlockFace i : allowed) {
                     RedstoneWire.Connection connection = wire.getFace(i);
                     IrisBlockVector bv = new IrisBlockVector(i.getModX(), i.getModY(), i.getModZ());

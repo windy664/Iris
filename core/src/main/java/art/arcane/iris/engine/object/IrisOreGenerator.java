@@ -54,11 +54,11 @@ public class IrisOreGenerator {
     }
 
     public PlatformBlockState generate(int x, int y, int z, RNG rng, IrisData data) {
-        if (palette.getPalette().isEmpty()) {
+        if (!range.contains(y)) {
             return null;
         }
 
-        if (!range.contains(y)) {
+        if (palette.getPalette().isEmpty()) {
             return null;
         }
 

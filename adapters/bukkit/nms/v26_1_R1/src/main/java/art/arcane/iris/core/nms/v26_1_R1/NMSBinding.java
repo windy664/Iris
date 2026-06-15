@@ -16,6 +16,9 @@ import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.iris.util.common.format.C;
 import art.arcane.iris.util.project.hunk.Hunk;
+import art.arcane.iris.util.project.hunk.view.ChunkDataHunkHolder;
+import art.arcane.iris.spi.PlatformBlockState;
+import art.arcane.iris.util.common.data.IrisCustomData;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.matter.Matter;
@@ -765,6 +768,72 @@ public class NMSBinding implements INMSBinding {
             }
 
             finishChunkRewrite(level, chunk);
+            return true;
+        } catch (Throwable e) {
+            IrisLogging.reportError(e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean applyChunkDataBlocks(ChunkGenerator.ChunkData chunkData, Hunk<PlatformBlockState> data) {
+        if (!(chunkData instanceof CraftChunkData craftChunkData)) {
+            return false;
+        }
+
+        try {
+            ChunkAccess access = craftChunkData.getHandle();
+            int minY = craftChunkData.getMinHeight();
+            int height = craftChunkData.getMaxHeight() - minY;
+            int accessMinY = access.getMinY();
+            int baseX = access.getPos().getMinBlockX();
+            int baseZ = access.getPos().getMinBlockZ();
+            boolean[] dirtySections = new boolean[access.getSections().length];
+            ChunkDataHunkHolder holder = data instanceof ChunkDataHunkHolder chunkDataHolder ? chunkDataHolder : null;
+            for (int z = 0; z < 16; z++) {
+                for (int y = 0; y < height; y++) {
+                    int blockY = y + minY;
+                    int sectionIndex = (blockY - accessMinY) >> 4;
+                    LevelChunkSection section = access.getSection(sectionIndex);
+                    int sectionY = blockY & 15;
+                    for (int x = 0; x < 16; x++) {
+                        PlatformBlockState platformState = holder == null ? data.getRaw(x, y, z) : holder.getStoredRaw(x, y, z);
+                        if (platformState == null) {
+                            continue;
+                        }
+
+                        BlockData blockData = (BlockData) platformState.nativeHandle();
+                        if (blockData instanceof IrisCustomData customData) {
+                            blockData = customData.getBase();
+                        }
+                        if (!(blockData instanceof CraftBlockData craftBlockData)) {
+                            return false;
+                        }
+
+                        BlockState state = craftBlockData.getState();
+                        BlockState oldState = section.states.getAndSetUnchecked(x, sectionY, z, state);
+                        dirtySections[sectionIndex] = true;
+                        if (state.hasBlockEntity()) {
+                            BlockPos pos = new BlockPos(baseX + x, blockY, baseZ + z);
+                            BlockEntity entity = ((EntityBlock) state.getBlock()).newBlockEntity(pos, state);
+                            if (entity == null) {
+                                access.removeBlockEntity(pos);
+                            } else {
+                                access.setBlockEntity(entity);
+                            }
+                        } else if (oldState != null && oldState.hasBlockEntity()) {
+                            access.removeBlockEntity(new BlockPos(baseX + x, blockY, baseZ + z));
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < dirtySections.length; i++) {
+                if (dirtySections[i]) {
+                    access.getSection(i).recalcBlockCounts();
+                }
+            }
+
             return true;
         } catch (Throwable e) {
             IrisLogging.reportError(e);

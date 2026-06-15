@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +53,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private static final AtomicInteger THREAD_COUNT = new AtomicInteger();
     private static final int ADAPTIVE_TIMEOUT_STEP = 3;
     private static final int ADAPTIVE_RECOVERY_INTERVAL = 8;
-    private static final long CHUNK_CLEANUP_INTERVAL_MS = 15_000L;
+    private static final long CHUNK_CLEANUP_INTERVAL_MS = 10_000L;
     private static final long CHUNK_CLEANUP_MIN_AGE_MS = 5_000L;
     private final World world;
     private final IrisRuntimeSchedulerMode runtimeSchedulerMode;
@@ -73,6 +74,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private final int timeoutWarnIntervalMs;
     private final boolean urgent;
     private final Map<Chunk, Long> lastUse;
+    private final ConcurrentLinkedQueue<ChunkUse> chunkUseQueue;
     private final AtomicInteger adaptiveInFlightLimit;
     private final int adaptiveMinInFlightLimit;
     private final AtomicInteger timeoutStreak = new AtomicInteger();
@@ -85,6 +87,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private final AtomicLong failed = new AtomicLong();
     private final AtomicLong lastProgressAt = new AtomicLong(M.ms());
     private final AtomicLong lastChunkCleanup = new AtomicLong(M.ms());
+    private final AtomicBoolean chunkCleanupRunning = new AtomicBoolean(false);
     private final Object permitMonitor = new Object();
     private volatile Engine metricsEngine;
     private volatile Mantle cachedMantle;
@@ -138,6 +141,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
         this.timeoutWarnIntervalMs = pregen.getTimeoutWarnIntervalMs();
         this.urgent = false;
         this.lastUse = new ConcurrentHashMap<>();
+        this.chunkUseQueue = new ConcurrentLinkedQueue<>();
         this.adaptiveInFlightLimit = new AtomicInteger(this.threads);
         this.adaptiveMinInFlightLimit = Math.max(4, Math.min(16, Math.max(1, this.threads / 4)));
         this.maxResidentTectonicPlates = pregen.getMaxResidentTectonicPlates();
@@ -172,6 +176,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     private void unloadAndSaveAllChunks() {
         if (foliaRuntime) {
             lastUse.clear();
+            chunkUseQueue.clear();
             return;
         }
 
@@ -203,6 +208,9 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 if (unloaded.get()) {
                     world.save();
                 }
+                if (lastUse.isEmpty()) {
+                    chunkUseQueue.clear();
+                }
             }).get();
         } catch (Throwable e) {
             e.printStackTrace();
@@ -224,6 +232,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             int sizeBefore = lastUse.size();
             if (sizeBefore > 0) {
                 lastUse.clear();
+                chunkUseQueue.clear();
                 IrisLogging.info("Periodic chunk cleanup: cleared " + sizeBefore + " Folia chunk references");
             }
             return;
@@ -234,21 +243,52 @@ public class AsyncPregenMethod implements PregeneratorMethod {
             return;
         }
 
-        long minTime = now - CHUNK_CLEANUP_MIN_AGE_MS;
-        AtomicInteger removed = new AtomicInteger();
-        lastUse.entrySet().removeIf(entry -> {
-            Long lastUseTime = entry.getValue();
-            if (lastUseTime == null || lastUseTime < minTime) {
-                removed.incrementAndGet();
-                return true;
-            }
-            return false;
-        });
-
-        int removedCount = removed.get();
-        if (removedCount > 0) {
-            IrisLogging.info("Periodic chunk cleanup: removed " + removedCount + "/" + sizeBefore + " stale chunk references");
+        if (!chunkCleanupRunning.compareAndSet(false, true)) {
+            return;
         }
+
+        long minTime = now - CHUNK_CLEANUP_MIN_AGE_MS;
+        J.a(() -> {
+            try {
+                int removedCount = cleanupQueuedChunkUses(minTime);
+                if (removedCount > 0) {
+                    IrisLogging.info("Periodic chunk cleanup: removed " + removedCount + "/" + sizeBefore + " stale chunk references");
+                }
+            } finally {
+                chunkCleanupRunning.set(false);
+            }
+        });
+    }
+
+    private int cleanupQueuedChunkUses(long minTime) {
+        int removed = 0;
+        while (true) {
+            ChunkUse chunkUse = chunkUseQueue.peek();
+            if (chunkUse == null) {
+                return removed;
+            }
+
+            Long latestUse = lastUse.get(chunkUse.chunk());
+            if (latestUse != null && latestUse > chunkUse.lastUseTime()) {
+                chunkUseQueue.poll();
+                continue;
+            }
+
+            if (latestUse != null && latestUse >= minTime) {
+                return removed;
+            }
+
+            chunkUseQueue.poll();
+            if (latestUse != null && lastUse.remove(chunkUse.chunk(), latestUse)) {
+                removed++;
+            }
+        }
+    }
+
+    private void recordChunkUse(Chunk chunk) {
+        long now = M.ms();
+        lastUse.put(chunk, now);
+        chunkUseQueue.offer(new ChunkUse(chunk, now));
     }
 
     private Chunk onChunkFutureFailure(int x, int z, Throwable throwable) {
@@ -351,7 +391,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
     static int computePaperLikeRecommendedCap(int workerThreads) {
         int normalizedWorkers = Math.max(1, workerThreads);
-        int recommendedCap = normalizedWorkers * 4;
+        int recommendedCap = normalizedWorkers * 8;
         if (recommendedCap < 16) {
             return 16;
         }
@@ -723,7 +763,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
     public static void increaseWorkerThreads() {
         THREAD_COUNT.updateAndGet(i -> {
             if (i > 0) {
-                return 1;
+                return i;
             }
 
             int adjusted = IrisSettings.get().getConcurrency().getWorldGenThreads();
@@ -810,7 +850,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 listener.onChunkGenerated(x, z);
                 cleanupMantleChunk(x, z);
                 listener.onChunkCleaned(x, z);
-                lastUse.put(chunk, M.ms());
+                recordChunkUse(chunk);
                 success = true;
             } catch (Throwable e) {
                 IrisLogging.reportError(e);
@@ -841,7 +881,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                     listener.onChunkGenerated(x, z);
                     cleanupMantleChunk(x, z);
                     listener.onChunkCleaned(x, z);
-                    lastUse.put(i, M.ms());
+                    recordChunkUse(i);
                     success = true;
                 } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
@@ -877,7 +917,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                             listener.onChunkGenerated(x, z);
                             cleanupMantleChunk(x, z);
                             listener.onChunkCleaned(x, z);
-                            lastUse.put(i, M.ms());
+                            recordChunkUse(i);
                             success = true;
                         } finally {
                             markFinished(success);
@@ -885,6 +925,9 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                         }
                     });
         }
+    }
+
+    private record ChunkUse(Chunk chunk, long lastUseTime) {
     }
 
     private record ChunkAsyncMethodSelection(Method urgentMethod, Method standardMethod, String mode) {

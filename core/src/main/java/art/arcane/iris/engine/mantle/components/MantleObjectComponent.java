@@ -46,6 +46,7 @@ import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.MatterStructurePOI;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.project.noise.NoiseType;
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import art.arcane.iris.spi.PlatformBlockState;
@@ -251,6 +252,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
         IrisCaveProfile regionCaveProfile = resolveCaveProfile(region.getCaveProfile(), caveBiome.getCaveProfile());
         int biomeSurfaceExclusionDepth = resolveSurfaceObjectExclusionDepth(biomeCaveProfile);
         int regionSurfaceExclusionDepth = resolveSurfaceObjectExclusionDepth(regionCaveProfile);
+        SurfaceExposureCache surfaceExposureCache = new SurfaceExposureCache();
+        CaveAnchorCache caveAnchorCache = new CaveAnchorCache();
 
         for (IrisObjectPlacement i : surfaceBiome.getSurfaceObjects()) {
             biomeSurfaceChecked++;
@@ -266,7 +269,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 biomeSurfaceTriggered++;
                 try {
-                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, biomeSurfaceExclusionDepth, complex, traceRegen, x, z, "biome-surface", surfaceHeightLookup);
+                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, biomeSurfaceExclusionDepth, complex, traceRegen, x, z, "biome-surface", surfaceHeightLookup, surfaceExposureCache, caveAnchorCache);
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -300,7 +303,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 biomeCaveTriggered++;
                 try {
-                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, biomeCaveProfile, complex, traceRegen, x, z, "biome-cave", caveBiome.getLoadKey());
+                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, biomeCaveProfile, complex, traceRegen, x, z, "biome-cave", caveBiome.getLoadKey(), caveAnchorCache);
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -331,7 +334,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 regionSurfaceTriggered++;
                 try {
-                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, regionSurfaceExclusionDepth, complex, traceRegen, x, z, "region-surface", surfaceHeightLookup);
+                    ObjectPlacementResult result = placeObject(writer, rng, x << 4, z << 4, i, regionSurfaceExclusionDepth, complex, traceRegen, x, z, "region-surface", surfaceHeightLookup, surfaceExposureCache, caveAnchorCache);
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -365,7 +368,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             if (chance) {
                 regionCaveTriggered++;
                 try {
-                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, regionCaveProfile, complex, traceRegen, x, z, "region-cave", null);
+                    ObjectPlacementResult result = placeCaveObject(writer, rng, x, z, i, regionCaveProfile, complex, traceRegen, x, z, "region-cave", null, caveAnchorCache);
                     attempts += result.attempts();
                     placed += result.placed();
                     rejected += result.rejected();
@@ -417,6 +420,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
         int blockX = x << 4;
         int blockZ = z << 4;
         boolean golden = isGoldenDebugChunk(x, z);
+        CaveAnchorCache caveAnchorCache = new CaveAnchorCache();
         for (IrisProceduralPlacement p : proceduralObjects.getAllPlacements()) {
             boolean chancePassed = rng.chance(p.getChance() + rng.d(-0.005, 0.005));
             if (golden) {
@@ -468,7 +472,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 try {
                     int placeResult = -1;
                     if (carving) {
-                        int caveFloorY = findNearestCaveFloor(writer, xx, zz);
+                        int caveFloorY = findNearestCaveFloor(writer, xx, zz, caveAnchorCache);
                         if (golden) {
                             IrisLogging.info("Goldendebug procedural caveFloor: chunk=" + x + "," + z
                                     + " placement=" + p.getName()
@@ -522,7 +526,9 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int chunkX,
             int chunkZ,
             String scope,
-            SurfaceHeightLookup surfaceHeightLookup
+            SurfaceHeightLookup surfaceHeightLookup,
+            SurfaceExposureCache surfaceExposureCache,
+            CaveAnchorCache caveAnchorCache
     ) {
         int attempts = 0;
         int placed = 0;
@@ -550,7 +556,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int zz = rng.i(z, z + 15);
             int surfaceObjectExclusionDepth = resolveSurfaceObjectExclusionDepth(surfaceObjectExclusionBaseDepth, v, objectPlacement);
             int surfaceObjectExclusionRadius = resolveSurfaceObjectExclusionRadius(v, objectPlacement);
-            boolean overCave = surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius);
+            boolean overCave = surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius, surfaceExposureCache);
             int id = rng.i(0, Integer.MAX_VALUE);
             IrisObjectPlacement effectivePlacement = resolveEffectivePlacement(objectPlacement, v);
             if (effectivePlacement.getMode() == ObjectPlaceMode.FLOATING) {
@@ -574,7 +580,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 String fallbackPath = "surface";
 
                 if (overCave) {
-                    int caveFloorY = findNearestCaveFloor(writer, xx, zz);
+                    int caveFloorY = findNearestCaveFloor(writer, xx, zz, caveAnchorCache);
                     if (caveFloorY > 0) {
                         IrisObjectPlacement floorPlacement = effectivePlacement.toPlacement(v.getLoadKey());
                         floorPlacement.setMode(ObjectPlaceMode.FAST_MIN_HEIGHT);
@@ -690,7 +696,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int metricChunkX,
             int metricChunkZ,
             String scope,
-            String expectedCaveBiomeKey
+            String expectedCaveBiomeKey,
+            CaveAnchorCache anchorCache
     ) {
         int attempts = 0;
         int placed = 0;
@@ -700,7 +707,6 @@ public class MantleObjectComponent extends IrisMantleComponent {
         int minX = chunkX << 4;
         int minZ = chunkZ << 4;
         int density = objectPlacement.getDensity(rng, minX, minZ, getData());
-        KMap<Long, KList<Integer>> anchorCache = new KMap<>();
         IrisCaveAnchorMode anchorMode = resolveAnchorMode(objectPlacement, caveProfile);
         if (objectPlacement.getMode() == ObjectPlaceMode.CEILING_HANG) {
             anchorMode = IrisCaveAnchorMode.CEILING;
@@ -1104,8 +1110,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return effectivePlacement;
     }
 
-    private int findNearestCaveFloor(MantleWriter writer, int x, int z) {
-        KList<Integer> anchors = scanCaveAnchorColumn(writer, IrisCaveAnchorMode.FLOOR, 1, 0, x, z);
+    private int findNearestCaveFloor(MantleWriter writer, int x, int z, CaveAnchorCache anchorCache) {
+        KList<Integer> anchors = anchorCache.get(writer, IrisCaveAnchorMode.FLOOR, 1, 0, x, z);
         if (anchors.isEmpty()) {
             return -1;
         }
@@ -1298,9 +1304,8 @@ public class MantleObjectComponent extends IrisMantleComponent {
         }
     }
 
-    private int findCaveAnchorY(MantleWriter writer, RNG rng, int x, int z, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, KMap<Long, KList<Integer>> anchorCache) {
-        long key = Cache.key(x, z);
-        KList<Integer> anchors = anchorCache.computeIfAbsent(key, (k) -> scanCaveAnchorColumn(writer, anchorMode, anchorScanStep, objectMinDepthBelowSurface, x, z));
+    private int findCaveAnchorY(MantleWriter writer, RNG rng, int x, int z, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, CaveAnchorCache anchorCache) {
+        KList<Integer> anchors = anchorCache.get(writer, anchorMode, anchorScanStep, objectMinDepthBelowSurface, x, z);
         if (anchors.isEmpty()) {
             return -1;
         }
@@ -1312,24 +1317,26 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return anchors.get(rng.i(0, anchors.size() - 1));
     }
 
-    private KList<Integer> scanCaveAnchorColumn(MantleWriter writer, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, int x, int z) {
+    private KList<Integer> scanCaveAnchorColumn(MantleWriter writer, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, int x, int z, CaveAnchorCache anchorCache) {
         int height = getEngineMantle().getEngine().getHeight();
         int step = Math.max(1, anchorScanStep);
-        int surfaceY = getEngineMantle().getEngine().getHeight(x, z);
+        int surfaceY = anchorCache.getSurfaceHeight(x, z);
         int baseMaxAnchorY = Math.min(height - 1, surfaceY - Math.max(0, objectMinDepthBelowSurface));
         if (baseMaxAnchorY <= 1) {
             return new KList<>();
         }
 
-        KList<Integer> anchors = scanCaveAnchorRange(writer, anchorMode, step, x, z, height, baseMaxAnchorY);
+        int widenedMaxAnchorY = Math.min(height - 1, surfaceY - 3);
+        widenedMaxAnchorY = Math.min(widenedMaxAnchorY, baseMaxAnchorY + Math.max(0, objectMinDepthBelowSurface) / 2);
+        int carvedHeight = Math.min(height, Math.max(baseMaxAnchorY, widenedMaxAnchorY) + 4);
+        byte[] carvedColumn = anchorCache.getCarvedColumn(writer, x, z, carvedHeight);
+        KList<Integer> anchors = scanCaveAnchorRange(anchorMode, step, carvedHeight, BEDROCK_CLEARANCE, baseMaxAnchorY, carvedColumn);
         if (!anchors.isEmpty()) {
             return anchors;
         }
 
-        int widenedMaxAnchorY = Math.min(height - 1, surfaceY - 3);
-        widenedMaxAnchorY = Math.min(widenedMaxAnchorY, baseMaxAnchorY + Math.max(0, objectMinDepthBelowSurface) / 2);
         if (widenedMaxAnchorY > baseMaxAnchorY) {
-            anchors = scanCaveAnchorRange(writer, anchorMode, step, x, z, height, widenedMaxAnchorY);
+            anchors = scanCaveAnchorRange(anchorMode, step, carvedHeight, baseMaxAnchorY, widenedMaxAnchorY, carvedColumn);
             if (!anchors.isEmpty()) {
                 return anchors;
             }
@@ -1338,15 +1345,16 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return anchors;
     }
 
-    private KList<Integer> scanCaveAnchorRange(MantleWriter writer, IrisCaveAnchorMode anchorMode, int step, int x, int z, int height, int maxAnchorY) {
+    private KList<Integer> scanCaveAnchorRange(IrisCaveAnchorMode anchorMode, int step, int height, int minAnchorY, int maxAnchorY, byte[] carvedColumn) {
         KList<Integer> anchors = new KList<>();
-        for (int y = BEDROCK_CLEARANCE; y < maxAnchorY; y += step) {
-            if (!writer.isCarved(x, y, z)) {
+        int startY = alignAnchorScanStart(minAnchorY, step);
+        for (int y = startY; y < maxAnchorY; y += step) {
+            if (!isCarved(carvedColumn, y)) {
                 continue;
             }
 
-            boolean solidBelow = hasSolidNeighbor(writer, x, y, z, height, -1);
-            boolean solidAbove = hasSolidNeighbor(writer, x, y, z, height, 1);
+            boolean solidBelow = hasSolidNeighbor(carvedColumn, y, height, -1);
+            boolean solidAbove = hasSolidNeighbor(carvedColumn, y, height, 1);
             if (matchesCaveAnchor(anchorMode, solidBelow, solidAbove)) {
                 anchors.add(y);
             }
@@ -1354,13 +1362,27 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return anchors;
     }
 
-    private boolean hasSolidNeighbor(MantleWriter writer, int x, int y, int z, int height, int direction) {
+    private int alignAnchorScanStart(int minAnchorY, int step) {
+        if (minAnchorY <= BEDROCK_CLEARANCE) {
+            return BEDROCK_CLEARANCE;
+        }
+
+        int delta = minAnchorY - BEDROCK_CLEARANCE;
+        int steps = (delta + step - 1) / step;
+        return BEDROCK_CLEARANCE + (steps * step);
+    }
+
+    private boolean isCarved(byte[] carvedColumn, int y) {
+        return y >= 0 && y < carvedColumn.length && carvedColumn[y] == 1;
+    }
+
+    private boolean hasSolidNeighbor(byte[] carvedColumn, int y, int height, int direction) {
         for (int d = 1; d <= 3; d++) {
             int ny = y + (direction * d);
             if (ny < 0 || ny >= height) {
                 return true;
             }
-            if (!writer.isCarved(x, ny, z)) {
+            if (!isCarved(carvedColumn, ny)) {
                 return true;
             }
         }
@@ -1469,21 +1491,60 @@ public class MantleObjectComponent extends IrisMantleComponent {
         return Math.max(1, caveProfile.getAnchorSearchAttempts());
     }
 
-    private boolean hasSurfaceCarveExposure(MantleWriter writer, SurfaceHeightLookup surfaceHeightLookup, int x, int z, int depth, int radius) {
+    private boolean hasSurfaceCarveExposure(MantleWriter writer, SurfaceHeightLookup surfaceHeightLookup, int x, int z, int depth, int radius, SurfaceExposureCache surfaceExposureCache) {
         int horizontalRadius = Math.max(0, radius);
         int maxY = getEngineMantle().getEngine().getHeight() - 1;
-        for (int dx = -horizontalRadius; dx <= horizontalRadius; dx++) {
-            for (int dz = -horizontalRadius; dz <= horizontalRadius; dz++) {
+        if (surfaceExposureCache.get(writer, surfaceHeightLookup, x, z, depth, maxY)) {
+            return true;
+        }
+
+        int sampleCount = surfaceExposureSampleCount(horizontalRadius);
+        for (int sx = 0; sx < sampleCount; sx++) {
+            int dx = surfaceExposureSampleOffset(sx, sampleCount, horizontalRadius);
+            for (int sz = 0; sz < sampleCount; sz++) {
+                int dz = surfaceExposureSampleOffset(sz, sampleCount, horizontalRadius);
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+
                 int columnX = x + dx;
                 int columnZ = z + dz;
-                int surfaceY = surfaceHeightLookup.getRoundedHeight(columnX, columnZ);
-                int fromY = Math.max(1, surfaceY - Math.max(0, depth));
-                int toY = Math.min(maxY, surfaceY + 1);
-                for (int y = fromY; y <= toY; y++) {
-                    if (writer.isCarved(columnX, y, columnZ)) {
-                        return true;
-                    }
+                if (surfaceExposureCache.get(writer, surfaceHeightLookup, columnX, columnZ, depth, maxY)) {
+                    return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    private int surfaceExposureSampleCount(int radius) {
+        if (radius <= 0) {
+            return 1;
+        }
+
+        if (radius <= 3) {
+            return (radius << 1) + 1;
+        }
+
+        return 3;
+    }
+
+    private int surfaceExposureSampleOffset(int sample, int sampleCount, int radius) {
+        if (sampleCount <= 1) {
+            return 0;
+        }
+
+        return -radius + Math.floorDiv((sample * radius * 2) + ((sampleCount - 1) >> 1), sampleCount - 1);
+    }
+
+    private boolean hasSurfaceCarveExposureColumn(MantleWriter writer, SurfaceHeightLookup surfaceHeightLookup, int x, int z, int depth, int maxY) {
+        int surfaceY = surfaceHeightLookup.getRoundedHeight(x, z);
+        int fromY = Math.max(1, surfaceY - Math.max(0, depth));
+        int toY = Math.min(maxY, surfaceY + 1);
+        for (int y = fromY; y <= toY; y++) {
+            if (writer.isCarved(x, y, z)) {
+                return true;
             }
         }
 
@@ -1701,6 +1762,97 @@ public class MantleObjectComponent extends IrisMantleComponent {
 
             return null;
         });
+    }
+
+    private final class SurfaceExposureCache {
+        private final Long2ObjectOpenHashMap<Long2ByteOpenHashMap> depthCaches;
+
+        private SurfaceExposureCache() {
+            this.depthCaches = new Long2ObjectOpenHashMap<>();
+        }
+
+        private boolean get(MantleWriter writer, SurfaceHeightLookup surfaceHeightLookup, int x, int z, int depth, int maxY) {
+            long depthKey = depth;
+            Long2ByteOpenHashMap columnCache = depthCaches.get(depthKey);
+            if (columnCache == null) {
+                columnCache = new Long2ByteOpenHashMap();
+                columnCache.defaultReturnValue((byte) -1);
+                depthCaches.put(depthKey, columnCache);
+            }
+
+            long columnKey = Cache.key(x, z);
+            byte cached = columnCache.get(columnKey);
+            if (cached != -1) {
+                return cached == 1;
+            }
+
+            boolean exposed = hasSurfaceCarveExposureColumn(writer, surfaceHeightLookup, x, z, depth, maxY);
+            columnCache.put(columnKey, (byte) (exposed ? 1 : 0));
+            return exposed;
+        }
+    }
+
+    private final class CaveAnchorCache {
+        private final Long2ObjectOpenHashMap<Long2ObjectOpenHashMap<KList<Integer>>> settingCaches;
+        private final Long2ObjectOpenHashMap<byte[]> carvedColumns;
+        private final Long2IntOpenHashMap surfaceHeights;
+
+        private CaveAnchorCache() {
+            this.settingCaches = new Long2ObjectOpenHashMap<>();
+            this.carvedColumns = new Long2ObjectOpenHashMap<>();
+            this.surfaceHeights = new Long2IntOpenHashMap();
+            this.surfaceHeights.defaultReturnValue(Integer.MIN_VALUE);
+        }
+
+        private KList<Integer> get(MantleWriter writer, IrisCaveAnchorMode anchorMode, int anchorScanStep, int objectMinDepthBelowSurface, int x, int z) {
+            if (anchorScanStep > 65535 || objectMinDepthBelowSurface > 65535) {
+                return scanCaveAnchorColumn(writer, anchorMode, anchorScanStep, objectMinDepthBelowSurface, x, z, this);
+            }
+
+            long settingKey = ((long) anchorMode.ordinal() << 32) | ((long) anchorScanStep << 16) | objectMinDepthBelowSurface;
+            Long2ObjectOpenHashMap<KList<Integer>> columnCache = settingCaches.get(settingKey);
+            if (columnCache == null) {
+                columnCache = new Long2ObjectOpenHashMap<>();
+                settingCaches.put(settingKey, columnCache);
+            }
+
+            long columnKey = Cache.key(x, z);
+            KList<Integer> anchors = columnCache.get(columnKey);
+            if (anchors != null) {
+                return anchors;
+            }
+
+            anchors = scanCaveAnchorColumn(writer, anchorMode, anchorScanStep, objectMinDepthBelowSurface, x, z, this);
+            columnCache.put(columnKey, anchors);
+            return anchors;
+        }
+
+        private byte[] getCarvedColumn(MantleWriter writer, int x, int z, int height) {
+            long columnKey = Cache.key(x, z);
+            byte[] carvedColumn = carvedColumns.get(columnKey);
+            if (carvedColumn != null && carvedColumn.length == height) {
+                return carvedColumn;
+            }
+
+            carvedColumn = new byte[height];
+            for (int y = 0; y < height; y++) {
+                carvedColumn[y] = (byte) (writer.isCarved(x, y, z) ? 1 : 0);
+            }
+            carvedColumns.put(columnKey, carvedColumn);
+            return carvedColumn;
+        }
+
+        private int getSurfaceHeight(int x, int z) {
+            long columnKey = Cache.key(x, z);
+            int surfaceY = surfaceHeights.get(columnKey);
+            if (surfaceY != Integer.MIN_VALUE) {
+                return surfaceY;
+            }
+
+            surfaceY = getEngineMantle().getEngine().getHeight(x, z);
+            surfaceHeights.put(columnKey, surfaceY);
+            return surfaceY;
+        }
     }
 
     private static final class SurfaceHeightLookup {

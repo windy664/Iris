@@ -27,6 +27,8 @@ import art.arcane.iris.core.nms.datapack.DataVersion;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
+import art.arcane.iris.spi.PlatformBlockState;
+import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
@@ -167,6 +169,10 @@ public interface INMSBinding {
     MCAPaletteAccess createPalette();
 
     default boolean applyChunkBlocks(Chunk chunk, TerrainChunk data) {
+        return false;
+    }
+
+    default boolean applyChunkDataBlocks(ChunkGenerator.ChunkData chunkData, Hunk<PlatformBlockState> data) {
         return false;
     }
 

@@ -69,6 +69,8 @@ public class IrisDimension extends IrisRegistrant {
     private final transient AtomicCache<Map<String, IrisDimensionCarvingEntry>> carvingEntryIndex = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> surfaceOreCache = new AtomicCache<>();
     private final transient AtomicCache<KList<IrisOreGenerator>> undergroundOreCache = new AtomicCache<>();
+    private final transient AtomicCache<IrisOreGeneratorBounds> surfaceOreBoundsCache = new AtomicCache<>();
+    private final transient AtomicCache<IrisOreGeneratorBounds> undergroundOreBoundsCache = new AtomicCache<>();
     @MinNumber(2)
     @Required
     @Desc("The human readable name of this dimension")
@@ -340,6 +342,8 @@ public class IrisDimension extends IrisRegistrant {
         this.ores = ores == null ? new KList<>() : ores;
         surfaceOreCache.reset();
         undergroundOreCache.reset();
+        surfaceOreBoundsCache.reset();
+        undergroundOreBoundsCache.reset();
     }
 
     public KList<IrisOreGenerator> getSurfaceOreGenerators() {
@@ -348,6 +352,14 @@ public class IrisDimension extends IrisRegistrant {
 
     public KList<IrisOreGenerator> getUndergroundOreGenerators() {
         return getOres(false);
+    }
+
+    public IrisOreGeneratorBounds getSurfaceOreGeneratorBounds() {
+        return surfaceOreBoundsCache.aquire(() -> IrisOreGeneratorBounds.of(getSurfaceOres()));
+    }
+
+    public IrisOreGeneratorBounds getUndergroundOreGeneratorBounds() {
+        return undergroundOreBoundsCache.aquire(() -> IrisOreGeneratorBounds.of(getUndergroundOres()));
     }
 
     private KList<IrisOreGenerator> getSurfaceOres() {

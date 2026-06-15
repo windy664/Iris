@@ -9,11 +9,10 @@ import art.arcane.volmlib.util.mantle.flag.MantleFlag;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.matter.Matter;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,41 +37,74 @@ public interface MatterGenerator {
         }
 
         int writeRadius = getRadius();
-        Set<Long> partialChunks = new HashSet<>();
+        LongOpenHashSet partialChunks = new LongOpenHashSet();
 
         try (MantleWriter writer = new MantleWriter(getEngine().getMantle(), getMantle(), x, z, writeRadius, multicore)) {
             for (Pair<List<MantleComponent>, Integer> pair : getComponents()) {
                 int passRadius = pair.getB();
-                Set<CompletableFuture<Void>> launchedTasks = multicore ? new HashSet<>() : null;
+                List<MantleComponent> passComponents = pair.getA();
+                MantleComponent[] enabledComponents = new MantleComponent[passComponents.size()];
+                int[] componentPassRadii = new int[passComponents.size()];
+                int enabledComponentCount = 0;
+                for (MantleComponent component : passComponents) {
+                    if (component.isEnabled()) {
+                        int componentRadius = component.getRadius();
+                        componentPassRadii[enabledComponentCount] = componentRadius > 0 ? Math.ceilDiv(componentRadius, 16) : 0;
+                        enabledComponents[enabledComponentCount++] = component;
+                    }
+                }
+
+                if (enabledComponentCount == 0) {
+                    continue;
+                }
+
+                boolean inlineComponents = multicore && DISPATCHER.ownsCurrentThread();
+                List<CompletableFuture<Void>> launchedTasks = multicore && !inlineComponents ? new ArrayList<>() : null;
+                MantleComponent[] eligibleComponents = new MantleComponent[enabledComponentCount];
 
                 for (int i = -passRadius; i <= passRadius; i++) {
+                    int absI = Math.abs(i);
                     for (int j = -passRadius; j <= passRadius; j++) {
+                        int absJ = Math.abs(j);
                         int passX = x + i;
                         int passZ = z + j;
                         long passKey = chunkKey(passX, passZ);
+                        boolean partial = false;
+                        boolean anyComponentInRadius = false;
+
+                        for (int componentIndex = 0; componentIndex < enabledComponentCount; componentIndex++) {
+                            int componentPassRadius = componentPassRadii[componentIndex];
+                            if (absI > componentPassRadius || absJ > componentPassRadius) {
+                                partial = true;
+                            } else {
+                                anyComponentInRadius = true;
+                            }
+                        }
+
+                        if (!anyComponentInRadius) {
+                            partialChunks.add(passKey);
+                            continue;
+                        }
+
+                        if (partial) {
+                            partialChunks.add(passKey);
+                        }
 
                         MantleChunk<Matter> chunk = writer.acquireChunk(passX, passZ);
                         if (chunk.isFlagged(MantleFlag.PLANNED)) {
                             continue;
                         }
 
-                        List<MantleComponent> eligibleComponents = new ArrayList<>(pair.getA().size());
-                        for (MantleComponent component : pair.getA()) {
-                            if (!component.isEnabled()) {
+                        int eligibleComponentCount = 0;
+                        for (int componentIndex = 0; componentIndex < enabledComponentCount; componentIndex++) {
+                            MantleComponent component = enabledComponents[componentIndex];
+                            int componentPassRadius = componentPassRadii[componentIndex];
+                            if (absI > componentPassRadius || absJ > componentPassRadius) {
                                 continue;
                             }
 
                             if (chunk.isFlagged(component.getFlag())) {
                                 continue;
-                            }
-
-                            int componentRadius = component.getRadius();
-                            if (componentRadius > 0) {
-                                int componentPassRadius = Math.ceilDiv(componentRadius, 16);
-                                if (Math.abs(i) > componentPassRadius || Math.abs(j) > componentPassRadius) {
-                                    partialChunks.add(passKey);
-                                    continue;
-                                }
                             }
 
                             MantleFlag[] prerequisites = component.getPrerequisiteFlags();
@@ -90,32 +122,37 @@ public interface MatterGenerator {
                                 }
                             }
 
-                            eligibleComponents.add(component);
+                            eligibleComponents[eligibleComponentCount++] = component;
                         }
 
-                        if (eligibleComponents.isEmpty()) {
+                        if (eligibleComponentCount == 0) {
                             continue;
                         }
 
                         int finalPassX = passX;
                         int finalPassZ = passZ;
-                        Runnable task = () -> {
-                            for (MantleComponent component : eligibleComponents) {
-                                runComponentInline(chunk, component, writer, finalPassX, finalPassZ, context);
-                            }
-                        };
-
                         if (multicore) {
-                            for (MantleComponent component : eligibleComponents) {
-                                launchedTasks.add(runComponentAsync(chunk, component, writer, finalPassX, finalPassZ, context));
+                            if (inlineComponents) {
+                                for (int componentIndex = 0; componentIndex < eligibleComponentCount; componentIndex++) {
+                                    MantleComponent component = eligibleComponents[componentIndex];
+                                    runComponentInline(chunk, component, writer, finalPassX, finalPassZ, context);
+                                }
+                            } else {
+                                for (int componentIndex = 0; componentIndex < eligibleComponentCount; componentIndex++) {
+                                    MantleComponent component = eligibleComponents[componentIndex];
+                                    launchedTasks.add(runComponentAsync(chunk, component, writer, finalPassX, finalPassZ, context));
+                                }
                             }
                         } else {
-                            task.run();
+                            for (int componentIndex = 0; componentIndex < eligibleComponentCount; componentIndex++) {
+                                MantleComponent component = eligibleComponents[componentIndex];
+                                runComponentInline(chunk, component, writer, finalPassX, finalPassZ, context);
+                            }
                         }
                     }
                 }
 
-                if (multicore) {
+                if (launchedTasks != null) {
                     for (CompletableFuture<Void> launchedTask : launchedTasks) {
                         launchedTask.join();
                     }

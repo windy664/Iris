@@ -18,6 +18,7 @@
 
 package art.arcane.iris.util.project.hunk.view;
 
+import art.arcane.iris.core.nms.INMS;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.iris.util.common.data.B;
 import art.arcane.iris.util.project.hunk.storage.AtomicHunk;
@@ -59,7 +60,15 @@ public class ChunkDataHunkHolder extends AtomicHunk<PlatformBlockState> {
         return b != null ? b : States.AIR;
     }
 
+    public PlatformBlockState getStoredRaw(int x, int y, int z) {
+        return super.getRaw(x, y, z);
+    }
+
     public void apply() {
+        if (INMS.get().applyChunkDataBlocks(chunk, this)) {
+            return;
+        }
+
         int height = getHeight();
         for (int x = 0; x < getWidth(); x++) {
             for (int z = 0; z < getDepth(); z++) {

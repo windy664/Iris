@@ -56,6 +56,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
     private static final int CAVE_BIOME_BLEND_RADIUS = 3;
     private static final int CAVE_BIOME_BLEND_CENTER_WEIGHT = 4;
     private static final int CAVE_BIOME_BLEND_TOTAL_WEIGHT = 8;
+    private static final MatterCavern BASIC_CAVERN = new MatterCavern(true, "", (byte) 0);
     private final RNG rng;
     private final PlatformBlockState AIR = B.getState("CAVE_AIR");
     private final PlatformBlockState LAVA = B.getState("LAVA");
@@ -128,20 +129,8 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
 
                 columnMasks[columnIndex].add(yy);
 
-                if (rz < 15 && mc.get(xx, yy, zz + 1, MatterCavern.class) == null) {
-                    walls.put(rx, yy, rz + 1, c);
-                }
-
-                if (rx < 15 && mc.get(xx + 1, yy, zz, MatterCavern.class) == null) {
-                    walls.put(rx + 1, yy, rz, c);
-                }
-
-                if (rz > 0 && mc.get(xx, yy, zz - 1, MatterCavern.class) == null) {
-                    walls.put(rx, yy, rz - 1, c);
-                }
-
-                if (rx > 0 && mc.get(xx - 1, yy, zz, MatterCavern.class) == null) {
-                    walls.put(rx - 1, yy, rz, c);
+                if (!c.getCustomBiome().isEmpty()) {
+                    scratch.customCaveBiomePresent = true;
                 }
 
                 if (current.isAir()) {
@@ -160,6 +149,11 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
                     output.setRaw(rx, yy, rz, AIR);
                 }
             });
+            if (scratch.customCaveBiomePresent) {
+                addInternalWallsFromMantle(mc, walls, columnMasks);
+            } else {
+                addInternalWallsFromMasks(walls, columnMasks);
+            }
             addCrossChunkBoundaryWalls(mantle, mc, walls, boundaryMasks, boundaryCaverns, x, z, surfaceHeights);
             getEngine().getMetrics().getCarveResolve().put(resolveStopwatch.getMilliseconds());
 
@@ -204,6 +198,65 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
         } finally {
             getEngine().getMetrics().getCave().put(p.getMilliseconds());
             mc.release();
+        }
+    }
+
+    private void addInternalWallsFromMasks(PackedWallBuffer walls, ColumnMask[] columnMasks) {
+        for (int columnIndex = 0; columnIndex < 256; columnIndex++) {
+            ColumnMask columnMask = columnMasks[columnIndex];
+            if (columnMask.isEmpty()) {
+                continue;
+            }
+
+            int rx = columnIndex >> 4;
+            int rz = columnIndex & 15;
+            int yy = columnMask.nextSetBit(0);
+            while (yy >= 0) {
+                if (rz < 15 && !columnMasks[columnIndex + 1].contains(yy)) {
+                    walls.put(rx, yy, rz + 1, BASIC_CAVERN);
+                }
+                if (rx < 15 && !columnMasks[columnIndex + 16].contains(yy)) {
+                    walls.put(rx + 1, yy, rz, BASIC_CAVERN);
+                }
+                if (rz > 0 && !columnMasks[columnIndex - 1].contains(yy)) {
+                    walls.put(rx, yy, rz - 1, BASIC_CAVERN);
+                }
+                if (rx > 0 && !columnMasks[columnIndex - 16].contains(yy)) {
+                    walls.put(rx - 1, yy, rz, BASIC_CAVERN);
+                }
+                yy = columnMask.nextSetBit(yy + 1);
+            }
+        }
+    }
+
+    private void addInternalWallsFromMantle(MantleChunk<Matter> mc, PackedWallBuffer walls, ColumnMask[] columnMasks) {
+        for (int columnIndex = 0; columnIndex < 256; columnIndex++) {
+            ColumnMask columnMask = columnMasks[columnIndex];
+            if (columnMask.isEmpty()) {
+                continue;
+            }
+
+            int rx = columnIndex >> 4;
+            int rz = columnIndex & 15;
+            int yy = columnMask.nextSetBit(0);
+            while (yy >= 0) {
+                MatterCavern cavern = mc.get(rx, yy, rz, MatterCavern.class);
+                if (cavern != null) {
+                    if (rz < 15 && mc.get(rx, yy, rz + 1, MatterCavern.class) == null) {
+                        walls.put(rx, yy, rz + 1, cavern);
+                    }
+                    if (rx < 15 && mc.get(rx + 1, yy, rz, MatterCavern.class) == null) {
+                        walls.put(rx + 1, yy, rz, cavern);
+                    }
+                    if (rz > 0 && mc.get(rx, yy, rz - 1, MatterCavern.class) == null) {
+                        walls.put(rx, yy, rz - 1, cavern);
+                    }
+                    if (rx > 0 && mc.get(rx - 1, yy, rz, MatterCavern.class) == null) {
+                        walls.put(rx - 1, yy, rz, cavern);
+                    }
+                }
+                yy = columnMask.nextSetBit(yy + 1);
+            }
         }
     }
 
@@ -748,6 +801,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
         private final PackedWallBuffer walls = new PackedWallBuffer(512);
         private final Map<String, IrisBiome> customBiomeCache = new HashMap<>();
         private int[] upperSurfaceHeights;
+        private boolean customCaveBiomePresent;
 
         private CarveScratch() {
             for (int index = 0; index < columnMasks.length; index++) {
@@ -771,6 +825,7 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
             }
             walls.clear();
             customBiomeCache.clear();
+            customCaveBiomePresent = false;
         }
     }
 
@@ -821,6 +876,19 @@ public class IrisCarveModifier extends EngineAssignedModifier<PlatformBlockState
 
         private boolean isEmpty() {
             return maxWord < 0;
+        }
+
+        private boolean contains(int y) {
+            if (y < 0) {
+                return false;
+            }
+
+            int wordIndex = y >> 6;
+            if (wordIndex > maxWord) {
+                return false;
+            }
+
+            return (words[wordIndex] & (1L << (y & 63))) != 0L;
         }
 
         private void clear() {

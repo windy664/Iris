@@ -1593,7 +1593,13 @@ public class IrisCaveCarver3D {
 
     private int snapWarp(int c) {
         int g = warpResolution;
-        return g <= 1 ? c : Math.floorDiv(c, g) * g;
+        if (g <= 1) {
+            return c;
+        }
+        if ((g & (g - 1)) == 0) {
+            return c & -g;
+        }
+        return Math.floorDiv(c, g) * g;
     }
 
     private boolean classifyDensityPointWarpOnly(int x, int y, int z, double thresholdLimit) {
@@ -1751,6 +1757,10 @@ public class IrisCaveCarver3D {
     }
 
     private boolean isAdaptivePlaneSampleAligned(int localX, int localZ, int adaptiveSampleStep) {
+        if ((adaptiveSampleStep & (adaptiveSampleStep - 1)) == 0) {
+            int mask = adaptiveSampleStep - 1;
+            return (localX & mask) == 0 && (localZ & mask) == 0;
+        }
         return localX % adaptiveSampleStep == 0 && localZ % adaptiveSampleStep == 0;
     }
 

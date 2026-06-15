@@ -364,17 +364,21 @@ public final class FloatingIslandSample {
         boolean useProfileCarve = carvingProfileSampler != null;
         boolean useCarve = directCarveEnabled(entry, carvingProfileSampler, carve, carveThreshold);
 
-        for (int k = 0; k < thickness; k++) {
-            int wy = botY + k;
-            boolean layerSolid = layerFootprintSolid(footprintCng, wallWarp, useWarp, warpAmp, wx, wy, wz, signedCut);
-            NeighborSupport layerSupport = layerNeighborSupport(footprintCng, wallWarp, useWarp, warpAmp, wx, wy, wz, signedCut);
-            if (layerSolid && !layerSupport.hasSolidSupport()) {
-                continue;
+        if (useWarp) {
+            for (int k = 0; k < thickness; k++) {
+                int wy = botY + k;
+                boolean layerSolid = layerFootprintSolid(footprintCng, wallWarp, true, warpAmp, wx, wy, wz, signedCut);
+                NeighborSupport layerSupport = layerNeighborSupport(footprintCng, wallWarp, true, warpAmp, wx, wy, wz, signedCut);
+                if (layerSolid && !layerSupport.hasSolidSupport()) {
+                    continue;
+                }
+                if (!layerSolid && !layerSupport.canFillPinhole()) {
+                    continue;
+                }
+                solidMask[k] = true;
             }
-            if (!layerSolid && !layerSupport.canFillPinhole()) {
-                continue;
-            }
-            solidMask[k] = true;
+        } else {
+            Arrays.fill(solidMask, true);
         }
 
         int solidCount = solidifyUncarvedInterior(solidMask);

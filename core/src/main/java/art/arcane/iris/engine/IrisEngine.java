@@ -110,6 +110,7 @@ public class IrisEngine implements Engine {
     private IrisComplex complex;
     private UpperDimensionContext upperContext;
     private final AtomicBoolean modeFallbackLogged;
+    private final AtomicBoolean prefetchSaveStarted;
 
     public IrisEngine(EngineTarget target, boolean studio) {
         this.studio = studio;
@@ -136,6 +137,7 @@ public class IrisEngine implements Engine {
         context = new IrisContext(this);
         cleaning = new AtomicBoolean(false);
         modeFallbackLogged = new AtomicBoolean(false);
+        prefetchSaveStarted = new AtomicBoolean(false);
         if (studio) {
             _t0 = M.ms();
             getData().dump();
@@ -582,6 +584,7 @@ public class IrisEngine implements Engine {
         if (currentWorldManager != null) {
             currentWorldManager.close();
         }
+        savePrefetchOnce();
         getTarget().close();
         saveEngineData();
         getMantle().close();
@@ -601,6 +604,17 @@ public class IrisEngine implements Engine {
         getData().clearLists();
         IrisServices.get(PreservationRegistry.class).dereference();
         IrisLogging.debug("Engine Fully Shutdown!");
+    }
+
+    private boolean isPregeneratorActiveForThisWorld() {
+        PregeneratorJob pregeneratorJob = PregeneratorJob.getInstance();
+        return pregeneratorJob != null && getWorld().hasRealWorld() && pregeneratorJob.targetsWorld(getWorld().realWorld());
+    }
+
+    private void savePrefetchOnce() {
+        if (prefetchSaveStarted.compareAndSet(false, true)) {
+            getData().savePrefetch(this);
+        }
     }
 
     @Override
@@ -680,8 +694,8 @@ public class IrisEngine implements Engine {
             getMetrics().getTotal().put(p.getMilliseconds());
             generated.incrementAndGet();
 
-            if (generated.get() == 661) {
-                J.a(() -> getData().savePrefetch(this));
+            if (generated.get() == 661 && !isPregeneratorActiveForThisWorld()) {
+                J.a(this::savePrefetchOnce);
             }
         } catch (GenerationSessionException e) {
             throw e;

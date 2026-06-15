@@ -53,18 +53,20 @@ public class IrisMaterialPalette {
     private KList<IrisBlockData> palette = new KList<IrisBlockData>().qadd(new IrisBlockData("STONE"));
 
     public PlatformBlockState get(RNG rng, double x, double y, double z, IrisData rdata) {
-        if (getBlockData(rdata).isEmpty()) {
+        KList<PlatformBlockState> localBlockData = getBlockData(rdata);
+        int blockDataSize = localBlockData.size();
+        if (blockDataSize == 0) {
             return null;
         }
 
-        if (getBlockData(rdata).size() == 1) {
-            return getBlockData(rdata).get(0);
+        if (blockDataSize == 1) {
+            return localBlockData.get(0);
         }
 
         double scaledX = x / zoom;
         double scaledY = y / zoom;
         double scaledZ = z / zoom;
-        return getLayerGenerator(rng, rdata).fit(getBlockData(rdata), scaledX, scaledY, scaledZ);
+        return getLayerGenerator(rng, rdata).fit(localBlockData, scaledX, scaledY, scaledZ);
     }
 
     public Optional<TileData> getTile(RNG rng, double x, double y, double z, IrisData rdata) {

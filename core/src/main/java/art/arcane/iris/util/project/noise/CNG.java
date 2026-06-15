@@ -79,6 +79,7 @@ public class CNG {
     private transient double effectiveScale;
     private transient double signedFractureScale;
     private transient boolean fastPathStateDirty = true;
+    private transient int coordCacheSalt;
 
     public CNG(RNG random) {
         this(random, 1);
@@ -114,6 +115,7 @@ public class CNG {
         this.opacity = opacity;
         this.injector = ADD;
         this.injectorMode = InjectorMode.ADD;
+        coordCacheSalt = createCoordCacheSalt();
 
         if (generator instanceof OctaveNoise) {
             ((OctaveNoise) generator).setOctaves(octaves);
@@ -962,7 +964,7 @@ public class CNG {
         long kx = Double.doubleToRawLongBits(x);
         long kz = Double.doubleToRawLongBits(z);
         CoordCache cc = COORD_CACHE_2D.get();
-        int slot = coordSlot(kx, kz, System.identityHashCode(this));
+        int slot = coordSlot(kx, kz, coordCacheSalt());
         if (cc.owner[slot] == this && cc.kx[slot] == kx && cc.kz[slot] == kz) {
             return cc.value[slot];
         }
@@ -1013,7 +1015,7 @@ public class CNG {
         long ky = Double.doubleToRawLongBits(y);
         long kz = Double.doubleToRawLongBits(z);
         CoordCache3D cc = COORD_CACHE_3D.get();
-        int slot = coordSlot(kx ^ Long.rotateLeft(ky, 21), kz, System.identityHashCode(this));
+        int slot = coordSlot(kx ^ Long.rotateLeft(ky, 21), kz, coordCacheSalt());
         if (cc.owner[slot] == this && cc.kx[slot] == kx && cc.ky[slot] == ky && cc.kz[slot] == kz) {
             return cc.value[slot];
         }
@@ -1063,6 +1065,19 @@ public class CNG {
 
     private void markFastPathStateDirty() {
         fastPathStateDirty = true;
+    }
+
+    private int coordCacheSalt() {
+        if (coordCacheSalt == 0) {
+            coordCacheSalt = createCoordCacheSalt();
+        }
+
+        return coordCacheSalt;
+    }
+
+    private int createCoordCacheSalt() {
+        int salt = System.identityHashCode(this);
+        return salt == 0 ? 1 : salt;
     }
 
     private void refreshFastPathState() {

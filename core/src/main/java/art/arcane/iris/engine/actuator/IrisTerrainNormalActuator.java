@@ -26,6 +26,7 @@ import art.arcane.iris.engine.UpperDimensionContext;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisDimension;
 import art.arcane.iris.engine.object.IrisOreGenerator;
+import art.arcane.iris.engine.object.IrisOreGeneratorBounds;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.iris.util.project.context.ChunkedDataCache;
@@ -243,8 +244,14 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<PlatformBl
             KList<IrisOreGenerator> biomeUndergroundOres = hideOres ? null : biome.getUndergroundOreGenerators();
             KList<IrisOreGenerator> regionUndergroundOres = hideOres ? null : region.getUndergroundOreGenerators();
             KList<IrisOreGenerator> dimensionUndergroundOres = hideOres ? null : dimension.getUndergroundOreGenerators();
-            boolean hasSurfaceOres = !hideOres && (!biomeSurfaceOres.isEmpty() || !regionSurfaceOres.isEmpty() || !dimensionSurfaceOres.isEmpty());
-            boolean hasUndergroundOres = !hideOres && (!biomeUndergroundOres.isEmpty() || !regionUndergroundOres.isEmpty() || !dimensionUndergroundOres.isEmpty());
+            IrisOreGeneratorBounds biomeSurfaceOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : biome.getSurfaceOreGeneratorBounds();
+            IrisOreGeneratorBounds regionSurfaceOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : region.getSurfaceOreGeneratorBounds();
+            IrisOreGeneratorBounds dimensionSurfaceOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : dimension.getSurfaceOreGeneratorBounds();
+            IrisOreGeneratorBounds biomeUndergroundOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : biome.getUndergroundOreGeneratorBounds();
+            IrisOreGeneratorBounds regionUndergroundOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : region.getUndergroundOreGeneratorBounds();
+            IrisOreGeneratorBounds dimensionUndergroundOreBounds = hideOres ? IrisOreGeneratorBounds.EMPTY : dimension.getUndergroundOreGeneratorBounds();
+            boolean hasSurfaceOres = biomeSurfaceOreBounds.hasOres() || regionSurfaceOreBounds.hasOres() || dimensionSurfaceOreBounds.hasOres();
+            boolean hasUndergroundOres = biomeUndergroundOreBounds.hasOres() || regionUndergroundOreBounds.hasOres() || dimensionUndergroundOreBounds.hasOres();
             KList<PlatformBlockState> blocks = null;
             KList<PlatformBlockState> fblocks = null;
 
@@ -257,9 +264,15 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<PlatformBl
 
                 PlatformBlockState ore = null;
                 if (hasSurfaceOres) {
-                    ore = generateOres(biomeSurfaceOres, realX, i, realZ, localRng, data);
-                    ore = ore == null ? generateOres(regionSurfaceOres, realX, i, realZ, localRng, data) : ore;
-                    ore = ore == null ? generateOres(dimensionSurfaceOres, realX, i, realZ, localRng, data) : ore;
+                    if (biomeSurfaceOreBounds.contains(i)) {
+                        ore = generateOres(biomeSurfaceOres, realX, i, realZ, localRng, data);
+                    }
+                    if (ore == null && regionSurfaceOreBounds.contains(i)) {
+                        ore = generateOres(regionSurfaceOres, realX, i, realZ, localRng, data);
+                    }
+                    if (ore == null && dimensionSurfaceOreBounds.contains(i)) {
+                        ore = generateOres(dimensionSurfaceOres, realX, i, realZ, localRng, data);
+                    }
                 }
                 if (ore != null) {
                     h.setRaw(xf, i, zf, ore);
@@ -292,9 +305,15 @@ public class IrisTerrainNormalActuator extends EngineAssignedActuator<PlatformBl
                     }
 
                     if (hasUndergroundOres) {
-                        ore = generateOres(biomeUndergroundOres, realX, i, realZ, localRng, data);
-                        ore = ore == null ? generateOres(regionUndergroundOres, realX, i, realZ, localRng, data) : ore;
-                        ore = ore == null ? generateOres(dimensionUndergroundOres, realX, i, realZ, localRng, data) : ore;
+                        if (biomeUndergroundOreBounds.contains(i)) {
+                            ore = generateOres(biomeUndergroundOres, realX, i, realZ, localRng, data);
+                        }
+                        if (ore == null && regionUndergroundOreBounds.contains(i)) {
+                            ore = generateOres(regionUndergroundOres, realX, i, realZ, localRng, data);
+                        }
+                        if (ore == null && dimensionUndergroundOreBounds.contains(i)) {
+                            ore = generateOres(dimensionUndergroundOres, realX, i, realZ, localRng, data);
+                        }
                     }
 
                     if (ore != null) {

@@ -42,6 +42,7 @@ import art.arcane.iris.engine.object.ObjectPlaceMode;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.common.math.IrisBlockVector;
 import art.arcane.iris.util.project.context.ChunkContext;
+import art.arcane.iris.util.project.context.ChunkedDataCache;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.documentation.ChunkCoordinates;
 import art.arcane.volmlib.util.mantle.flag.ReservedFlag;
@@ -73,6 +74,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
         int minZ = z << 4;
         long baseSeed = getEngineMantle().getEngine().getSeedManager().getTerrain() ^ IrisFloatingChildBiomeModifier.FLOATING_BASE_SEED_SALT;
         RNG chunkRng = new RNG(Cache.key(x, z) + seed() + 0x0FA710BEL);
+        ChunkedDataCache<IrisBiome> biomeCache = context.getBiome();
 
         FloatingIslandSample.clearChunkMemo();
 
@@ -81,7 +83,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
             for (int zf = 0; zf < 16; zf++) {
                 int wx = minX + xf;
                 int wz = minZ + zf;
-                IrisBiome parent = complex.getTrueBiomeStream().get(wx, wz);
+                IrisBiome parent = biomeCache.get(xf, zf);
                 if (parent == null || parent.getFloatingChildBiomes() == null || parent.getFloatingChildBiomes().isEmpty()) {
                     continue;
                 }
@@ -113,7 +115,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                 continue;
             }
 
-            IrisBiome parent = complex.getTrueBiomeStream().get(minX + (columns.get(0) & 15), minZ + (columns.get(0) >> 4));
+            IrisBiome parent = biomeCache.get(columns.get(0) & 15, columns.get(0) >> 4);
             IrisBiome target = entry.getRealBiome(parent, data);
 
             KList<IrisObjectPlacement> floating = entry.getFloatingObjects();
@@ -150,7 +152,7 @@ public class MantleFloatingObjectComponent extends IrisMantleComponent {
                 continue;
             }
 
-            IrisBiome parent = complex.getTrueBiomeStream().get(minX + (columns.get(0) & 15), minZ + (columns.get(0) >> 4));
+            IrisBiome parent = biomeCache.get(columns.get(0) & 15, columns.get(0) >> 4);
             IrisBiome target = entry.getRealBiome(parent, data);
             KList<IrisObjectPlacement> bottom = target != null ? entry.resolveBottomObjects(target) : null;
             if (bottom != null && !bottom.isEmpty()) {
