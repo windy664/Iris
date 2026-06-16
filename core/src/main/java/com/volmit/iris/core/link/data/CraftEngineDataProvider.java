@@ -14,9 +14,9 @@ import net.momirealms.craftengine.bukkit.api.CraftEngineBlocks;
 import net.momirealms.craftengine.bukkit.api.CraftEngineFurniture;
 import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
 import net.momirealms.craftengine.core.block.ImmutableBlockState;
-import net.momirealms.craftengine.core.block.properties.BooleanProperty;
-import net.momirealms.craftengine.core.block.properties.IntegerProperty;
-import net.momirealms.craftengine.core.block.properties.Property;
+import net.momirealms.craftengine.core.block.property.BooleanProperty;
+import net.momirealms.craftengine.core.block.property.IntegerProperty;
+import net.momirealms.craftengine.core.block.property.Property;
 import net.momirealms.craftengine.core.util.Key;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -71,7 +71,7 @@ public class CraftEngineDataProvider extends ExternalDataProvider {
     public @NotNull ItemStack getItemStack(@NotNull Identifier itemId, @NotNull KMap<String, Object> customNbt) throws MissingResourceException {
         var item = CraftEngineItems.byId(Key.of(itemId.namespace(), itemId.key()));
         if (item == null) throw new MissingResourceException("Failed to find ItemData!", itemId.namespace(), itemId.key());
-        return item.buildItemStack();
+        return item.buildBukkitItem();
     }
 
     @Override
