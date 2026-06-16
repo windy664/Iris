@@ -41,6 +41,7 @@ import art.arcane.volmlib.util.mantle.runtime.MantleChunk;
 import art.arcane.volmlib.util.math.RNG;
 import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.matter.MatterCavern;
+import art.arcane.volmlib.util.matter.MatterSlice;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.iris.util.common.scheduling.J;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -297,6 +298,44 @@ public class MantleWriter implements IObjectPlacer, AutoCloseable {
     @Override
     public boolean isCarved(int x, int y, int z) {
         return getData(x, y, z, MatterCavern.class) != null;
+    }
+
+    public byte[] getCarvedColumn(int x, int z, int height) {
+        int cappedHeight = Math.min(Math.max(height, 0), mantle.getWorldHeight());
+        byte[] carvedColumn = new byte[cappedHeight];
+        if (cappedHeight <= 0) {
+            return carvedColumn;
+        }
+
+        MantleChunk<Matter> chunk = acquireChunk(x >> 4, z >> 4);
+        if (chunk == null) {
+            return carvedColumn;
+        }
+
+        int localX = x & 15;
+        int localZ = z & 15;
+        int lastSection = (cappedHeight - 1) >> 4;
+        for (int section = 0; section <= lastSection; section++) {
+            if (!chunk.exists(section)) {
+                continue;
+            }
+
+            Matter matter = chunk.get(section);
+            if (matter == null || !matter.hasSlice(MatterCavern.class)) {
+                continue;
+            }
+
+            MatterSlice<MatterCavern> slice = matter.getSlice(MatterCavern.class);
+            int sectionBaseY = section << 4;
+            int sectionMaxY = Math.min(cappedHeight, sectionBaseY + 16);
+            for (int y = sectionBaseY; y < sectionMaxY; y++) {
+                if (slice.get(localX, y & 15, localZ) != null) {
+                    carvedColumn[y] = 1;
+                }
+            }
+        }
+
+        return carvedColumn;
     }
 
     @Override

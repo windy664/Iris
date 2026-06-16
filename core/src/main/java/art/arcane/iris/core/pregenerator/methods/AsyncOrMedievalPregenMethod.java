@@ -18,17 +18,49 @@
 
 package art.arcane.iris.core.pregenerator.methods;
 
+import art.arcane.iris.core.IrisSettings;
 import art.arcane.iris.core.pregenerator.PregenListener;
 import art.arcane.iris.core.pregenerator.PregeneratorMethod;
+import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import io.papermc.lib.PaperLib;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 
 public class AsyncOrMedievalPregenMethod implements PregeneratorMethod {
     private final PregeneratorMethod method;
 
     public AsyncOrMedievalPregenMethod(World world, int threads) {
-        method = PaperLib.isPaper() ? new AsyncPregenMethod(world, threads) : new MedievalPregenMethod(world);
+        if (PaperLib.isPaper()) {
+            method = new AsyncPregenMethod(world, threads);
+        } else if (shouldUseSpigotDirect(world)) {
+            method = new SpigotDirectPregenMethod(world, threads);
+        } else {
+            method = new MedievalPregenMethod(world);
+        }
+    }
+
+    private static boolean shouldUseSpigotDirect(World world) {
+        if (!IrisSettings.get().getPregen().isEnableSpigotDirectPregen()) {
+            return false;
+        }
+        if (IrisToolbelt.isIrisStudioWorld(world)) {
+            return false;
+        }
+        if (!world.isAutoSave()) {
+            return false;
+        }
+        try {
+            String name = Bukkit.getServer().getName();
+            if (name != null) {
+                String lower = name.toLowerCase();
+                if (lower.contains("spigot") || lower.contains("craftbukkit")) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     @Override

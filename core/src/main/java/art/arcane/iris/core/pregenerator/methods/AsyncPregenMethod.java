@@ -414,7 +414,7 @@ public class AsyncPregenMethod implements PregeneratorMethod {
 
     static int computeFoliaRecommendedCap(int workerThreads) {
         int normalizedWorkers = Math.max(1, workerThreads);
-        int recommendedCap = normalizedWorkers * 4;
+        int recommendedCap = normalizedWorkers * 8;
         if (recommendedCap < 64) {
             return 64;
         }
@@ -592,7 +592,9 @@ public class AsyncPregenMethod implements PregeneratorMethod {
                 + ", urgent=" + urgent
                 + ", timeout=" + timeoutSeconds + "s");
         unloadAndSaveAllChunks();
-        increaseWorkerThreads();
+        if (workerPoolThreads > 0) {
+            increaseWorkerThreads();
+        }
     }
 
     @Override

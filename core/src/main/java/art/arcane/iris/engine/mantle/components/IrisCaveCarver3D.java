@@ -41,10 +41,10 @@ public class IrisCaveCarver3D {
     private static final byte LIQUID_AIR = 0;
     private static final byte LIQUID_LAVA = 2;
     private static final byte LIQUID_FORCED_AIR = 3;
-    private static final int ADAPTIVE_MIN_PLANE_COLUMNS = 32;
+    private static final int ADAPTIVE_MIN_PLANE_COLUMNS = 16;
     private static final int ADAPTIVE_DEEP_SAMPLE_STEP = 8;
     private static final int ADAPTIVE_DEEP_SURFACE_MARGIN = 12;
-    private static final double ADAPTIVE_LOCAL_RANGE_SCALE = 0.25D;
+    private static final double ADAPTIVE_LOCAL_RANGE_SCALE = 0.125D;
     private static final double ADAPTIVE_DEEP_MARGIN_BOOST = 0.015D;
     private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
 
@@ -1167,6 +1167,7 @@ public class IrisCaveCarver3D {
             for (int sampleZIndex = adaptivePlaneSampleBounds[2]; sampleZIndex <= adaptivePlaneSampleBounds[3]; sampleZIndex++) {
                 int sampleLocalZ = Math.min(sampleZIndex * adaptiveSampleStep, 16);
                 adaptivePlaneDensity[rowOffset + sampleZIndex] = sampleDensityWarpModules(
+                        scratch,
                         x,
                         y,
                         z0 + sampleLocalZ,
@@ -1603,11 +1604,13 @@ public class IrisCaveCarver3D {
     }
 
     private boolean classifyDensityPointWarpOnly(int x, int y, int z, double thresholdLimit) {
+        Scratch scratch = SCRATCH.get();
         int sx = snapWarp(x);
         int sy = snapWarp(y);
         int sz = snapWarp(z);
-        double warpA = warpDensity.noiseFastSigned3D(sx, sy, sz);
-        double warpB = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        int warpSlot = prepareWarpSample(scratch, sx, sy, sz);
+        double warpA = scratch.warpCacheA[warpSlot];
+        double warpB = scratch.warpCacheB[warpSlot];
         double warpedX = x + (warpA * warpStrength);
         double warpedY = y + (warpB * warpStrength);
         double warpedZ = z + ((warpA - warpB) * 0.5D * warpStrength);
@@ -1637,11 +1640,13 @@ public class IrisCaveCarver3D {
             return classifyDensityPointWarpOnly(x, y, z, thresholdLimit);
         }
 
+        Scratch scratch = SCRATCH.get();
         int sx = snapWarp(x);
         int sy = snapWarp(y);
         int sz = snapWarp(z);
-        double warpA = warpDensity.noiseFastSigned3D(sx, sy, sz);
-        double warpB = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        int warpSlot = prepareWarpSample(scratch, sx, sy, sz);
+        double warpA = scratch.warpCacheA[warpSlot];
+        double warpB = scratch.warpCacheB[warpSlot];
         double warpedX = x + (warpA * warpStrength);
         double warpedY = y + (warpB * warpStrength);
         double warpedZ = z + ((warpA - warpB) * 0.5D * warpStrength);
@@ -1735,11 +1740,13 @@ public class IrisCaveCarver3D {
             return true;
         }
 
+        Scratch scratch = SCRATCH.get();
         int sx = snapWarp(x);
         int sy = snapWarp(y);
         int sz = snapWarp(z);
-        double warpA = warpDensity.noiseFastSigned3D(sx, sy, sz);
-        double warpB = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        int warpSlot = prepareWarpSample(scratch, sx, sy, sz);
+        double warpA = scratch.warpCacheA[warpSlot];
+        double warpB = scratch.warpCacheB[warpSlot];
         double warpedX = x + (warpA * warpStrength);
         double warpedY = y + (warpB * warpStrength);
         double warpedZ = z + ((warpA - warpB) * 0.5D * warpStrength);
@@ -1771,6 +1778,10 @@ public class IrisCaveCarver3D {
             int[] adaptivePlaneSampleBounds,
             int axisCells
     ) {
+        Scratch scratch = SCRATCH.get();
+        prepareAdaptiveGeometry(scratch, adaptiveSampleStep, axisCells, axisCells + 1);
+        int[] adaptiveCellX = scratch.adaptiveCellX;
+        int[] adaptiveCellZ = scratch.adaptiveCellZ;
         int minSampleX = axisCells;
         int maxSampleX = 0;
         int minSampleZ = axisCells;
@@ -1778,10 +1789,8 @@ public class IrisCaveCarver3D {
 
         for (int planeIndex = 0; planeIndex < planeCount; planeIndex++) {
             int columnIndex = planeColumnIndices[planeIndex];
-            int localX = PowerOfTwoCoordinates.unpackLocal16X(columnIndex);
-            int localZ = columnIndex & 15;
-            int sampleX = Math.min(localX / adaptiveSampleStep, axisCells - 1);
-            int sampleZ = Math.min(localZ / adaptiveSampleStep, axisCells - 1);
+            int sampleX = adaptiveCellX[columnIndex];
+            int sampleZ = adaptiveCellZ[columnIndex];
             if (sampleX < minSampleX) {
                 minSampleX = sampleX;
             }
@@ -1813,20 +1822,20 @@ public class IrisCaveCarver3D {
             double[] adaptivePlanePrediction,
             double[] adaptivePlaneAmbiguity
     ) {
+        Scratch scratch = SCRATCH.get();
+        prepareAdaptiveGeometry(scratch, adaptiveSampleStep, axisCells, axisSamples);
+        int[] adaptiveCellZ = scratch.adaptiveCellZ;
+        int[] adaptiveRow0 = scratch.adaptiveRow0;
+        int[] adaptiveRow1 = scratch.adaptiveRow1;
+        double[] adaptiveTx = scratch.adaptiveTx;
+        double[] adaptiveTz = scratch.adaptiveTz;
         for (int planeIndex = 0; planeIndex < planeCount; planeIndex++) {
             int columnIndex = planeColumnIndices[planeIndex];
-            int localX = PowerOfTwoCoordinates.unpackLocal16X(columnIndex);
-            int localZ = columnIndex & 15;
-            int cellX = Math.min(localX / adaptiveSampleStep, axisCells - 1);
-            int cellZ = Math.min(localZ / adaptiveSampleStep, axisCells - 1);
-            int x0 = cellX * adaptiveSampleStep;
-            int z0 = cellZ * adaptiveSampleStep;
-            int x1 = Math.min(x0 + adaptiveSampleStep, 16);
-            int z1 = Math.min(z0 + adaptiveSampleStep, 16);
-            double tx = x1 == x0 ? 0D : (localX - x0) / (double) (x1 - x0);
-            double tz = z1 == z0 ? 0D : (localZ - z0) / (double) (z1 - z0);
-            int row0 = cellX * axisSamples;
-            int row1 = (cellX + 1) * axisSamples;
+            int cellZ = adaptiveCellZ[columnIndex];
+            int row0 = adaptiveRow0[columnIndex];
+            int row1 = adaptiveRow1[columnIndex];
+            double tx = adaptiveTx[columnIndex];
+            double tz = adaptiveTz[columnIndex];
             double d00 = adaptivePlaneDensity[row0 + cellZ];
             double d01 = adaptivePlaneDensity[row0 + cellZ + 1];
             double d10 = adaptivePlaneDensity[row1 + cellZ];
@@ -1838,6 +1847,32 @@ public class IrisCaveCarver3D {
             double maxDensity = Math.max(Math.max(d00, d01), Math.max(d10, d11));
             adaptivePlaneAmbiguity[planeIndex] = adaptiveThresholdMargin + ((maxDensity - minDensity) * ADAPTIVE_LOCAL_RANGE_SCALE);
         }
+    }
+
+    private void prepareAdaptiveGeometry(Scratch scratch, int adaptiveSampleStep, int axisCells, int axisSamples) {
+        if (scratch.adaptiveGeometryStep == adaptiveSampleStep && scratch.adaptiveGeometryAxisCells == axisCells) {
+            return;
+        }
+
+        for (int columnIndex = 0; columnIndex < 256; columnIndex++) {
+            int localX = columnIndex >> 4;
+            int localZ = columnIndex & 15;
+            int cellX = Math.min(localX / adaptiveSampleStep, axisCells - 1);
+            int cellZ = Math.min(localZ / adaptiveSampleStep, axisCells - 1);
+            int x0 = cellX * adaptiveSampleStep;
+            int z0 = cellZ * adaptiveSampleStep;
+            int x1 = Math.min(x0 + adaptiveSampleStep, 16);
+            int z1 = Math.min(z0 + adaptiveSampleStep, 16);
+            scratch.adaptiveCellX[columnIndex] = cellX;
+            scratch.adaptiveCellZ[columnIndex] = cellZ;
+            scratch.adaptiveRow0[columnIndex] = cellX * axisSamples;
+            scratch.adaptiveRow1[columnIndex] = (cellX + 1) * axisSamples;
+            scratch.adaptiveTx[columnIndex] = x1 == x0 ? 0D : (localX - x0) / (double) (x1 - x0);
+            scratch.adaptiveTz[columnIndex] = z1 == z0 ? 0D : (localZ - z0) / (double) (z1 - z0);
+        }
+
+        scratch.adaptiveGeometryStep = adaptiveSampleStep;
+        scratch.adaptiveGeometryAxisCells = axisCells;
     }
 
     private double sampleDensityNoWarpNoModules(int x, int y, int z) {
@@ -1870,11 +1905,13 @@ public class IrisCaveCarver3D {
     }
 
     private double sampleDensityWarpOnly(int x, int y, int z) {
+        Scratch scratch = SCRATCH.get();
         int sx = snapWarp(x);
         int sy = snapWarp(y);
         int sz = snapWarp(z);
-        double warpA = warpDensity.noiseFastSigned3D(sx, sy, sz);
-        double warpB = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        int warpSlot = prepareWarpSample(scratch, sx, sy, sz);
+        double warpA = scratch.warpCacheA[warpSlot];
+        double warpB = scratch.warpCacheB[warpSlot];
         double warpedX = x + (warpA * warpStrength);
         double warpedY = y + (warpB * warpStrength);
         double warpedZ = z + ((warpA - warpB) * 0.5D * warpStrength);
@@ -1891,15 +1928,16 @@ public class IrisCaveCarver3D {
         }
 
         ModuleState[] localModules = scratch.activeModules;
-        return sampleDensityWarpModules(x, y, z, localModules, activeModuleCount);
+        return sampleDensityWarpModules(scratch, x, y, z, localModules, activeModuleCount);
     }
 
-    private double sampleDensityWarpModules(int x, int y, int z, ModuleState[] localModules, int activeModuleCount) {
+    private double sampleDensityWarpModules(Scratch scratch, int x, int y, int z, ModuleState[] localModules, int activeModuleCount) {
         int sx = snapWarp(x);
         int sy = snapWarp(y);
         int sz = snapWarp(z);
-        double warpA = warpDensity.noiseFastSigned3D(sx, sy, sz);
-        double warpB = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        int warpSlot = prepareWarpSample(scratch, sx, sy, sz);
+        double warpA = scratch.warpCacheA[warpSlot];
+        double warpB = scratch.warpCacheB[warpSlot];
         double warpedX = x + (warpA * warpStrength);
         double warpedY = y + (warpB * warpStrength);
         double warpedZ = z + ((warpA - warpB) * 0.5D * warpStrength);
@@ -1916,6 +1954,32 @@ public class IrisCaveCarver3D {
         }
 
         return density * inverseNormalization;
+    }
+
+    private int prepareWarpSample(Scratch scratch, int sx, int sy, int sz) {
+        int slot = mixWarpKey(sx, sy, sz) & (scratch.warpCacheX.length - 1);
+        if (scratch.warpCacheSet[slot]
+                && scratch.warpCacheX[slot] == sx
+                && scratch.warpCacheY[slot] == sy
+                && scratch.warpCacheZ[slot] == sz) {
+            return slot;
+        }
+
+        scratch.warpCacheSet[slot] = true;
+        scratch.warpCacheX[slot] = sx;
+        scratch.warpCacheY[slot] = sy;
+        scratch.warpCacheZ[slot] = sz;
+        scratch.warpCacheA[slot] = warpDensity.noiseFastSigned3D(sx, sy, sz);
+        scratch.warpCacheB[slot] = warpDensity.noiseFastSigned3D(sx + 31.37D, sy - 17.21D, sz + 23.91D);
+        return slot;
+    }
+
+    private static int mixWarpKey(int sx, int sy, int sz) {
+        int hash = sx * 73428767;
+        hash ^= sy * 91227153;
+        hash ^= sz * 43828939;
+        hash ^= hash >>> 16;
+        return hash;
     }
 
     private int prepareActiveModules(Scratch scratch, int y) {
@@ -2127,6 +2191,18 @@ public class IrisCaveCarver3D {
         private final double[] adaptivePlanePrediction = new double[256];
         private final double[] adaptivePlaneAmbiguity = new double[256];
         private final int[] adaptivePlaneSampleBounds = new int[4];
+        private final int[] adaptiveCellX = new int[256];
+        private final int[] adaptiveCellZ = new int[256];
+        private final int[] adaptiveRow0 = new int[256];
+        private final int[] adaptiveRow1 = new int[256];
+        private final double[] adaptiveTx = new double[256];
+        private final double[] adaptiveTz = new double[256];
+        private final boolean[] warpCacheSet = new boolean[256];
+        private final int[] warpCacheX = new int[256];
+        private final int[] warpCacheY = new int[256];
+        private final int[] warpCacheZ = new int[256];
+        private final double[] warpCacheA = new double[256];
+        private final double[] warpCacheB = new double[256];
         private final int[] tileIndices = new int[4];
         private final int[] tileLocalX = new int[4];
         private final int[] tileLocalZ = new int[4];
@@ -2138,6 +2214,8 @@ public class IrisCaveCarver3D {
         private MatterCavern[] matterByY = new MatterCavern[0];
         private Matter[] sectionMatter = new Matter[0];
         private MatterSlice<?>[] sectionSlices = new MatterSlice<?>[0];
+        private int adaptiveGeometryStep = -1;
+        private int adaptiveGeometryAxisCells = -1;
         private boolean fullWeightsInitialized;
     }
 }

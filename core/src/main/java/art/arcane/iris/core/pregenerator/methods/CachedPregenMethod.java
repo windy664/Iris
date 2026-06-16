@@ -16,7 +16,7 @@ public class CachedPregenMethod implements PregeneratorMethod {
 
     public CachedPregenMethod(PregeneratorMethod method, String worldName) {
         this.method = method;
-        var cache = IrisServices.get(GlobalCacheSVC.class).get(worldName);
+        PregenCache cache = IrisServices.get(GlobalCacheSVC.class).get(worldName);
         if (cache == null) {
             IrisLogging.debug("Could not find existing cache for " + worldName  + " creating fallback");
             cache = GlobalCacheSVC.createDefault(worldName);

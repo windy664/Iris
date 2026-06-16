@@ -23,9 +23,11 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.spi.IrisLogging;
 import art.arcane.iris.util.project.noise.CNG;
 import art.arcane.volmlib.util.collection.KList;
+import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class FloatingIslandSample {
@@ -50,6 +52,7 @@ public final class FloatingIslandSample {
     private static final ThreadLocal<int[]> LAST_REJECT = ThreadLocal.withInitial(() -> new int[1]);
     private static final ThreadLocal<double[]> LAST_DENSITY = ThreadLocal.withInitial(() -> new double[2]);
     private static final ThreadLocal<HashMap<Long, FloatingIslandSample>> CHUNK_MEMO = ThreadLocal.withInitial(HashMap::new);
+    private static final ThreadLocal<IdentityHashMap<CNG, Long2DoubleOpenHashMap>> FOOTPRINT_MEMO = ThreadLocal.withInitial(IdentityHashMap::new);
     private static final AtomicBoolean NULL_CNG_WARNED = new AtomicBoolean(false);
 
     public static int getLastReject() {
@@ -69,6 +72,7 @@ public final class FloatingIslandSample {
 
     public static void clearChunkMemo() {
         CHUNK_MEMO.get().clear();
+        FOOTPRINT_MEMO.get().clear();
     }
 
     public static FloatingIslandSample sampleMemoized(IrisBiome parent, int wx, int wz, int chunkHeight, long baseSeed, IrisData data, Engine engine) {
@@ -272,8 +276,7 @@ public final class FloatingIslandSample {
             warnNullCng("footprintStyle", parent);
             return reject(REJECT_NO_SEED);
         }
-        double footprintValue = footprintCng.noise(wx, wz);
-        double signed = (Math.max(0, Math.min(1, footprintValue)) * 2.0) - 1.0;
+        double signed = footprintSigned(footprintCng, wx, wz);
         double threshold = Math.max(0, Math.min(1, entry.getFootprintThreshold()));
         double signedCut = (threshold * 2.0) - 1.0;
 
@@ -558,8 +561,7 @@ public final class FloatingIslandSample {
                 if (dx == 0 && dz == 0) {
                     continue;
                 }
-                double footprintValue = footprintCng.noise(wx + dx, wz + dz);
-                double signed = (Math.max(0, Math.min(1, footprintValue)) * 2.0) - 1.0;
+                double signed = footprintSigned(footprintCng, wx + dx, wz + dz);
                 if (signed <= signedCut) {
                     continue;
                 }
@@ -607,6 +609,30 @@ public final class FloatingIslandSample {
         }
         double layerFoot = footprintCng.noise(sx, sz);
         return signedFromUnit(layerFoot) > signedCut;
+    }
+
+    private static double footprintSigned(CNG footprintCng, int wx, int wz) {
+        IdentityHashMap<CNG, Long2DoubleOpenHashMap> memoByCng = FOOTPRINT_MEMO.get();
+        Long2DoubleOpenHashMap memo = memoByCng.get(footprintCng);
+        if (memo == null) {
+            memo = new Long2DoubleOpenHashMap(512);
+            memo.defaultReturnValue(Double.NaN);
+            memoByCng.put(footprintCng, memo);
+        }
+
+        long key = columnKey(wx, wz);
+        double cached = memo.get(key);
+        if (!Double.isNaN(cached)) {
+            return cached;
+        }
+
+        double signed = signedFromUnit(footprintCng.noise(wx, wz));
+        memo.put(key, signed);
+        return signed;
+    }
+
+    private static long columnKey(int wx, int wz) {
+        return ((long) wx << 32) ^ (wz & 0xFFFFFFFFL);
     }
 
     private static double signedFromUnit(double value) {

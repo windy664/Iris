@@ -103,7 +103,7 @@ public class PregeneratorJob implements PregenListener {
             open();
         }
 
-        var t = new Thread(() -> {
+        Thread t = new Thread(() -> {
             J.sleep(1000);
             this.pregenerator.start();
         }, "Iris Pregenerator");
@@ -232,6 +232,9 @@ public class PregeneratorJob implements PregenListener {
         J.a(() -> {
             try {
                 monitor.close();
+                if (frame == null) {
+                    return;
+                }
                 J.sleep(3000);
                 frame.setVisible(false);
             } catch (Throwable ignored) {

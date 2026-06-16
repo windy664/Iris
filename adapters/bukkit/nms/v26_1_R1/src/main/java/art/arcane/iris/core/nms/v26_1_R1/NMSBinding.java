@@ -24,6 +24,7 @@ import art.arcane.volmlib.util.mantle.runtime.Mantle;
 import art.arcane.volmlib.util.matter.Matter;
 import art.arcane.volmlib.util.math.Vector3d;
 import art.arcane.volmlib.util.matter.MatterBiomeInject;
+import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.util.nbt.common.mca.NBTWorld;
 import art.arcane.volmlib.util.nbt.mca.palette.*;
 import art.arcane.volmlib.util.nbt.tag.CompoundTag;
@@ -325,7 +326,14 @@ public class NMSBinding implements INMSBinding {
 
     @Override
     public Object getBiomeBaseFromId(int id) {
-        return getCustomBiomeRegistry().get(id);
+        Object raw = getCustomBiomeRegistry().get(id);
+        if (raw instanceof java.util.Optional<?> opt) {
+            raw = opt.orElse(null);
+        }
+        if (raw instanceof Holder<?> holder) {
+            raw = holder.value();
+        }
+        return raw;
     }
 
     @Override
@@ -594,7 +602,23 @@ public class NMSBinding implements INMSBinding {
         for (World i : Bukkit.getWorlds()) {
             if (i.getEnvironment().equals(World.Environment.NORMAL)) {
                 Registry<net.minecraft.world.level.biome.Biome> registry = ((CraftWorld) i).getHandle().registryAccess().lookup(Registries.BIOME).orElse(null);
-                return registry.getId((net.minecraft.world.level.biome.Biome) getBiomeBase(registry, biome));
+                if (registry == null) {
+                    continue;
+                }
+                Object baseRaw = getBiomeBase(registry, biome);
+                net.minecraft.world.level.biome.Biome base;
+                if (baseRaw instanceof Holder<?> holder) {
+                    Object value = holder.value();
+                    if (!(value instanceof net.minecraft.world.level.biome.Biome resolved)) {
+                        continue;
+                    }
+                    base = resolved;
+                } else if (baseRaw instanceof net.minecraft.world.level.biome.Biome resolved) {
+                    base = resolved;
+                } else {
+                    continue;
+                }
+                return registry.getId(base);
             }
         }
 
@@ -700,13 +724,15 @@ public class NMSBinding implements INMSBinding {
             return new MCAIdMapper<BlockState>(c, d, b);
         });
         MCAPalette<BlockState> global = globalCache.aquireNasty(() -> new MCAGlobalPalette<>(registry, ((CraftBlockData) AIR).getState()));
+        java.util.Map<CompoundTag, BlockState> innerDecodeCache = new java.util.concurrent.ConcurrentHashMap<>(64);
+        java.util.Map<CompoundTag, BlockState> outerDecodeCache = new java.util.concurrent.ConcurrentHashMap<>(64);
         MCAPalettedContainer<BlockState> container = new MCAPalettedContainer<>(global, registry,
-                i -> ((CraftBlockData) NBTWorld.getBlockData(i)).getState(),
+                i -> innerDecodeCache.computeIfAbsent(i, t -> ((CraftBlockData) NBTWorld.getBlockData(t)).getState()),
                 i -> NBTWorld.getCompound(CraftBlockData.createData(i)),
                 ((CraftBlockData) AIR).getState());
         return new MCAWrappedPalettedContainer<>(container,
                 i -> NBTWorld.getCompound(CraftBlockData.createData(i)),
-                i -> ((CraftBlockData) NBTWorld.getBlockData(i)).getState());
+                i -> outerDecodeCache.computeIfAbsent(i, t -> ((CraftBlockData) NBTWorld.getBlockData(t)).getState()));
     }
 
     @Override
@@ -788,7 +814,6 @@ public class NMSBinding implements INMSBinding {
             int accessMinY = access.getMinY();
             int baseX = access.getPos().getMinBlockX();
             int baseZ = access.getPos().getMinBlockZ();
-            boolean[] dirtySections = new boolean[access.getSections().length];
             ChunkDataHunkHolder holder = data instanceof ChunkDataHunkHolder chunkDataHolder ? chunkDataHolder : null;
             for (int z = 0; z < 16; z++) {
                 for (int y = 0; y < height; y++) {
@@ -811,8 +836,7 @@ public class NMSBinding implements INMSBinding {
                         }
 
                         BlockState state = craftBlockData.getState();
-                        BlockState oldState = section.states.getAndSetUnchecked(x, sectionY, z, state);
-                        dirtySections[sectionIndex] = true;
+                        BlockState oldState = section.setBlockState(x, sectionY, z, state, false);
                         if (state.hasBlockEntity()) {
                             BlockPos pos = new BlockPos(baseX + x, blockY, baseZ + z);
                             BlockEntity entity = ((EntityBlock) state.getBlock()).newBlockEntity(pos, state);
@@ -828,13 +852,102 @@ public class NMSBinding implements INMSBinding {
                 }
             }
 
-            for (int i = 0; i < dirtySections.length; i++) {
-                if (dirtySections[i]) {
-                    access.getSection(i).recalcBlockCounts();
+            return true;
+        } catch (Throwable e) {
+            IrisLogging.reportError(e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean writeChunkNbtDirect(NBTWorld nbtWorld, int chunkX, int chunkZ, Hunk<PlatformBlockState> blocks, Hunk<PlatformBiome> biomes) {
+        try {
+            art.arcane.iris.util.nbt.common.mca.MCAFile mca = nbtWorld.getMCA(chunkX >> 5, chunkZ >> 5);
+            if (mca == null) {
+                return false;
+            }
+
+            art.arcane.iris.util.nbt.common.mca.Chunk chunk = art.arcane.iris.util.nbt.common.mca.Chunk.newChunk();
+            art.arcane.iris.util.nbt.common.mca.Chunk.injectIrisData(chunk);
+
+            int blockHeight = blocks.getHeight();
+            java.util.IdentityHashMap<BlockData, CompoundTag> encodeCache = new java.util.IdentityHashMap<>(64);
+            for (int y = 0; y < blockHeight; y++) {
+                for (int z = 0; z < 16; z++) {
+                    for (int x = 0; x < 16; x++) {
+                        PlatformBlockState platformState = blocks.getRaw(x, y, z);
+                        if (platformState == null) {
+                            continue;
+                        }
+                        Object nativeHandle = platformState.nativeHandle();
+                        if (!(nativeHandle instanceof BlockData blockData)) {
+                            continue;
+                        }
+                        if (blockData instanceof IrisCustomData customData) {
+                            blockData = customData.getBase();
+                        }
+                        if (blockData.getMaterial().isAir()) {
+                            continue;
+                        }
+                        CompoundTag nbtState = encodeCache.get(blockData);
+                        if (nbtState == null) {
+                            nbtState = NBTWorld.getCompound(blockData);
+                            if (nbtState == null) {
+                                continue;
+                            }
+                            encodeCache.put(blockData, nbtState);
+                        }
+                        chunk.setBlockStateAt(x, y, z, nbtState, false);
+                    }
                 }
             }
 
+            int biomeHeight = biomes.getHeight();
+            for (int by = 0; by < biomeHeight; by += 4) {
+                int quartY = by >> 2;
+                for (int bz = 0; bz < 16; bz += 4) {
+                    int quartZ = bz >> 2;
+                    for (int bx = 0; bx < 16; bx += 4) {
+                        int quartX = bx >> 2;
+                        PlatformBiome platformBiome = biomes.getRaw(bx, by, bz);
+                        if (platformBiome == null) {
+                            continue;
+                        }
+                        String biomeKey = platformBiome.key();
+                        if (biomeKey == null || biomeKey.isEmpty()) {
+                            continue;
+                        }
+                        int biomeId = getBiomeBaseIdForKey(biomeKey);
+                        if (biomeId < 0) {
+                            continue;
+                        }
+                        chunk.setBiomeAt(quartX, quartY, quartZ, biomeId);
+                    }
+                }
+            }
+
+            chunk.cleanupPalettesAndBlockStates();
+
+            synchronized (mca) {
+                mca.setChunk(chunkX & 31, chunkZ & 31, chunk);
+            }
+
             return true;
+        } catch (Throwable e) {
+            IrisLogging.warn("writeChunkNbtDirect failed at " + chunkX + "," + chunkZ + ": " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            e.printStackTrace(System.err);
+            IrisLogging.reportError(e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean forceEvictChunk(World world, int chunkX, int chunkZ) {
+        try {
+            if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                return true;
+            }
+            return world.unloadChunk(chunkX, chunkZ, true);
         } catch (Throwable e) {
             IrisLogging.reportError(e);
             return false;

@@ -150,6 +150,11 @@ public class IrisSettings {
         public int maxResidentTectonicPlates = 96;
         public int mantleBackpressureWaitMs = 25;
         public int mantleBackpressureTimeoutMs = 60_000;
+        public boolean enableSpigotDirectPregen = false;
+
+        public boolean isEnableSpigotDirectPregen() {
+            return enableSpigotDirectPregen;
+        }
 
         public int getChunkLoadTimeoutSeconds() {
             return Math.max(5, Math.min(chunkLoadTimeoutSeconds, 120));

@@ -556,12 +556,11 @@ public class MantleObjectComponent extends IrisMantleComponent {
             int zz = rng.i(z, z + 15);
             int surfaceObjectExclusionDepth = resolveSurfaceObjectExclusionDepth(surfaceObjectExclusionBaseDepth, v, objectPlacement);
             int surfaceObjectExclusionRadius = resolveSurfaceObjectExclusionRadius(v, objectPlacement);
-            boolean overCave = surfaceObjectExclusionDepth > 0 && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius, surfaceExposureCache);
-            int id = rng.i(0, Integer.MAX_VALUE);
             IrisObjectPlacement effectivePlacement = resolveEffectivePlacement(objectPlacement, v);
-            if (effectivePlacement.getMode() == ObjectPlaceMode.FLOATING) {
-                overCave = false;
-            }
+            boolean overCave = effectivePlacement.getMode() != ObjectPlaceMode.FLOATING
+                    && surfaceObjectExclusionDepth > 0
+                    && hasSurfaceCarveExposure(writer, surfaceHeightLookup, xx, zz, surfaceObjectExclusionDepth, surfaceObjectExclusionRadius, surfaceExposureCache);
+            int id = rng.i(0, Integer.MAX_VALUE);
             IObjectPlacer placePlacer = golden ? new GoldenDebugPlacer(writer, scope + "/" + v.getLoadKey()) : writer;
             if (golden) {
                 IrisLogging.info("Goldendebug object attempt: chunk=" + chunkX + "," + chunkZ
@@ -1834,10 +1833,7 @@ public class MantleObjectComponent extends IrisMantleComponent {
                 return carvedColumn;
             }
 
-            carvedColumn = new byte[height];
-            for (int y = 0; y < height; y++) {
-                carvedColumn[y] = (byte) (writer.isCarved(x, y, z) ? 1 : 0);
-            }
+            carvedColumn = writer.getCarvedColumn(x, z, height);
             carvedColumns.put(columnKey, carvedColumn);
             return carvedColumn;
         }
