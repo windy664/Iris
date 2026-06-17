@@ -22,11 +22,14 @@ import art.arcane.iris.engine.decorator.DecoratorPlatformHooks;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.framework.EngineWorldManager;
 import art.arcane.iris.engine.framework.EngineWorldManagerProvider;
-import art.arcane.iris.engine.framework.MeteredCache;
 import art.arcane.iris.engine.framework.PreservationRegistry;
 import art.arcane.iris.engine.object.BlockDataMergeSupport;
 import art.arcane.iris.engine.object.IrisObjectRotation;
 import art.arcane.iris.engine.object.TileData;
+import art.arcane.iris.modded.api.ModdedCustomContentRegistry;
+import art.arcane.iris.modded.command.ModdedGuiHost;
+import art.arcane.iris.modded.service.ModdedLogFilterService;
+import art.arcane.iris.modded.service.ModdedPreservationService;
 import art.arcane.iris.spi.IrisPlatforms;
 import art.arcane.iris.spi.IrisServices;
 import net.minecraft.server.MinecraftServer;
@@ -45,10 +48,36 @@ public final class ModdedEngineBootstrap {
         "art.arcane.iris.core.loader.IrisData"
     };
     private static final Object LOCK = new Object();
+    private static final ModdedServiceManager SERVICE_MANAGER = new ModdedServiceManager();
     private static volatile ModdedLoader loader;
     private static volatile ModdedPlatform platform;
 
     private ModdedEngineBootstrap() {
+    }
+
+    public static ModdedServiceManager services() {
+        return SERVICE_MANAGER;
+    }
+
+    public static ModdedScheduler schedulerOrNull() {
+        ModdedPlatform bound = platform;
+        return bound == null ? null : bound.moddedScheduler();
+    }
+
+    public static void tick(MinecraftServer server) {
+        ModdedScheduler.tick(server);
+        ModdedStartup.runOnce(server);
+        ModdedPrimaryWorldRouter.tick(server);
+        SERVICE_MANAGER.tick(server);
+    }
+
+    public static void stop() {
+        ModdedPrimaryWorldRouter.clear();
+        SERVICE_MANAGER.disableAll();
+        ModdedScheduler scheduler = schedulerOrNull();
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
     }
 
     public static void initialize(ModdedLoader moddedLoader) {
@@ -97,30 +126,22 @@ public final class ModdedEngineBootstrap {
             ModdedLoader boundLoader = loader();
             ModdedPlatform created = new ModdedPlatform(boundLoader);
             IrisPlatforms.bind(created);
+            ModdedDimensionManager.bindAccess(new ModdedServerLevels());
             IrisObjectRotation.bindFallbackRotator(new ModdedStateRotator());
             BlockDataMergeSupport.bindFallbackMerger(new ModdedStateMerger());
             TileData.bindFallbackReader(new ModdedTileReader(boundLoader::currentServer));
+            ModdedGuiHost.install();
             ModdedDecoratorHooks decoratorHooks = new ModdedDecoratorHooks();
             DecoratorPlatformHooks.bind(decoratorHooks, decoratorHooks);
-            IrisServices.register(PreservationRegistry.class, new InertPreservation());
+            ModdedPreservationService preservation = SERVICE_MANAGER.register(ModdedPreservationService.class, new ModdedPreservationService());
+            SERVICE_MANAGER.register(ModdedLogFilterService.class, new ModdedLogFilterService());
+            IrisServices.register(PreservationRegistry.class, preservation);
             IrisServices.register(EngineWorldManagerProvider.class, (EngineWorldManagerProvider) (Engine engine) -> new InertWorldManager());
+            ModdedCustomContentRegistry.discover();
             platform = created;
+            SERVICE_MANAGER.enableAll();
             ModdedIrisSplash.print(boundLoader);
             return created;
-        }
-    }
-
-    private static final class InertPreservation implements PreservationRegistry {
-        @Override
-        public void register(Thread thread) {
-        }
-
-        @Override
-        public void registerCache(MeteredCache cache) {
-        }
-
-        @Override
-        public void dereference() {
         }
     }
 

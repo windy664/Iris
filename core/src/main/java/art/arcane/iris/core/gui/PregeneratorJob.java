@@ -30,25 +30,19 @@ import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.format.MemoryMonitor;
 import art.arcane.volmlib.util.function.Consumer2;
 import art.arcane.volmlib.util.mantle.runtime.Mantle;
-import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.Position2;
 import art.arcane.volmlib.util.scheduling.ChronoLatch;
 import art.arcane.iris.util.common.scheduling.J;
 import org.bukkit.World;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.image.BufferedImage;
+import java.awt.Color;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-public class PregeneratorJob implements PregenListener {
+public class PregeneratorJob implements PregenListener, PregenRenderSource {
     private static final Color COLOR_EXISTS = parseColor("#4d7d5b");
     private static final Color COLOR_BLACK = parseColor("#4d7d5b");
     private static final Color COLOR_MANTLE = parseColor("#3c2773");
@@ -69,8 +63,8 @@ public class PregeneratorJob implements PregenListener {
     private final ChronoLatch cl = new ChronoLatch(TimeUnit.MINUTES.toMillis(1));
     private final Engine engine;
     private final ExecutorService service;
-    private JFrame frame;
     private PregenRenderer renderer;
+    private Consumer2<Position2, Color> drawFunction;
     private int rgc = 0;
     private String[] info;
     private volatile double lastChunksPerSecond = 0D;
@@ -212,8 +206,8 @@ public class PregeneratorJob implements PregenListener {
 
     public void draw(int x, int z, Color color) {
         try {
-            if (renderer != null && frame != null && frame.isVisible()) {
-                renderer.func.accept(new Position2(x, z), color);
+            if (renderer != null && drawFunction != null && renderer.isVisibleFrame()) {
+                drawFunction.accept(new Position2(x, z), color);
             }
         } catch (Throwable ignored) {
             IrisLogging.error("Failed to draw pregen");
@@ -232,11 +226,11 @@ public class PregeneratorJob implements PregenListener {
         J.a(() -> {
             try {
                 monitor.close();
-                if (frame == null) {
+                if (renderer == null) {
                     return;
                 }
                 J.sleep(3000);
-                frame.setVisible(false);
+                renderer.close();
             } catch (Throwable ignored) {
                 IrisLogging.error("Error closing pregen gui");
             }
@@ -246,20 +240,8 @@ public class PregeneratorJob implements PregenListener {
     public void open() {
         J.a(() -> {
             try {
-                frame = new JFrame("Pregen View");
-                renderer = new PregenRenderer();
-                frame.addKeyListener(renderer);
-                renderer.l = new ReentrantLock();
-                renderer.frame = frame;
-                renderer.job = this;
-                renderer.func = (c, b) -> {
-                    renderer.l.lock();
-                    renderer.order.add(() -> renderer.draw(c, b, renderer.bg));
-                    renderer.l.unlock();
-                };
-                frame.add(renderer);
-                frame.setSize(1000, 1000);
-                frame.setVisible(true);
+                renderer = PregenRenderer.open("Pregen View", this, PregeneratorJob::pauseResume);
+                drawFunction = renderer.drawFunction();
             } catch (Throwable ignored) {
                 IrisLogging.error("Error opening pregen gui");
             }
@@ -292,7 +274,7 @@ public class PregeneratorJob implements PregenListener {
 
     @Override
     public void onChunkGenerated(int x, int z, boolean cached) {
-        if (renderer == null || frame == null || !frame.isVisible()) return;
+        if (renderer == null || !renderer.isVisibleFrame()) return;
         service.submit(() -> {
             if (engine != null) {
                 draw(x, z, engine.draw((x << 4) + 8, (z << 4) + 8));
@@ -378,112 +360,23 @@ public class PregeneratorJob implements PregenListener {
         draw(x, z, COLOR_EXISTS);
     }
 
-    private Position2 getMax() {
+    @Override
+    public Position2 max() {
         return max;
     }
 
-    private Position2 getMin() {
+    @Override
+    public Position2 min() {
         return min;
     }
 
-    private boolean paused() {
+    @Override
+    public boolean paused() {
         return pregenerator.paused();
     }
 
-    private String[] getProgress() {
+    @Override
+    public String[] progress() {
         return info;
-    }
-
-    public static class PregenRenderer extends JPanel implements KeyListener {
-        private static final long serialVersionUID = 2094606939770332040L;
-        private final KList<Runnable> order = new KList<>();
-        private final int res = 512;
-        private final BufferedImage image = new BufferedImage(res, res, BufferedImage.TYPE_INT_RGB);
-        Graphics2D bg;
-        private PregeneratorJob job;
-        private ReentrantLock l;
-        private Consumer2<Position2, Color> func;
-        private JFrame frame;
-
-        public PregenRenderer() {
-
-        }
-
-        public void paint(int x, int z, Color c) {
-            func.accept(new Position2(x, z), c);
-        }
-
-        @Override
-        public void paint(Graphics gx) {
-            Graphics2D g = (Graphics2D) gx;
-            bg = (Graphics2D) image.getGraphics();
-            l.lock();
-
-            while (order.isNotEmpty()) {
-                try {
-                    order.pop().run();
-                } catch (Throwable e) {
-                    IrisLogging.reportError(e);
-
-                }
-            }
-
-            l.unlock();
-            g.drawImage(image, 0, 0, getParent().getWidth(), getParent().getHeight(), (img, infoflags, x, y, width, height) -> true);
-            g.setColor(Color.WHITE);
-            g.setFont(new Font("Hevetica", Font.BOLD, 13));
-            String[] prog = job.getProgress();
-            int h = g.getFontMetrics().getHeight() + 5;
-            int hh = 20;
-
-            if (job.paused()) {
-                g.drawString("PAUSED", 20, hh += h);
-
-                g.drawString("Press P to Resume", 20, hh += h);
-            } else {
-                for (String i : prog) {
-                    g.drawString(i, 20, hh += h);
-                }
-
-                g.drawString("Press P to Pause", 20, hh += h);
-            }
-
-            J.sleep(IrisSettings.get().getGui().isMaximumPregenGuiFPS() ? 4 : 250);
-            repaint();
-        }
-
-        private void draw(Position2 p, Color c, Graphics2D bg) {
-            double pw = M.lerpInverse(job.getMin().getX(), job.getMax().getX(), p.getX());
-            double ph = M.lerpInverse(job.getMin().getZ(), job.getMax().getZ(), p.getZ());
-            double pwa = M.lerpInverse(job.getMin().getX(), job.getMax().getX(), p.getX() + 1);
-            double pha = M.lerpInverse(job.getMin().getZ(), job.getMax().getZ(), p.getZ() + 1);
-            int x = (int) M.lerp(0, res, pw);
-            int z = (int) M.lerp(0, res, ph);
-            int xa = (int) M.lerp(0, res, pwa);
-            int za = (int) M.lerp(0, res, pha);
-            bg.setColor(c);
-            bg.fillRect(x, z, xa - x, za - z);
-        }
-
-        @Override
-        public void keyTyped(KeyEvent e) {
-
-        }
-
-        @Override
-        public void keyPressed(KeyEvent e) {
-
-        }
-
-        @Override
-        public void keyReleased(KeyEvent e) {
-            if (e.getKeyCode() == KeyEvent.VK_P) {
-                PregeneratorJob.pauseResume();
-            }
-        }
-
-        public void close() {
-            frame.setVisible(false);
-        }
     }
 }

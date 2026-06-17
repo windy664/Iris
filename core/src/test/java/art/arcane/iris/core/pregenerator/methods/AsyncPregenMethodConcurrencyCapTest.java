@@ -8,8 +8,8 @@ public class AsyncPregenMethodConcurrencyCapTest {
     @Test
     public void paperLikeRecommendedCapTracksWorkerThreads() {
         assertEquals(16, AsyncPregenMethod.computePaperLikeRecommendedCap(1));
-        assertEquals(16, AsyncPregenMethod.computePaperLikeRecommendedCap(4));
-        assertEquals(48, AsyncPregenMethod.computePaperLikeRecommendedCap(12));
+        assertEquals(32, AsyncPregenMethod.computePaperLikeRecommendedCap(4));
+        assertEquals(96, AsyncPregenMethod.computePaperLikeRecommendedCap(12));
         assertEquals(128, AsyncPregenMethod.computePaperLikeRecommendedCap(80));
         assertEquals(128, AsyncPregenMethod.computePaperLikeRecommendedCap(128));
     }
@@ -17,8 +17,8 @@ public class AsyncPregenMethodConcurrencyCapTest {
     @Test
     public void foliaRecommendedCapTracksWorkerThreads() {
         assertEquals(64, AsyncPregenMethod.computeFoliaRecommendedCap(1));
-        assertEquals(64, AsyncPregenMethod.computeFoliaRecommendedCap(12));
-        assertEquals(80, AsyncPregenMethod.computeFoliaRecommendedCap(20));
+        assertEquals(96, AsyncPregenMethod.computeFoliaRecommendedCap(12));
+        assertEquals(160, AsyncPregenMethod.computeFoliaRecommendedCap(20));
         assertEquals(192, AsyncPregenMethod.computeFoliaRecommendedCap(80));
     }
 

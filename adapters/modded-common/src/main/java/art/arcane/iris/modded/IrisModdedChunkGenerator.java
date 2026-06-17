@@ -79,10 +79,43 @@ public final class IrisModdedChunkGenerator extends ChunkGenerator {
     private final ConcurrentHashMap<String, Holder<Biome>> biomeHolders = new ConcurrentHashMap<>();
     private final AtomicBoolean announced = new AtomicBoolean(false);
     private volatile Engine engine;
+    private volatile String activePackKey;
+    private volatile long seedOverride = Long.MIN_VALUE;
 
     public IrisModdedChunkGenerator(BiomeSource biomeSource, String dimensionKey) {
         super(biomeSource);
         this.dimensionKey = dimensionKey;
+        this.activePackKey = dimensionKey;
+    }
+
+    public synchronized void repoint(String packKey, long seed) {
+        ServerLevel level = boundLevel();
+        if (level != null) {
+            ModdedWorldEngines.evict(level);
+        }
+        this.activePackKey = packKey;
+        this.seedOverride = seed;
+        this.engine = null;
+        this.announced.set(false);
+        this.biomeHolders.clear();
+    }
+
+    public synchronized void unbindEngine() {
+        ServerLevel level = boundLevel();
+        if (level != null) {
+            ModdedWorldEngines.evict(level);
+        }
+        this.engine = null;
+        this.announced.set(false);
+        this.biomeHolders.clear();
+    }
+
+    public synchronized void resetToDefault() {
+        repoint(dimensionKey, Long.MIN_VALUE);
+    }
+
+    public String activePackKey() {
+        return activePackKey;
     }
 
     @Override
@@ -116,7 +149,7 @@ public final class IrisModdedChunkGenerator extends ChunkGenerator {
             if (level == null) {
                 throw new IllegalStateException("Iris generator '" + dimensionKey + "' has no bound ServerLevel yet");
             }
-            Engine created = ModdedWorldEngines.get(level, dimensionKey);
+            Engine created = ModdedWorldEngines.get(level, activePackKey, seedOverride);
             engine = created;
             return created;
         }

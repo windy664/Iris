@@ -323,7 +323,7 @@ public class CommandStudio implements DirectorExecutor {
             return;
         }
 
-        VisionGUI.launch(IrisToolbelt.access(world).getEngine(), 0);
+        VisionGUI.launch(IrisToolbelt.access(world).getEngine());
         sender().sendMessage(C.GREEN + "Opening map!");
     }
 

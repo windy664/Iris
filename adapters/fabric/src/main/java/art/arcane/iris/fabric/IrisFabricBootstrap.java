@@ -72,13 +72,17 @@ public final class IrisFabricBootstrap implements ModInitializer {
             ModdedObjectUndo.clearAll();
             ModdedWandService.clearAll();
             ModdedWorldEngines.shutdown();
+            ModdedEngineBootstrap.stop();
         });
         CommandRegistrationCallback.EVENT.register((CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext buildContext, Commands.CommandSelection selection) -> IrisModdedCommands.register(dispatcher));
         AttackBlockCallback.EVENT.register((Player player, Level level, InteractionHand hand, BlockPos pos, Direction direction) ->
                 ModdedWandService.attackBlock(player, level, hand, pos) ? InteractionResult.SUCCESS : InteractionResult.PASS);
         UseBlockCallback.EVENT.register((Player player, Level level, InteractionHand hand, BlockHitResult hit) ->
                 ModdedWandService.useBlock(player, level, hand, hit.getBlockPos()) ? InteractionResult.SUCCESS : InteractionResult.PASS);
-        ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> ModdedWandService.serverTick(server));
+        ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
+            ModdedEngineBootstrap.tick(server);
+            ModdedWandService.serverTick(server);
+        });
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {

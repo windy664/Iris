@@ -20,11 +20,18 @@ package art.arcane.iris.modded;
 
 import art.arcane.iris.engine.object.TileData;
 import art.arcane.volmlib.util.collection.KMap;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.Strictness;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 public final class ModdedTileData extends TileData {
+    public static final String NBT_PROPERTY = "nbt";
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setStrictness(Strictness.LENIENT).create();
+
     private final byte[] raw;
     private final KMap<String, Object> tileProperties;
 
@@ -32,6 +39,22 @@ public final class ModdedTileData extends TileData {
         super();
         this.raw = raw;
         this.tileProperties = tileProperties == null ? new KMap<>() : tileProperties;
+    }
+
+    public static ModdedTileData capture(String blockKey, String snbt) throws IOException {
+        KMap<String, Object> properties = new KMap<>();
+        properties.put(NBT_PROPERTY, snbt);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeUTF(blockKey);
+            out.writeUTF(GSON.toJson(properties));
+        }
+        return new ModdedTileData(bytes.toByteArray(), properties);
+    }
+
+    public String snbt() {
+        Object value = tileProperties.get(NBT_PROPERTY);
+        return value == null ? null : value.toString();
     }
 
     @Override

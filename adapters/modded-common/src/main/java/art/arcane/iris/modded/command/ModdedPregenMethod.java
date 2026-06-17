@@ -31,8 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public final class ModdedPregenMethod implements PregeneratorMethod {
     private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
@@ -40,13 +42,19 @@ public final class ModdedPregenMethod implements PregeneratorMethod {
 
     private final ServerLevel level;
     private final Engine engine;
+    private final ModdedPregenMode mode;
     private final Semaphore semaphore;
     private final int permits;
     private final int timeoutSeconds;
 
     public ModdedPregenMethod(ServerLevel level, Engine engine) {
+        this(level, engine, ModdedPregenMode.ASYNC);
+    }
+
+    public ModdedPregenMethod(ServerLevel level, Engine engine, ModdedPregenMode mode) {
         this.level = level;
         this.engine = engine;
+        this.mode = mode;
         this.permits = Math.min(96, Math.max(8, Runtime.getRuntime().availableProcessors() * 2));
         this.semaphore = new Semaphore(permits, true);
         this.timeoutSeconds = Math.max(120, IrisSettings.get().getPregen().getChunkLoadTimeoutSeconds());
@@ -54,13 +62,15 @@ public final class ModdedPregenMethod implements PregeneratorMethod {
 
     @Override
     public void init() {
-        LOGGER.info("Iris modded pregen init: dim={} inFlightCap={} timeout={}s",
-                level.dimension().identifier(), permits, timeoutSeconds);
+        LOGGER.info("Iris modded pregen init: dim={} mode={} inFlightCap={} timeout={}s",
+                level.dimension().identifier(), mode, mode == ModdedPregenMode.ASYNC ? permits : 1, timeoutSeconds);
     }
 
     @Override
     public void close() {
-        semaphore.acquireUninterruptibly(permits);
+        if (mode == ModdedPregenMode.ASYNC) {
+            semaphore.acquireUninterruptibly(permits);
+        }
         saveLevel();
     }
 
@@ -85,7 +95,7 @@ public final class ModdedPregenMethod implements PregeneratorMethod {
 
     @Override
     public boolean isAsyncChunkMode() {
-        return true;
+        return mode == ModdedPregenMode.ASYNC;
     }
 
     @Override
@@ -95,6 +105,38 @@ public final class ModdedPregenMethod implements PregeneratorMethod {
 
     @Override
     public void generateChunk(int x, int z, PregenListener listener) {
+        if (mode == ModdedPregenMode.SYNC) {
+            generateChunkSync(x, z, listener);
+            return;
+        }
+        generateChunkAsync(x, z, listener);
+    }
+
+    private void generateChunkSync(int x, int z, PregenListener listener) {
+        listener.onChunkGenerating(x, z);
+        ChunkPos pos = new ChunkPos(x, z);
+        CompletableFuture<?> loadFuture = CompletableFuture
+                .supplyAsync(() -> level.getChunkSource().addTicketAndLoadWithRadius(PREGEN_TICKET, pos, 0), level.getServer())
+                .thenCompose((CompletableFuture<?> inner) -> inner);
+        try {
+            Object result = loadFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+            if (result instanceof ChunkResult<?> chunkResult && !chunkResult.isSuccess()) {
+                LOGGER.warn("Iris pregen chunk {},{} returned no chunk: {}", x, z, chunkResult.getError());
+                return;
+            }
+            listener.onChunkGenerated(x, z);
+            cleanupMantleChunk(x, z);
+            listener.onChunkCleaned(x, z);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException | ExecutionException e) {
+            LOGGER.warn("Iris pregen chunk {},{} failed: {}", x, z, e.toString());
+        } finally {
+            level.getServer().execute(() -> level.getChunkSource().removeTicketWithRadius(PREGEN_TICKET, pos, 0));
+        }
+    }
+
+    private void generateChunkAsync(int x, int z, PregenListener listener) {
         listener.onChunkGenerating(x, z);
         try {
             semaphore.acquire();

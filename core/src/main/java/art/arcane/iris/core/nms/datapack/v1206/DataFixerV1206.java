@@ -5,11 +5,10 @@ import art.arcane.iris.core.nms.datapack.v1192.DataFixerV1192;
 import art.arcane.iris.engine.object.IrisBiomeCustom;
 import art.arcane.iris.engine.object.IrisBiomeCustomSpawn;
 import art.arcane.iris.engine.object.IrisBiomeCustomSpawnType;
+import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.json.JSONArray;
 import art.arcane.volmlib.util.json.JSONObject;
-import org.bukkit.NamespacedKey;
-import org.bukkit.entity.EntityType;
 
 import java.util.Locale;
 
@@ -23,7 +22,7 @@ public class DataFixerV1206 extends DataFixerV1192 {
             json.remove("creature_spawn_probability");
         }
 
-        var spawns = biome.getSpawns();
+        KList<IrisBiomeCustomSpawn> spawns = biome.getSpawns();
         if (spawns != null && spawns.isNotEmpty()) {
             JSONObject spawners = new JSONObject();
             KMap<IrisBiomeCustomSpawnType, JSONArray> groups = new KMap<>();
@@ -32,20 +31,15 @@ public class DataFixerV1206 extends DataFixerV1192 {
                 if (i == null) {
                     continue;
                 }
-                EntityType type = i.getType();
-                if (type == null) {
+                String key = i.getTypeKey();
+                if (key == null) {
                     IrisLogging.warn("Skipping custom biome spawn with null entity type in biome " + biome.getId());
                     continue;
                 }
                 IrisBiomeCustomSpawnType group = i.getGroup() == null ? IrisBiomeCustomSpawnType.MISC : i.getGroup();
                 JSONArray g = groups.computeIfAbsent(group, (k) -> new JSONArray());
                 JSONObject o = new JSONObject();
-                NamespacedKey key = type.getKey();
-                if (key == null) {
-                    IrisLogging.warn("Skipping custom biome spawn with unresolved entity key in biome " + biome.getId());
-                    continue;
-                }
-                o.put("type", key.toString());
+                o.put("type", key);
                 o.put("weight", i.getWeight());
                 o.put("minCount", i.getMinCount());
                 o.put("maxCount", i.getMaxCount());

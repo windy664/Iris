@@ -38,11 +38,14 @@ import art.arcane.volmlib.util.math.Vector3d;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
@@ -289,6 +292,35 @@ public final class BukkitPlatform implements IrisPlatform {
     @Override
     public void dispatchConsoleCommand(String command) {
         Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
+    }
+
+    @Override
+    public boolean spawnEntity(Object world, String entityKey, double x, double y, double z) {
+        if (!(world instanceof World bukkitWorld) || entityKey == null) {
+            return false;
+        }
+        NamespacedKey namespacedKey = NamespacedKey.fromString(entityKey);
+        if (namespacedKey == null) {
+            return false;
+        }
+        EntityType type = Registry.ENTITY_TYPE.get(namespacedKey);
+        if (type == null) {
+            return false;
+        }
+        Entity entity = spawnEntity(new Location(bukkitWorld, x, y, z), type, CreatureSpawnEvent.SpawnReason.COMMAND);
+        return entity != null;
+    }
+
+    @Override
+    public boolean giveItem(Object player, String itemKey, int amount) {
+        if (!(player instanceof Player bukkitPlayer) || itemKey == null || amount <= 0) {
+            return false;
+        }
+        Material material = Material.matchMaterial(itemKey);
+        if (material == null) {
+            return false;
+        }
+        return bukkitPlayer.getInventory().addItem(new ItemStack(material, amount)).isEmpty();
     }
 
     @Override

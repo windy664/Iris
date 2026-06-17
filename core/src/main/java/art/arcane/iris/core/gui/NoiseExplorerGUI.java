@@ -1,6 +1,6 @@
 /*
- * Iris is a World Generator for Minecraft Bukkit Servers
- * Copyright (c) 2022 Arcane Arts (Volmit Software)
+ * Iris is a World Generator for Minecraft Servers
+ * Copyright (c) 2026 Arcane Arts (Volmit Software)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,11 @@
 
 package art.arcane.iris.core.gui;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.core.IrisSettings;
-import art.arcane.iris.core.events.IrisEngineHotloadEvent;
 import art.arcane.iris.core.loader.IrisData;
-import art.arcane.iris.core.tools.IrisToolbelt;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisGenerator;
 import art.arcane.iris.engine.object.NoiseStyle;
-import art.arcane.iris.engine.platform.PlatformChunkGenerator;
 import art.arcane.volmlib.util.function.Function2;
 import art.arcane.volmlib.util.math.M;
 import art.arcane.volmlib.util.math.RNG;
@@ -36,23 +32,44 @@ import art.arcane.iris.util.common.parallel.BurstExecutor;
 import art.arcane.iris.util.common.parallel.MultiBurst;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
-import org.bukkit.Bukkit;
-import org.bukkit.World;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.DefaultListModel;
+import javax.swing.JFrame;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
-public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, Listener {
+public class NoiseExplorerGUI extends JPanel implements MouseWheelListener {
 
     private static final long serialVersionUID = 2094606939770332040L;
     private static final Color BG = new Color(24, 24, 28);
@@ -88,6 +105,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
     private final RollingSequence fpsHistory = new RollingSequence(60);
     private final boolean colorMode = IrisSettings.get().getGui().colorMode;
     private final MultiBurst gx = MultiBurst.burst;
+    private final Runnable hotloadHook = this::refreshGenerator;
     private double scale = 1;
     private double animScale = 10;
     private double ox = 0;
@@ -107,7 +125,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
     private String currentName = "STATIC";
 
     public NoiseExplorerGUI() {
-        Iris.instance.registerListener(this);
+        GuiHost.get().registerHotloadHook(hotloadHook);
         setBackground(BG);
         addMouseWheelListener(this);
         addMouseMotionListener(new MouseMotionListener() {
@@ -130,7 +148,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
     }
 
     public static void launch() {
-        Engine engine = findActiveEngine();
+        Engine engine = GuiHost.get().findActiveEngine();
         EventQueue.invokeLater(() -> {
             NoiseExplorerGUI nv = new NoiseExplorerGUI();
             buildFrame("Noise Explorer", nv, engine, null, null);
@@ -138,7 +156,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
     }
 
     public static void launch(Supplier<Function2<Double, Double, Double>> gen, String genName) {
-        Engine engine = findActiveEngine();
+        Engine engine = GuiHost.get().findActiveEngine();
         EventQueue.invokeLater(() -> {
             NoiseExplorerGUI nv = new NoiseExplorerGUI();
             nv.loader = gen;
@@ -146,20 +164,6 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
             nv.currentName = genName;
             buildFrame("Noise Explorer: " + genName, nv, engine, gen, genName);
         });
-    }
-
-    private static Engine findActiveEngine() {
-        try {
-            for (World w : new ArrayList<>(Bukkit.getWorlds())) {
-                try {
-                    PlatformChunkGenerator access = IrisToolbelt.access(w);
-                    if (access != null && access.getEngine() != null && !access.getEngine().isClosed()) {
-                        return access.getEngine();
-                    }
-                } catch (Throwable ignored) {}
-            }
-        } catch (Throwable ignored) {}
-        return null;
     }
 
     private static JFrame buildFrame(String title, NoiseExplorerGUI nv, Engine engine,
@@ -180,7 +184,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                Iris.instance.unregisterListener(nv);
+                GuiHost.get().unregisterHotloadHook(nv.hotloadHook);
             }
         });
         return frame;
@@ -364,8 +368,7 @@ public class NoiseExplorerGUI extends JPanel implements MouseWheelListener, List
         return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
-    @EventHandler
-    public void on(IrisEngineHotloadEvent e) {
+    private void refreshGenerator() {
         if (generator != null && loader != null) {
             generator = loader.get();
         }

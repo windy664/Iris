@@ -20,6 +20,7 @@ package art.arcane.iris.neoforge;
 
 import art.arcane.iris.modded.IrisModdedChunkGenerator;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
+import art.arcane.iris.modded.ModdedForcedDatapack;
 import art.arcane.iris.modded.ModdedIrisLog;
 import art.arcane.iris.modded.ModdedParityProbe;
 import art.arcane.iris.modded.ModdedWorldCheck;
@@ -29,6 +30,7 @@ import art.arcane.iris.modded.command.ModdedObjectUndo;
 import art.arcane.iris.modded.command.ModdedWandService;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.neoforged.bus.api.IEventBus;
@@ -38,6 +40,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.VersionInfo;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -62,10 +65,17 @@ public final class IrisNeoForgeBootstrap {
         chunkGenerators.register(modBus);
         ModdedIrisLog.info("Iris chunk generator registered as irisworldgen:iris");
 
+        modBus.addListener((AddPackFindersEvent event) -> {
+            if (event.getPackType() == PackType.SERVER_DATA) {
+                event.addRepositorySource(ModdedForcedDatapack.repositorySource());
+            }
+        });
+
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> {
             ModdedObjectUndo.clearAll();
             ModdedWandService.clearAll();
             ModdedWorldEngines.shutdown();
+            ModdedEngineBootstrap.stop();
         });
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> IrisModdedCommands.register(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((PlayerInteractEvent.LeftClickBlock event) -> {
@@ -79,7 +89,10 @@ public final class IrisNeoForgeBootstrap {
                 event.setCancellationResult(InteractionResult.SUCCESS);
             }
         });
-        NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> ModdedWandService.serverTick(event.getServer()));
+        NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> {
+            ModdedEngineBootstrap.tick(event.getServer());
+            ModdedWandService.serverTick(event.getServer());
+        });
 
         String parity = System.getProperty("iris.parity");
         if (parity != null) {

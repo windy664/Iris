@@ -19,6 +19,7 @@
 package art.arcane.iris.modded.command;
 
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -161,6 +162,9 @@ final class ModdedCommandHelp {
         ModdedCommandFeedback.clear(source);
 
         sendHeader(source, normalized);
+        if (!Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(source)) {
+            ModdedCommandFeedback.send(source, opNotice());
+        }
         if (!normalized.isEmpty()) {
             ModdedCommandFeedback.send(source, backButton(normalized));
         }
@@ -291,6 +295,17 @@ final class ModdedCommandHelp {
             hover.append(text(String.join(", ", aliases), PARAMETER_ALT));
         }
         return hover;
+    }
+
+    private static MutableComponent opNotice() {
+        MutableComponent notice = Component.empty();
+        notice.append(text("⚠ ", REQUIRED));
+        notice.append(text("Iris commands need operator permission (level 2). ", REQUIRED_TEXT));
+        notice.append(text("Run ", DESCRIPTION));
+        notice.append(text("/op <you>", PARAMETER_ALT));
+        notice.append(text(" from the console (or enable cheats in singleplayer); ", DESCRIPTION));
+        notice.append(text("until then these commands will not run or tab-complete.", USAGE));
+        return notice;
     }
 
     private static MutableComponent footer() {

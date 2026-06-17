@@ -27,9 +27,7 @@ import art.arcane.iris.core.nms.datapack.DataVersion;
 import art.arcane.iris.engine.data.chunk.TerrainChunk;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.platform.PlatformChunkGenerator;
-import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBlockState;
-import art.arcane.iris.util.nbt.common.mca.NBTWorld;
 import art.arcane.iris.util.project.hunk.Hunk;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -179,10 +177,6 @@ public interface INMSBinding {
     }
 
     default boolean clearChunkBlocks(Chunk chunk) {
-        return false;
-    }
-
-    default boolean writeChunkNbtDirect(NBTWorld nbtWorld, int chunkX, int chunkZ, Hunk<PlatformBlockState> blocks, Hunk<PlatformBiome> biomes) {
         return false;
     }
 

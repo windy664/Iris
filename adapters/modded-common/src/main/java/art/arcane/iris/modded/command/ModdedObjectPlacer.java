@@ -24,23 +24,32 @@ import art.arcane.iris.engine.object.IObjectPlacer;
 import art.arcane.iris.engine.object.TileData;
 import art.arcane.iris.modded.ModdedBlockResolution;
 import art.arcane.iris.modded.ModdedBlockState;
+import art.arcane.iris.modded.ModdedTileData;
 import art.arcane.iris.spi.PlatformBlockState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
 final class ModdedObjectPlacer implements IObjectPlacer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
+
     private final ServerLevel level;
     private final Map<BlockPos, BlockState> undo = new HashMap<>();
     private int writes = 0;
     private int nonAirWrites = 0;
     private int skippedTiles = 0;
+    private int restoredTiles = 0;
 
     ModdedObjectPlacer(ServerLevel level) {
         this.level = level;
@@ -60,6 +69,10 @@ final class ModdedObjectPlacer implements IObjectPlacer {
 
     int skippedTiles() {
         return skippedTiles;
+    }
+
+    int restoredTiles() {
+        return restoredTiles;
     }
 
     @Override
@@ -128,7 +141,35 @@ final class ModdedObjectPlacer implements IObjectPlacer {
 
     @Override
     public void setTile(int xx, int yy, int zz, TileData tile) {
-        skippedTiles++;
+        if (!(tile instanceof ModdedTileData moddedTile)) {
+            skippedTiles++;
+            return;
+        }
+        String snbt = moddedTile.snbt();
+        if (snbt == null || snbt.isBlank()) {
+            skippedTiles++;
+            return;
+        }
+        BlockPos pos = new BlockPos(xx, yy, zz);
+        BlockState state = level.getBlockState(pos);
+        if (!state.hasBlockEntity()) {
+            skippedTiles++;
+            return;
+        }
+        try {
+            CompoundTag tag = NbtUtils.snbtToStructure(snbt);
+            BlockEntity restored = BlockEntity.loadStatic(pos, state, tag, level.registryAccess());
+            if (restored == null) {
+                skippedTiles++;
+                return;
+            }
+            level.setBlockEntity(restored);
+            restored.setChanged();
+            restoredTiles++;
+        } catch (Throwable e) {
+            LOGGER.error("Iris tile restore failed at {} {} {}", xx, yy, zz, e);
+            skippedTiles++;
+        }
     }
 
     @Override

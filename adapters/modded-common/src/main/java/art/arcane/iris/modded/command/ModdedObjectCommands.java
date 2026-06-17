@@ -23,7 +23,9 @@ import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisObject;
 import art.arcane.iris.engine.object.IrisObjectPlacement;
 import art.arcane.iris.engine.object.IrisObjectRotation;
+import art.arcane.iris.engine.object.TileData;
 import art.arcane.iris.modded.ModdedBlockState;
+import art.arcane.iris.modded.ModdedTileData;
 import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.math.RNG;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -37,9 +39,14 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -272,7 +279,8 @@ public final class ModdedObjectCommands {
             return 0;
         }
         int[] tilesSkipped = {0};
-        IrisObject object = capture(level, min, max, w, h, d, tilesSkipped);
+        int[] tilesSaved = {0};
+        IrisObject object = capture(level, min, max, w, h, d, tilesSkipped, tilesSaved);
         File parent = file.getParentFile();
         if (parent != null) {
             parent.mkdirs();
@@ -284,15 +292,25 @@ public final class ModdedObjectCommands {
             IrisModdedCommands.fail(source, "Failed to save object: " + e.getMessage());
             return 0;
         }
-        String tileNote = tilesSkipped[0] > 0 ? " (" + tilesSkipped[0] + " tile state(s) not captured; tile capture is Bukkit-only for now)" : "";
+        StringBuilder tileNote = new StringBuilder();
+        if (tilesSaved[0] > 0) {
+            tileNote.append(" (").append(tilesSaved[0]).append(" tile entity state(s) captured");
+            if (tilesSkipped[0] > 0) {
+                tileNote.append(", ").append(tilesSkipped[0]).append(" failed");
+            }
+            tileNote.append(")");
+        } else if (tilesSkipped[0] > 0) {
+            tileNote.append(" (").append(tilesSkipped[0]).append(" tile state(s) could not be captured)");
+        }
         IrisModdedCommands.ok(source, "Saved " + engine.getData().getDataFolder().getName() + "/objects/" + name + ".iob: "
                 + w + "x" + h + "x" + d + ", " + object.getBlocks().size() + " block(s)" + tileNote);
-        LOGGER.info("Iris object save: {} {}x{}x{} blocks={} tilesSkipped={} -> {}", name, w, h, d, object.getBlocks().size(), tilesSkipped[0], file.getAbsolutePath());
+        LOGGER.info("Iris object save: {} {}x{}x{} blocks={} tilesSaved={} tilesSkipped={} -> {}", name, w, h, d, object.getBlocks().size(), tilesSaved[0], tilesSkipped[0], file.getAbsolutePath());
         return 1;
     }
 
-    private static IrisObject capture(ServerLevel level, BlockPos min, BlockPos max, int w, int h, int d, int[] tilesSkipped) {
+    private static IrisObject capture(ServerLevel level, BlockPos min, BlockPos max, int w, int h, int d, int[] tilesSkipped, int[] tilesSaved) {
         IrisObject object = new IrisObject(w, h, d);
+        HolderLookup.Provider provider = level.registryAccess();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int y = min.getY(); y <= max.getY(); y++) {
@@ -301,14 +319,39 @@ public final class ModdedObjectCommands {
                     if (state.is(Blocks.AIR)) {
                         continue;
                     }
+                    int ox = x - min.getX();
+                    int oy = y - min.getY();
+                    int oz = z - min.getZ();
+                    object.setUnsigned(ox, oy, oz, ModdedBlockState.of(state, null));
                     if (state.hasBlockEntity()) {
-                        tilesSkipped[0]++;
+                        TileData tile = captureTile(level, provider, cursor.immutable(), state);
+                        if (tile != null) {
+                            object.setUnsignedTile(ox, oy, oz, tile);
+                            tilesSaved[0]++;
+                        } else {
+                            tilesSkipped[0]++;
+                        }
                     }
-                    object.setUnsigned(x - min.getX(), y - min.getY(), z - min.getZ(), ModdedBlockState.of(state, null));
                 }
             }
         }
         return object;
+    }
+
+    private static TileData captureTile(ServerLevel level, HolderLookup.Provider provider, BlockPos pos, BlockState state) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity == null) {
+            return null;
+        }
+        try {
+            CompoundTag tag = blockEntity.saveWithFullMetadata(provider);
+            String snbt = NbtUtils.structureToSnbt(tag);
+            String blockKey = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+            return ModdedTileData.capture(blockKey, snbt);
+        } catch (Throwable e) {
+            LOGGER.error("Iris tile capture failed at {} {} {}", pos.getX(), pos.getY(), pos.getZ(), e);
+            return null;
+        }
     }
 
     private static int paste(CommandSourceStack source, String keyRaw, int rotation, BlockPos at) {
@@ -354,11 +397,11 @@ public final class ModdedObjectCommands {
         }
         UUID owner = player == null ? ModdedObjectUndo.CONSOLE : player.getUUID();
         ModdedObjectUndo.record(owner, level, placer.undoSnapshot());
-        String tileNote = placer.skippedTiles() > 0 ? ", " + placer.skippedTiles() + " tile state(s) skipped" : "";
+        String tileNote = tileNote(placer);
         IrisModdedCommands.ok(source, "Placed " + key + " at " + target.getX() + " " + target.getY() + " " + target.getZ()
                 + " rot=" + rotation + " (" + placer.writes() + " write(s), " + placer.nonAirWrites() + " non-air" + tileNote + ")");
-        LOGGER.info("Iris paste: {} at {},{},{} rot={} writes={} nonAir={} tilesSkipped={}",
-                key, target.getX(), target.getY(), target.getZ(), rotation, placer.writes(), placer.nonAirWrites(), placer.skippedTiles());
+        LOGGER.info("Iris paste: {} at {},{},{} rot={} writes={} nonAir={} tilesRestored={} tilesSkipped={}",
+                key, target.getX(), target.getY(), target.getZ(), rotation, placer.writes(), placer.nonAirWrites(), placer.restoredTiles(), placer.skippedTiles());
         return placer.writes() > 0 ? 1 : 0;
     }
 
@@ -618,5 +661,16 @@ public final class ModdedObjectCommands {
     private static String describe(BlockPos first, BlockPos second) {
         return "(" + first.getX() + "," + first.getY() + "," + first.getZ() + ") -> ("
                 + second.getX() + "," + second.getY() + "," + second.getZ() + ")";
+    }
+
+    static String tileNote(ModdedObjectPlacer placer) {
+        StringBuilder note = new StringBuilder();
+        if (placer.restoredTiles() > 0) {
+            note.append(", ").append(placer.restoredTiles()).append(" tile entity state(s) restored");
+        }
+        if (placer.skippedTiles() > 0) {
+            note.append(", ").append(placer.skippedTiles()).append(" tile state(s) skipped");
+        }
+        return note.toString();
     }
 }

@@ -48,7 +48,7 @@ import java.util.function.Predicate;
 public final class ModdedDatapackCommands {
     private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
     private static final Predicate<CommandSourceStack> GATE = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS);
-    private static final String WORLD_PACK_NAME = ModdedWorldDatapackWriter.WORLD_PACK_NAME;
+    private static final String WORLD_PACK_NAME = "iris";
 
     private ModdedDatapackCommands() {
     }

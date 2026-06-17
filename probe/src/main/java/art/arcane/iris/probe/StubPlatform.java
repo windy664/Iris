@@ -428,6 +428,16 @@ public final class StubPlatform implements IrisPlatform {
     }
 
     @Override
+    public boolean spawnEntity(Object world, String entityKey, double x, double y, double z) {
+        return false;
+    }
+
+    @Override
+    public boolean giveItem(Object player, String itemKey, int amount) {
+        return false;
+    }
+
+    @Override
     public void log(LogLevel level, String message) {
         if (VERBOSE) {
             System.out.println("[stub/" + level + "] " + message);

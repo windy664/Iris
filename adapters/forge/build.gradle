@@ -170,6 +170,7 @@ dependencies {
 }
 
 minecraft {
+    accessTransformer.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
     runs {
         register('server') {
             workingDir = layout.projectDirectory.dir('run')
@@ -214,6 +215,7 @@ tasks.named('shadowJar', ShadowJar).configure {
     }
     archiveFileName.set(irisArtifactName('Forge', "${minecraftVersion}+${loaderDisplayVersion(forgeVersion)}"))
     configurations = [project.configurations.named('bundle').get()]
+    from(sourceSets.main.output)
     mergeServiceFiles()
     exclude('META-INF/maven/**')
     exclude('META-INF/proguard/**')
@@ -223,7 +225,16 @@ tasks.named('shadowJar', ShadowJar).configure {
     exclude('org/apache/commons/lang/enum/**')
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     relocate('org.objectweb.asm', 'art.arcane.iris.shadow.asm')
+    relocate('com.sun.jna', 'art.arcane.iris.shadow.jna')
+    relocate('oshi', 'art.arcane.iris.shadow.oshi')
+    relocate('net.jpountz', 'art.arcane.iris.shadow.jpountz')
     exclude('oshi.properties')
+    exclude('org/jspecify/**')
+    exclude('com/google/errorprone/**')
+    exclude('com/google/j2objc/**')
+    exclude('org/checkerframework/**')
+    exclude('org/jetbrains/annotations/**')
+    exclude('org/intellij/lang/**')
 }
 
 tasks.named('assemble').configure {

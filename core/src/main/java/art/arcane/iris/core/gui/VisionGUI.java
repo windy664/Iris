@@ -1,6 +1,6 @@
 /*
- * Iris is a World Generator for Minecraft Bukkit Servers
- * Copyright (c) 2022 Arcane Arts (Volmit Software)
+ * Iris is a World Generator for Minecraft Servers
+ * Copyright (c) 2026 Arcane Arts (Volmit Software)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,11 @@
 
 package art.arcane.iris.core.gui;
 
-import art.arcane.iris.Iris;
 import art.arcane.iris.engine.framework.render.IrisRenderer;
 import art.arcane.iris.engine.framework.render.RenderType;
-import art.arcane.iris.core.tools.IrisToolbelt;
-import art.arcane.iris.engine.IrisComplex;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.iris.engine.object.IrisBiome;
 import art.arcane.iris.engine.object.IrisRegion;
-import art.arcane.iris.engine.object.IrisWorld;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
@@ -38,24 +34,42 @@ import art.arcane.volmlib.util.scheduling.ChronoLatch;
 import art.arcane.iris.util.common.scheduling.J;
 import art.arcane.volmlib.util.scheduling.O;
 import art.arcane.volmlib.util.scheduling.PrecisionStopwatch;
-import org.bukkit.Location;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.JToggleButton;
+import javax.swing.SwingConstants;
 import javax.swing.event.MouseInputListener;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static art.arcane.iris.util.common.data.registry.Attributes.MAX_HEALTH;
 
 public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener, MouseMotionListener, MouseInputListener {
     private static final long serialVersionUID = 2094606939770332040L;
@@ -65,9 +79,7 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     private static final Color CARD_BORDER = new Color(60, 60, 75, 180);
     private static final Color TEXT_PRIMARY = new Color(220, 220, 230);
     private static final Color TEXT_SECONDARY = new Color(140, 140, 155);
-    private static final Color TEXT_DIM = new Color(90, 90, 105);
     private static final Color ACCENT = new Color(90, 140, 255);
-    private static final Color ACCENT_DIM = new Color(60, 100, 200, 100);
     private static final Color PLAYER_COLOR = new Color(80, 200, 120);
     private static final Color MOB_COLOR = new Color(220, 80, 80);
     private static final Color STATUS_BG = new Color(24, 24, 30, 240);
@@ -81,7 +93,7 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     private static final int CARD_PAD = 12;
     private static final int STATUS_HEIGHT = 26;
 
-    private final KList<LivingEntity> lastEntities = new KList<>();
+    private final KList<GuiMarker> lastEntities = new KList<>();
     private final KMap<String, Long> notifications = new KMap<>();
     private final ChronoLatch centities = new ChronoLatch(1000);
     private final RollingSequence rs = new RollingSequence(512);
@@ -95,7 +107,6 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     private boolean help = true;
     private boolean helpIgnored = false;
     private boolean shift = false;
-    private Player player = null;
     private boolean debug = false;
     private boolean control = false;
     private boolean eco = false;
@@ -103,8 +114,9 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     private boolean follow = false;
     private boolean alt = false;
     private boolean grid = false;
+    private GuiMarker followMarker = null;
     private IrisRenderer renderer;
-    private IrisWorld world;
+    private GuiOverlay overlay;
     private double velocity = 0;
     private int lowq = 12;
     private double scale = 128;
@@ -128,10 +140,7 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         Thread t = new Thread(r);
         t.setName("Iris HD Renderer " + tid);
         t.setPriority(Thread.MIN_PRIORITY);
-        t.setUncaughtExceptionHandler((et, ex) -> {
-            Iris.info("Exception encountered in " + et.getName());
-            ex.printStackTrace();
-        });
+        t.setUncaughtExceptionHandler((et, ex) -> ex.printStackTrace());
         return t;
     });
 
@@ -140,10 +149,7 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         Thread t = new Thread(r);
         t.setName("Iris Renderer " + tid);
         t.setPriority(Thread.NORM_PRIORITY);
-        t.setUncaughtExceptionHandler((et, ex) -> {
-            Iris.info("Exception encountered in " + et.getName());
-            ex.printStackTrace();
-        });
+        t.setUncaughtExceptionHandler((et, ex) -> ex.printStackTrace());
         return t;
     });
 
@@ -170,11 +176,15 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         });
     }
 
-    private static void createAndShowGUI(Engine r, int s, IrisWorld world) {
+    public static void launch(Engine g) {
+        J.a(() -> createAndShowGUI(g));
+    }
+
+    private static void createAndShowGUI(Engine r) {
         JFrame frame = new JFrame("Iris Vision");
         VisionGUI nv = new VisionGUI(frame);
-        nv.world = world;
         nv.engine = r;
+        nv.overlay = GuiHost.get().overlayFor(r);
         nv.renderer = new IrisRenderer(r);
         frame.getContentPane().setBackground(BG);
         frame.setLayout(new BorderLayout());
@@ -261,18 +271,17 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         return sep;
     }
 
-    public static void launch(Engine g, int i) {
-        J.a(() -> createAndShowGUI(g, i, g.getWorld()));
-    }
-
     public boolean updateEngine() {
         if (engine.isClosed()) {
-            if (world.hasRealWorld()) {
-                try {
-                    engine = IrisToolbelt.access(world.realWorld()).getEngine();
-                    return !engine.isClosed();
-                } catch (Throwable ignored) {
+            try {
+                Engine reacquired = GuiHost.get().findActiveEngine();
+                if (reacquired != null && !reacquired.isClosed()) {
+                    engine = reacquired;
+                    overlay = GuiHost.get().overlayFor(reacquired);
+                    renderer = new IrisRenderer(reacquired);
+                    return true;
                 }
+            } catch (Throwable ignored) {
             }
         }
         return false;
@@ -378,8 +387,8 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
 
     void toggleFollow() {
         follow = !follow;
-        if (player != null && follow) {
-            notify("Following " + player.getName());
+        if (followMarker != null && follow) {
+            notify("Following " + followMarker.label());
         } else if (follow) {
             notify("No player in world");
             follow = false;
@@ -478,15 +487,11 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
 
     @Override
     public void paint(Graphics gx) {
-        if (engine.isClosed()) {
+        if (engine.isClosed() && !updateEngine()) {
             EventQueue.invokeLater(() -> {
                 try { setVisible(false); } catch (Throwable ignored) { }
             });
             return;
-        }
-
-        if (updateEngine()) {
-            dump();
         }
 
         velocity = Math.abs(ox - oxp) * 0.36 + Math.abs(oz - ozp) * 0.36;
@@ -495,11 +500,13 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         hx = lerp(hx, lx, 0.36);
         hz = lerp(hz, lz, 0.36);
 
-        if (centities.flip()) {
-            J.s(() -> {
+        if (centities.flip() && overlay != null) {
+            overlay.requestEntities((List<GuiMarker> next) -> {
                 synchronized (lastEntities) {
                     lastEntities.clear();
-                    lastEntities.addAll(world.getEntitiesByClass(LivingEntity.class));
+                    if (next != null) {
+                        lastEntities.addAll(next);
+                    }
                 }
             });
         }
@@ -588,8 +595,8 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     }
 
     private void handleFollow() {
-        if (follow && player != null) {
-            animateTo(player.getLocation().getX(), player.getLocation().getZ());
+        if (follow && followMarker != null) {
+            animateTo(followMarker.worldX(), followMarker.worldZ());
         }
     }
 
@@ -635,28 +642,30 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
         g.drawString(right, w - rw - 8, y + 17);
 
         g.setColor(ACCENT);
-        int modeW = g.getFontMetrics().stringWidth("  " + modeName(currentType));
         g.fillRect(0, y + 1, 3, STATUS_HEIGHT - 1);
     }
 
     private void renderEntities(Graphics2D g) {
-        Player b = null;
+        GuiMarker firstPlayer = null;
 
-        for (Player i : world.getPlayers()) {
-            b = i;
-            renderPlayerMarker(g, i.getLocation().getX(), i.getLocation().getZ(), i.getName());
+        List<GuiMarker> players = overlay == null ? List.of() : overlay.players();
+        if (players != null) {
+            for (GuiMarker i : players) {
+                firstPlayer = i;
+                renderPlayerMarker(g, i.worldX(), i.worldZ(), i.label());
+            }
         }
 
         synchronized (lastEntities) {
             double dist = Double.MAX_VALUE;
-            LivingEntity nearest = null;
+            GuiMarker nearest = null;
 
-            for (LivingEntity i : lastEntities) {
-                if (i instanceof Player) continue;
-                renderMobMarker(g, i.getLocation().getX(), i.getLocation().getZ());
+            for (GuiMarker i : lastEntities) {
+                renderMobMarker(g, i.worldX(), i.worldZ());
                 if (shift) {
-                    double d = i.getLocation().distanceSquared(
-                            new Location(i.getWorld(), getWorldX(hx), i.getLocation().getY(), getWorldZ(hz)));
+                    double dx = i.worldX() - getWorldX(hx);
+                    double dz = i.worldZ() - getWorldZ(hz);
+                    double d = dx * dx + dz * dz;
                     if (d < dist) {
                         dist = d;
                         nearest = i;
@@ -665,22 +674,24 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
             }
 
             if (nearest != null && shift) {
-                double sx = getScreenX(nearest.getLocation().getX());
-                double sz = getScreenZ(nearest.getLocation().getZ());
+                double sx = getScreenX(nearest.worldX());
+                double sz = getScreenZ(nearest.worldZ());
                 g.setColor(MOB_COLOR);
                 g.fillOval((int) sx - 6, (int) sz - 6, 12, 12);
                 g.setColor(new Color(220, 80, 80, 60));
                 g.fillOval((int) sx - 10, (int) sz - 10, 20, 20);
 
                 KList<String> k = new KList<>();
-                k.add(Form.capitalizeWords(nearest.getType().name().toLowerCase(Locale.ROOT).replaceAll("\\Q_\\E", " ")));
-                k.add("Pos: " + nearest.getLocation().getBlockX() + ", " + nearest.getLocation().getBlockY() + ", " + nearest.getLocation().getBlockZ());
-                k.add("HP: " + Form.f(nearest.getHealth(), 1) + " / " + Form.f(nearest.getAttribute(MAX_HEALTH).getValue(), 1));
+                k.add(nearest.label());
+                k.add("Pos: " + (int) nearest.worldX() + ", " + (int) nearest.worldY() + ", " + (int) nearest.worldZ());
+                if (nearest.maxHealth() > 0) {
+                    k.add("HP: " + Form.f(nearest.health(), 1) + " / " + Form.f(nearest.maxHealth(), 1));
+                }
                 drawCard(w - CARD_PAD, CARD_PAD, 1, 0, g, k);
             }
         }
 
-        player = b;
+        followMarker = firstPlayer;
     }
 
     private void renderPlayerMarker(Graphics2D g, double x, double z, String name) {
@@ -884,32 +895,23 @@ public class VisionGUI extends JPanel implements MouseWheelListener, KeyListener
     @Override public void mouseExited(MouseEvent e) { }
 
     private void open() {
-        IrisComplex complex = engine.getComplex();
-        File r = null;
-        switch (currentType) {
-            case BIOME, LAYER_LOAD, DECORATOR_LOAD, OBJECT_LOAD, HEIGHT ->
-                    r = complex.getTrueBiomeStream().get(getWorldX(hx), getWorldZ(hz)).openInVSCode();
-            case BIOME_LAND -> r = complex.getLandBiomeStream().get(getWorldX(hx), getWorldZ(hz)).openInVSCode();
-            case BIOME_SEA -> r = complex.getSeaBiomeStream().get(getWorldX(hx), getWorldZ(hz)).openInVSCode();
-            case REGION -> r = complex.getRegionStream().get(getWorldX(hx), getWorldZ(hz)).openInVSCode();
-            case CAVE_LAND -> r = complex.getCaveBiomeStream().get(getWorldX(hx), getWorldZ(hz)).openInVSCode();
+        if (overlay == null) {
+            return;
         }
-        if (r != null) {
-            notify("Opened " + r.getName());
+        String opened = overlay.openInEditor(getWorldX(hx), getWorldZ(hz), currentType);
+        if (opened != null) {
+            notify("Opened " + opened);
         }
     }
 
     private void teleport() {
-        J.s(() -> {
-            if (player != null) {
-                int xx = (int) getWorldX(hx);
-                int zz = (int) getWorldZ(hz);
-                int yy = player.getWorld().getHighestBlockYAt(xx, zz) + 1;
-                player.teleport(new Location(player.getWorld(), xx, yy, zz));
-                notify("Teleported to " + xx + ", " + yy + ", " + zz);
-            } else {
-                notify("No player in world");
-            }
-        });
+        if (overlay == null) {
+            notify("No player in world");
+            return;
+        }
+        int xx = (int) getWorldX(hx);
+        int zz = (int) getWorldZ(hz);
+        overlay.teleport(xx, zz);
+        notify("Teleporting to " + xx + ", " + zz);
     }
 }

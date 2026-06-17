@@ -18,6 +18,9 @@
 
 package art.arcane.iris.modded;
 
+import art.arcane.iris.engine.framework.Engine;
+import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.iris.engine.object.IrisBiomeCustom;
 import art.arcane.iris.spi.PlatformBiome;
 import art.arcane.iris.spi.PlatformBiomeWriter;
 import net.minecraft.core.Registry;
@@ -25,12 +28,17 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.biome.Biome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
 public final class ModdedBiomeWriter implements PlatformBiomeWriter {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
+    private static final String VANILLA_FALLBACK_KEY = "minecraft:plains";
+
     private final Supplier<MinecraftServer> server;
 
     public ModdedBiomeWriter(Supplier<MinecraftServer> server) {
@@ -40,12 +48,18 @@ public final class ModdedBiomeWriter implements PlatformBiomeWriter {
     @Override
     public int biomeIdFor(String key) {
         Registry<Biome> registry = biomeRegistry();
-        Identifier identifier = Identifier.tryParse(key);
-        if (registry == null || identifier == null) {
+        if (registry == null) {
             return 0;
         }
-        Biome biome = registry.getValue(identifier);
-        return biome == null ? 0 : registry.getId(biome);
+        int direct = idForKey(registry, key);
+        if (direct >= 0) {
+            return direct;
+        }
+        int derivative = idForDerivative(registry, key);
+        if (derivative >= 0) {
+            return derivative;
+        }
+        return fallbackId(registry);
     }
 
     @Override
@@ -62,6 +76,60 @@ public final class ModdedBiomeWriter implements PlatformBiomeWriter {
             }
         }
         return biomes;
+    }
+
+    private int idForKey(Registry<Biome> registry, String key) {
+        Identifier identifier = Identifier.tryParse(key);
+        if (identifier == null) {
+            return -1;
+        }
+        Biome biome = registry.getValue(identifier);
+        return biome == null ? -1 : registry.getId(biome);
+    }
+
+    private int idForDerivative(Registry<Biome> registry, String key) {
+        int colon = key.indexOf(':');
+        if (colon <= 0 || colon >= key.length() - 1) {
+            return -1;
+        }
+        String dimensionLoadKey = key.substring(0, colon);
+        String customBiomeId = key.substring(colon + 1);
+        IrisBiome owner = findCustomBiomeOwner(dimensionLoadKey, customBiomeId);
+        if (owner == null) {
+            return -1;
+        }
+        org.bukkit.block.Biome derivative = owner.getVanillaDerivative();
+        if (derivative == null || derivative.getKey() == null) {
+            return -1;
+        }
+        return idForKey(registry, derivative.getKey().toString());
+    }
+
+    private IrisBiome findCustomBiomeOwner(String dimensionLoadKey, String customBiomeId) {
+        for (Engine engine : ModdedWorldEngines.activeEngines()) {
+            if (engine == null || engine.isClosed()) {
+                continue;
+            }
+            if (!dimensionLoadKey.equalsIgnoreCase(engine.getDimension().getLoadKey())) {
+                continue;
+            }
+            for (IrisBiome biome : engine.getDimension().getAllBiomes(engine)) {
+                if (!biome.isCustom()) {
+                    continue;
+                }
+                for (IrisBiomeCustom custom : biome.getCustomDerivitives()) {
+                    if (customBiomeId.equals(custom.getId())) {
+                        return biome;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private int fallbackId(Registry<Biome> registry) {
+        int plains = idForKey(registry, VANILLA_FALLBACK_KEY);
+        return plains >= 0 ? plains : 0;
     }
 
     private Registry<Biome> biomeRegistry() {

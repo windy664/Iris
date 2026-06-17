@@ -23,16 +23,21 @@ import art.arcane.iris.engine.framework.IrisStructureLocator;
 import art.arcane.iris.engine.framework.Locator;
 import art.arcane.iris.engine.framework.WrongEngineBroException;
 import art.arcane.iris.engine.object.IrisBiome;
+import art.arcane.iris.engine.object.IrisPosition;
 import art.arcane.iris.engine.object.IrisRegion;
 import art.arcane.iris.modded.IrisModdedChunkGenerator;
+import art.arcane.iris.modded.ModdedBlockState;
 import art.arcane.iris.modded.ModdedEngineBootstrap;
 import art.arcane.iris.modded.ModdedLoader;
 import art.arcane.iris.modded.ModdedPackInstaller;
 import art.arcane.iris.spi.IrisLogging;
+import art.arcane.iris.spi.PlatformBlockState;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.math.Position2;
+import art.arcane.volmlib.util.matter.MatterMarker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -45,6 +50,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -53,6 +59,8 @@ import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +84,8 @@ public final class IrisModdedCommands {
     private static final SuggestionProvider<CommandSourceStack> OBJECT_KEYS = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> suggestObjectKeys(context, builder);
     private static final SuggestionProvider<CommandSourceStack> STRUCTURE_KEYS = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> suggestStructureKeys(context, builder);
     private static final SuggestionProvider<CommandSourceStack> POI_TYPES = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> SharedSuggestionProvider.suggest(List.of("buried_treasure"), builder);
+    private static final SuggestionProvider<CommandSourceStack> MARKER_TYPES = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> SharedSuggestionProvider.suggest(List.of("cave_floor", "cave_ceiling", "object"), builder);
+    private static final DustParticleOptions MARKER_DUST = new DustParticleOptions(0x5A8CFF, 1.2F);
     static final SuggestionProvider<CommandSourceStack> PACK_NAMES = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> suggestPackNames(context, builder);
     private static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES = (CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) -> suggestDimensionNames(context, builder);
 
@@ -104,7 +114,12 @@ public final class IrisModdedCommands {
                         .executes((CommandContext<CommandSourceStack> context) -> info(context.getSource(), StringArgumentType.getString(context, "dimension")))));
 
         root.then(Commands.literal("what").requires(GATE)
-                .executes((CommandContext<CommandSourceStack> context) -> what(context.getSource())));
+                .executes((CommandContext<CommandSourceStack> context) -> what(context.getSource()))
+                .then(Commands.literal("block")
+                        .executes((CommandContext<CommandSourceStack> context) -> whatBlock(context.getSource())))
+                .then(Commands.literal("markers")
+                        .then(Commands.argument("marker", StringArgumentType.greedyString()).suggests(MARKER_TYPES)
+                                .executes((CommandContext<CommandSourceStack> context) -> whatMarkers(context.getSource(), StringArgumentType.getString(context, "marker"))))));
 
         root.then(gotoTree("goto"));
         root.then(gotoTree("find"));
@@ -133,6 +148,8 @@ public final class IrisModdedCommands {
         root.then(ModdedObjectCommands.tree("o"));
         root.then(editTree());
 
+        root.then(createTree());
+
         root.then(ModdedStudioCommands.tree("studio"));
         root.then(ModdedStudioCommands.tree("std"));
         root.then(ModdedStudioCommands.tree("s"));
@@ -148,6 +165,21 @@ public final class IrisModdedCommands {
         root.then(ModdedStructureCommands.tree("str"));
 
         return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> createTree() {
+        return Commands.literal("create").requires(GATE)
+                .then(Commands.argument("name", StringArgumentType.word())
+                        .then(Commands.argument("pack", StringArgumentType.word()).suggests(PACK_NAMES)
+                                .executes((CommandContext<CommandSourceStack> context) -> ModdedWorldCommands.createWorld(context.getSource(),
+                                        StringArgumentType.getString(context, "name"),
+                                        StringArgumentType.getString(context, "pack"),
+                                        1337L))
+                                .then(Commands.argument("seed", LongArgumentType.longArg())
+                                        .executes((CommandContext<CommandSourceStack> context) -> ModdedWorldCommands.createWorld(context.getSource(),
+                                                StringArgumentType.getString(context, "name"),
+                                                StringArgumentType.getString(context, "pack"),
+                                                LongArgumentType.getLong(context, "seed"))))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> helpTree() {
@@ -202,13 +234,19 @@ public final class IrisModdedCommands {
                 .executes((CommandContext<CommandSourceStack> context) -> ModdedCommandHelp.send(context.getSource(), name))
                 .then(Commands.literal("start")
                         .then(Commands.argument("radius", IntegerArgumentType.integer(1, 100000))
-                                .executes((CommandContext<CommandSourceStack> context) -> pregenStart(context.getSource(), IntegerArgumentType.getInteger(context, "radius"), 0, 0))
+                                .executes((CommandContext<CommandSourceStack> context) -> pregenStart(context.getSource(), IntegerArgumentType.getInteger(context, "radius"), 0, 0, false, ModdedPregenMode.ASYNC, false))
+                                .then(pregenStartFlag("gui", false, true, ModdedPregenMode.ASYNC, false))
+                                .then(pregenStartFlag("sync", false, false, ModdedPregenMode.SYNC, false))
+                                .then(pregenStartFlag("cached", false, false, ModdedPregenMode.SYNC, true))
                                 .then(Commands.argument("x", IntegerArgumentType.integer())
                                         .then(Commands.argument("z", IntegerArgumentType.integer())
                                                 .executes((CommandContext<CommandSourceStack> context) -> pregenStart(context.getSource(),
                                                         IntegerArgumentType.getInteger(context, "radius"),
                                                         IntegerArgumentType.getInteger(context, "x"),
-                                                        IntegerArgumentType.getInteger(context, "z")))))))
+                                                        IntegerArgumentType.getInteger(context, "z"), false, ModdedPregenMode.ASYNC, false))
+                                                .then(pregenStartFlag("gui", true, true, ModdedPregenMode.ASYNC, false))
+                                                .then(pregenStartFlag("sync", true, false, ModdedPregenMode.SYNC, false))
+                                                .then(pregenStartFlag("cached", true, false, ModdedPregenMode.SYNC, true))))))
                 .then(Commands.literal("stop")
                         .executes((CommandContext<CommandSourceStack> context) -> pregenStop(context.getSource())))
                 .then(Commands.literal("x")
@@ -219,6 +257,14 @@ public final class IrisModdedCommands {
                         .executes((CommandContext<CommandSourceStack> context) -> pregenPause(context.getSource())))
                 .then(Commands.literal("status")
                         .executes((CommandContext<CommandSourceStack> context) -> pregenStatus(context.getSource())));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> pregenStartFlag(String name, boolean withCenter, boolean gui, ModdedPregenMode mode, boolean cached) {
+        return Commands.literal(name).executes((CommandContext<CommandSourceStack> context) -> pregenStart(context.getSource(),
+                IntegerArgumentType.getInteger(context, "radius"),
+                withCenter ? IntegerArgumentType.getInteger(context, "x") : 0,
+                withCenter ? IntegerArgumentType.getInteger(context, "z") : 0,
+                gui, mode, cached));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> goldenhashTree(String name) {
@@ -288,19 +334,29 @@ public final class IrisModdedCommands {
         return 1;
     }
 
-    private static int pregenStart(CommandSourceStack source, int radius, int centerX, int centerZ) {
+    private static int pregenStart(CommandSourceStack source, int radius, int centerX, int centerZ, boolean gui, ModdedPregenMode mode, boolean cached) {
         ServerLevel level = source.getLevel();
         Engine engine = engineFor(level);
         if (engine == null) {
             fail(source, "This dimension is not generated by Iris.");
             return 0;
         }
-        if (!ModdedPregenJob.start(level, engine, radius, centerX, centerZ)) {
+        boolean showGui = gui && ModdedGuiHost.isGuiLaunchable();
+        if (!ModdedPregenJob.start(source.getServer(), level, engine, radius, centerX, centerZ, showGui, mode, cached)) {
             fail(source, "A pregeneration task is already running. Stop it first with /iris pregen stop.");
             return 0;
         }
+        String guiNote;
+        if (!gui) {
+            guiNote = "";
+        } else if (showGui) {
+            guiNote = " A progress map window is opening on the server display.";
+        } else {
+            guiNote = " (GUI requested but unavailable: " + ModdedGuiHost.guiUnavailableReason() + ")";
+        }
+        String modeNote = mode == ModdedPregenMode.SYNC ? " Mode: sync" + (cached ? " (checkpoint cache resumable)." : ".") : "";
         ok(source, "Pregen started in " + level.dimension().identifier() + " of " + (radius * 2) + " by " + (radius * 2)
-                + " blocks from " + centerX + "," + centerZ + ". Progress logs to console; see /iris pregen status.");
+                + " blocks from " + centerX + "," + centerZ + "." + modeNote + " Progress logs to console; see /iris pregen status." + guiNote);
         return 1;
     }
 
@@ -415,6 +471,108 @@ public final class IrisModdedCommands {
         BlockState surface = level.getBlockState(new BlockPos(pos.getX(), surfaceY - 1, pos.getZ()));
         ok(source, "Surface block: " + BuiltInRegistries.BLOCK.getKey(surface.getBlock()) + " (y=" + (surfaceY - 1) + ")");
         ok(source, "Position: " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (chunk " + (pos.getX() >> 4) + "," + (pos.getZ() >> 4) + ")");
+        return 1;
+    }
+
+    private static int whatBlock(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            fail(source, "This command can only be used by players (it inspects the block you are looking at).");
+            return 0;
+        }
+        HitResult hit = player.pick(128.0D, 1.0F, false);
+        if (hit.getType() != HitResult.Type.BLOCK || !(hit instanceof BlockHitResult blockHit)) {
+            fail(source, "Look at a block, not the sky.");
+            return 0;
+        }
+        ServerLevel level = source.getLevel();
+        BlockPos pos = blockHit.getBlockPos();
+        BlockState state = level.getBlockState(pos);
+        PlatformBlockState platform = ModdedBlockState.of(state, null);
+        ok(source, "Block: " + platform.key() + " (y=" + pos.getY() + ")");
+        List<String> flags = new ArrayList<>();
+        if (platform.isSolid()) {
+            flags.add("solid");
+        }
+        if (platform.isFluid()) {
+            flags.add("fluid");
+        }
+        if (platform.isWater()) {
+            flags.add("water");
+        }
+        if (platform.isWaterLogged()) {
+            flags.add("waterlogged");
+        }
+        if (platform.isStorage()) {
+            flags.add("storage (loot capable)");
+        }
+        if (platform.isLit()) {
+            flags.add("lit");
+        }
+        if (platform.isFoliage()) {
+            flags.add("foliage");
+        }
+        if (platform.isFoliagePlantable()) {
+            flags.add("plantable foliage");
+        }
+        if (platform.isDecorant()) {
+            flags.add("decorant");
+        }
+        if (platform.isOre()) {
+            flags.add("ore");
+        }
+        if (platform.hasTileEntity()) {
+            flags.add("tile entity");
+        }
+        ok(source, flags.isEmpty() ? "Properties: (none)" : "Properties: " + String.join(", ", flags));
+        return 1;
+    }
+
+    private static int whatMarkers(CommandSourceStack source, String markerRaw) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            fail(source, "This command can only be used by players (markers render as particles around you).");
+            return 0;
+        }
+        ServerLevel level = source.getLevel();
+        Engine engine = engineFor(level);
+        if (engine == null) {
+            fail(source, "This dimension is not generated by Iris.");
+            return 0;
+        }
+        String marker = markerRaw.trim();
+        BlockPos origin = player.blockPosition();
+        int chunkX = origin.getX() >> 4;
+        int chunkZ = origin.getZ() >> 4;
+        MinecraftServer server = source.getServer();
+        ok(source, "Scanning for '" + marker + "' markers around you...");
+        Thread thread = new Thread(() -> {
+            List<int[]> hits = new ArrayList<>();
+            MatterMarker matterMarker = new MatterMarker(marker);
+            try {
+                for (int cx = chunkX - 4; cx <= chunkX + 4; cx++) {
+                    for (int cz = chunkZ - 4; cz <= chunkZ + 4; cz++) {
+                        for (IrisPosition position : engine.getMantle().findMarkers(cx, cz, matterMarker)) {
+                            hits.add(new int[]{position.getX(), position.getY(), position.getZ()});
+                        }
+                    }
+                }
+            } catch (Throwable e) {
+                LOGGER.error("Iris marker scan failed for {}", marker, e);
+                server.execute(() -> fail(source, "Marker scan failed: " + e.getClass().getSimpleName()));
+                return;
+            }
+            server.execute(() -> {
+                for (int[] hit : hits) {
+                    level.sendParticles(player, MARKER_DUST, true, true,
+                            hit[0] + 0.5D, hit[1] + 1.0D, hit[2] + 0.5D,
+                            3, 0.2D, 0.2D, 0.2D, 0.0D);
+                }
+                ok(source, "Found " + hits.size() + " nearby marker(s) (" + marker + ")");
+            });
+        }, "Iris Marker Scan");
+        thread.setDaemon(true);
+        thread.start();
         return 1;
     }
 

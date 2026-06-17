@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,15 +43,34 @@ public final class ModdedWorldEngines {
     private ModdedWorldEngines() {
     }
 
-    public static Engine get(ServerLevel level, String dimensionKey) {
+    public static Engine get(ServerLevel level, String dimensionKey, long seedOverride) {
         Engine existing = ENGINES.get(level);
         if (existing != null) {
             return existing;
         }
-        return ENGINES.computeIfAbsent(level, (ServerLevel l) -> create(l, dimensionKey));
+        return ENGINES.computeIfAbsent(level, (ServerLevel l) -> create(l, dimensionKey, seedOverride));
     }
 
-    private static Engine create(ServerLevel level, String dimensionKey) {
+    public static Collection<Engine> activeEngines() {
+        return new ArrayList<>(ENGINES.values());
+    }
+
+    public static void evict(ServerLevel level) {
+        Engine removed = ENGINES.remove(level);
+        if (removed == null) {
+            return;
+        }
+        try {
+            if (!removed.isClosed()) {
+                removed.close();
+            }
+            LOGGER.info("Iris engine evicted for {}", level.dimension().identifier());
+        } catch (Throwable e) {
+            LOGGER.error("Iris engine evict close failed for {}", level.dimension().identifier(), e);
+        }
+    }
+
+    private static Engine create(ServerLevel level, String dimensionKey, long seedOverride) {
         ModdedEngineBootstrap.bind();
         File pack = resolvePack(dimensionKey);
         IrisData data = IrisData.get(pack);
@@ -60,7 +81,7 @@ public final class ModdedWorldEngines {
             throw new IllegalStateException("Iris dimension '" + dimensionKey + "' missing from pack " + pack.getAbsolutePath());
         }
 
-        long seed = level.getSeed();
+        long seed = seedOverride == Long.MIN_VALUE ? level.getSeed() : seedOverride;
         File worldFolder = DimensionType.getStorageFolder(level.dimension(), level.getServer().getWorldPath(LevelResource.ROOT)).toFile();
         IrisWorld world = IrisWorld.builder()
                 .name(level.dimension().identifier().toString().replace(':', '_'))

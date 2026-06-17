@@ -22,10 +22,20 @@ import art.arcane.iris.spi.IrisPlatform;
 import art.arcane.iris.spi.LogLevel;
 import art.arcane.iris.spi.PlatformBiomeWriter;
 import art.arcane.iris.spi.PlatformCapabilities;
+import art.arcane.iris.spi.PlatformEntityType;
+import art.arcane.iris.spi.PlatformItem;
 import art.arcane.iris.spi.PlatformRegistries;
 import art.arcane.iris.spi.PlatformScheduler;
 import art.arcane.iris.spi.PlatformStructureHooks;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.File;
 import java.util.function.Consumer;
@@ -55,6 +65,10 @@ public final class ModdedPlatform implements IrisPlatform {
 
     public MinecraftServer server() {
         return loader.currentServer();
+    }
+
+    public ModdedScheduler moddedScheduler() {
+        return scheduler;
     }
 
     @Override
@@ -128,6 +142,35 @@ public final class ModdedPlatform implements IrisPlatform {
 
     @Override
     public void dispatchConsoleCommand(String command) {
+    }
+
+    @Override
+    public boolean spawnEntity(Object world, String entityKey, double x, double y, double z) {
+        if (!(world instanceof ServerLevel level) || entityKey == null) {
+            return false;
+        }
+        PlatformEntityType resolved = registries.entity(entityKey);
+        if (resolved == null) {
+            return false;
+        }
+        EntityType<?> type = (EntityType<?>) resolved.nativeHandle();
+        BlockPos pos = BlockPos.containing(x, y, z);
+        Entity entity = type.spawn(level, pos, EntitySpawnReason.COMMAND);
+        return entity != null;
+    }
+
+    @Override
+    public boolean giveItem(Object player, String itemKey, int amount) {
+        if (!(player instanceof ServerPlayer serverPlayer) || itemKey == null || amount <= 0) {
+            return false;
+        }
+        PlatformItem resolved = registries.item(itemKey);
+        if (resolved == null) {
+            return false;
+        }
+        Item item = (Item) resolved.nativeHandle();
+        ItemStack stack = new ItemStack(item, amount);
+        return serverPlayer.getInventory().add(stack);
     }
 
     @Override

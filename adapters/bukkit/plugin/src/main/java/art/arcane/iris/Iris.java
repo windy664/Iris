@@ -39,6 +39,7 @@ import art.arcane.iris.core.pack.BrokenPackException;
 import art.arcane.iris.core.pack.PackValidationRegistry;
 import art.arcane.iris.core.pack.PackValidationResult;
 import art.arcane.iris.core.pack.PackValidator;
+import art.arcane.iris.core.gui.BukkitGuiHost;
 import art.arcane.iris.core.gui.PregeneratorJob;
 import art.arcane.iris.core.service.EditSVC;
 import art.arcane.iris.core.service.PreservationSVC;
@@ -947,6 +948,7 @@ public class Iris extends VolmitPlugin implements Listener, ReloadAware {
     public void onEnable() {
         IrisPlatforms.bind(new BukkitPlatform());
         enable();
+        BukkitGuiHost.install();
         super.onEnable();
         Bukkit.getPluginManager().registerEvents(this, this);
     }

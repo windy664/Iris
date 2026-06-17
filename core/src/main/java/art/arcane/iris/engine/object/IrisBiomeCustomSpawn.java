@@ -50,6 +50,13 @@ public class IrisBiomeCustomSpawn {
         });
     }
 
+    public String getTypeKey() {
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+        return type.contains(":") ? type : "minecraft:" + type;
+    }
+
     @MinNumber(1)
     @Desc("The min to spawn")
     private int minCount = 2;

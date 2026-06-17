@@ -19,6 +19,7 @@
 package art.arcane.iris.modded;
 
 import art.arcane.iris.core.IrisSettings;
+import art.arcane.iris.modded.api.ModdedCustomContentRegistry;
 import art.arcane.iris.spi.IrisLogging;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -217,6 +218,10 @@ public final class ModdedBlockResolution {
             Parsed bdx = parseBlockData(bd, warn);
 
             if (bdx == null) {
+                BlockState provided = ModdedCustomContentRegistry.resolveBlock(bd);
+                if (provided != null) {
+                    return new Parsed(provided, null);
+                }
                 if (warn && shouldWarn()) {
                     IrisLogging.warn("Unknown Block Data '" + bd + "'");
                 }

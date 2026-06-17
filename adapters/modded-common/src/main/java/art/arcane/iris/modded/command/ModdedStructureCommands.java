@@ -201,7 +201,7 @@ public final class ModdedStructureCommands {
             return 0;
         }
         ModdedObjectUndo.record(owner, level, placer.undoSnapshot());
-        String tileNote = placer.skippedTiles() > 0 ? ", " + placer.skippedTiles() + " tile state(s) skipped" : "";
+        String tileNote = ModdedObjectCommands.tileNote(placer);
         IrisModdedCommands.ok(source, "Placed '" + key + "' (" + pieces.size() + " pieces, " + placer.writes() + " write(s)" + tileNote + ") at your location. /iris object undo to revert.");
         return 1;
     }

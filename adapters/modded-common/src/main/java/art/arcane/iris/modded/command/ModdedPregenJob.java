@@ -18,26 +18,42 @@
 
 package art.arcane.iris.modded.command;
 
+import art.arcane.iris.core.gui.PregenRenderSource;
+import art.arcane.iris.core.gui.PregenRenderer;
 import art.arcane.iris.core.pregenerator.IrisPregenerator;
 import art.arcane.iris.core.pregenerator.PregenListener;
 import art.arcane.iris.core.pregenerator.PregenTask;
+import art.arcane.iris.core.pregenerator.PregeneratorMethod;
+import art.arcane.iris.core.pregenerator.cache.PregenCache;
+import art.arcane.iris.core.pregenerator.methods.CachedPregenMethod;
 import art.arcane.iris.engine.framework.Engine;
 import art.arcane.volmlib.util.format.Form;
 import art.arcane.volmlib.util.math.Position2;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Color;
+import java.io.File;
 import java.util.concurrent.atomic.AtomicReference;
 
-public final class ModdedPregenJob implements PregenListener {
+public final class ModdedPregenJob implements PregenListener, PregenRenderSource {
     private static final Logger LOGGER = LoggerFactory.getLogger("Iris");
     private static final AtomicReference<ModdedPregenJob> ACTIVE = new AtomicReference<>();
+    private static final Color COLOR_GENERATING = new Color(0x66967f);
+    private static final Color COLOR_GENERATED = new Color(0x65c295);
 
     private final String dimension;
     private final IrisPregenerator pregenerator;
+    private final Engine engine;
+    private final Position2 min;
+    private final Position2 max;
+    private final PregenRenderer renderer;
     private volatile double chunksPerSecond;
     private volatile long generated;
     private volatile long totalChunks;
@@ -45,12 +61,46 @@ public final class ModdedPregenJob implements PregenListener {
     private volatile long elapsed;
     private volatile String method = "Modded";
 
-    private ModdedPregenJob(ServerLevel level, Engine engine, PregenTask task) {
+    private ModdedPregenJob(MinecraftServer server, ServerLevel level, Engine engine, PregenTask task, boolean gui, ModdedPregenMode mode, boolean cached) {
         this.dimension = level.dimension().identifier().toString();
-        this.pregenerator = new IrisPregenerator(task, new ModdedPregenMethod(level, engine), this);
+        this.engine = engine;
+        this.min = new Position2(Integer.MAX_VALUE, Integer.MAX_VALUE);
+        this.max = new Position2(Integer.MIN_VALUE, Integer.MIN_VALUE);
+        task.iterateAllChunks((int chunkX, int chunkZ) -> {
+            min.setX(Math.min(chunkX, min.getX()));
+            min.setZ(Math.min(chunkZ, min.getZ()));
+            max.setX(Math.max(chunkX, max.getX()));
+            max.setZ(Math.max(chunkZ, max.getZ()));
+        });
+        PregeneratorMethod baseMethod = new ModdedPregenMethod(level, engine, mode);
+        PregeneratorMethod resolvedMethod = baseMethod;
+        if (cached) {
+            PregenCache cache = PregenCache.create(cacheDirectory(level)).sync();
+            resolvedMethod = new CachedPregenMethod(baseMethod, cache);
+        }
+        this.method = mode == ModdedPregenMode.SYNC ? "Modded Sync" : "Modded";
+        this.pregenerator = new IrisPregenerator(task, resolvedMethod, this);
+        PregenRenderer openedRenderer = null;
+        if (gui) {
+            try {
+                openedRenderer = PregenRenderer.open("Iris Pregen: " + dimension, this, ModdedPregenJob::pauseResume);
+            } catch (Throwable e) {
+                LOGGER.error("Iris pregen GUI failed to open for {}", dimension, e);
+            }
+        }
+        this.renderer = openedRenderer;
     }
 
-    public static boolean start(ServerLevel level, Engine engine, int radiusBlocks, int centerBlockX, int centerBlockZ) {
+    private static File cacheDirectory(ServerLevel level) {
+        File worldFolder = DimensionType.getStorageFolder(level.dimension(), level.getServer().getWorldPath(LevelResource.ROOT)).toFile();
+        return new File(worldFolder, "iris" + File.separator + "pregen");
+    }
+
+    public static boolean start(MinecraftServer server, ServerLevel level, Engine engine, int radiusBlocks, int centerBlockX, int centerBlockZ, boolean gui) {
+        return start(server, level, engine, radiusBlocks, centerBlockX, centerBlockZ, gui, ModdedPregenMode.ASYNC, false);
+    }
+
+    public static boolean start(MinecraftServer server, ServerLevel level, Engine engine, int radiusBlocks, int centerBlockX, int centerBlockZ, boolean gui, ModdedPregenMode mode, boolean cached) {
         if (ACTIVE.get() != null) {
             return false;
         }
@@ -60,8 +110,9 @@ public final class ModdedPregenJob implements PregenListener {
                 .radiusX(radiusBlocks)
                 .radiusZ(radiusBlocks)
                 .build();
-        ModdedPregenJob job = new ModdedPregenJob(level, engine, task);
+        ModdedPregenJob job = new ModdedPregenJob(server, level, engine, task, gui, mode, cached);
         if (!ACTIVE.compareAndSet(null, job)) {
+            job.closeRenderer();
             return false;
         }
         Thread thread = new Thread(() -> {
@@ -70,12 +121,34 @@ public final class ModdedPregenJob implements PregenListener {
             } catch (Throwable e) {
                 LOGGER.error("Iris pregen failed for {}", job.dimension, e);
             } finally {
+                job.closeRenderer();
                 ACTIVE.compareAndSet(job, null);
             }
         }, "Iris Pregen");
         thread.setDaemon(true);
         thread.start();
         return true;
+    }
+
+    private void closeRenderer() {
+        if (renderer != null) {
+            renderer.close();
+        }
+    }
+
+    private void draw(int chunkX, int chunkZ, Color color) {
+        if (renderer == null || !renderer.isVisibleFrame()) {
+            return;
+        }
+        try {
+            Color resolved = color;
+            if (engine != null) {
+                resolved = engine.draw((chunkX << 4) + 8, (chunkZ << 4) + 8);
+            }
+            renderer.submit(chunkX, chunkZ, resolved);
+        } catch (Throwable e) {
+            renderer.submit(chunkX, chunkZ, color);
+        }
     }
 
     public static boolean stop() {
@@ -176,10 +249,12 @@ public final class ModdedPregenJob implements PregenListener {
 
     @Override
     public void onChunkGenerating(int x, int z) {
+        draw(x, z, COLOR_GENERATING);
     }
 
     @Override
     public void onChunkGenerated(int x, int z, boolean cached) {
+        draw(x, z, COLOR_GENERATED);
     }
 
     @Override
@@ -228,5 +303,34 @@ public final class ModdedPregenJob implements PregenListener {
 
     @Override
     public void onChunkExistsInRegionGen(int x, int z) {
+        draw(x, z, COLOR_GENERATED);
+    }
+
+    @Override
+    public Position2 min() {
+        return min;
+    }
+
+    @Override
+    public Position2 max() {
+        return max;
+    }
+
+    @Override
+    public String[] progress() {
+        double percent = percent();
+        return new String[]{
+                (pregenerator.paused() ? "PAUSED " : "Generating ") + Form.f(generated) + " of " + Form.f(totalChunks)
+                        + " (" + String.format("%.1f", percent) + "%)",
+                "Speed: " + Form.f((int) chunksPerSecond) + " Chunks/s",
+                Form.duration(eta, 2) + " Remaining (" + Form.duration(elapsed, 2) + " Elapsed)",
+                "Dimension: " + dimension,
+                "Method: " + method
+        };
+    }
+
+    @Override
+    public boolean paused() {
+        return pregenerator.paused();
     }
 }

@@ -70,6 +70,10 @@ public interface IrisPlatform {
 
     void dispatchConsoleCommand(String command);
 
+    boolean spawnEntity(Object world, String entityKey, double x, double y, double z);
+
+    boolean giveItem(Object player, String itemKey, int amount);
+
     void log(LogLevel level, String message);
 
     void msg(String message);

@@ -147,6 +147,7 @@ tasks.named('compileJava', JavaCompile).configure {
 }
 
 loom {
+    accessWidenerPath = file('src/main/resources/irisworldgen.accesswidener')
     runs {
         server {
             String parity = providers.gradleProperty('irisParity').getOrNull()
