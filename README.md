@@ -1,10 +1,21 @@
 # Iris
 
+![Build Iris](https://github.com/windy664/Iris/actions/workflows/build.yml/badge.svg)
+
 The master branch is for the latest version of minecraft.
 
 # [Support](https://discord.gg/3xxPTpT) **|** [Documentation](https://docs.volmit.com/iris/) **|** [Git](https://github.com/IrisDimensions)
 
 # Building
+
+## GitHub Actions (Recommended)
+
+This repository is configured with GitHub Actions for automatic building. Every push to the repository will trigger a build.
+
+- View build status and download artifacts: [Actions](https://github.com/windy664/Iris/actions)
+- For detailed information, see [BUILD.md](BUILD.md)
+
+## Local Building
 
 Building Iris is fairly simple, though you will need to setup a few things if your system has never been used for java
 development.
