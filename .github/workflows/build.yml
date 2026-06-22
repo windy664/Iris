@@ -35,8 +35,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+      - name: Build with Gradle (Latest NMS only, skip Sentry)
+        run: ./gradlew :core:build :nms:v1_21_R7:build :build -x sentryBundleSourcesJava -x sentryCollectSourcesJava --no-daemon
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -68,8 +68,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+      - name: Build with Gradle (Latest NMS only, skip Sentry)
+        run: ./gradlew :core:build :nms:v1_21_R7:build :build -x sentryBundleSourcesJava -x sentryCollectSourcesJava --no-daemon
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
